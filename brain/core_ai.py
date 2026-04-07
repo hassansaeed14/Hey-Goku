@@ -37,6 +37,29 @@ def process_command(command):
             return "memory", f"You are {age} years old."
         return "memory", "I don't know your age yet. Tell me by saying 'my age is ...'"
 
+    # Urdu memory commands
+    if "میرا نام" in command and "ہے" in command:
+        name = command.replace("میرا نام", "").replace("ہے", "").strip()
+        store_user_name(name)
+        return "memory", f"ٹھیک ہے! میں آپ کا نام {name} یاد رکھوں گا۔"
+
+    if "میرا نام کیا ہے" in command:
+        name = get_user_name()
+        if name:
+            return "memory", f"آپ کا نام {name} ہے۔"
+        return "memory", "مجھے ابھی تک آپ کا نام معلوم نہیں۔ بتائیں کہ آپ کا نام کیا ہے؟"
+
+    if "وقت کیا ہے" in command or "ٹائم" in command:
+        import datetime
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        return "time", f"ابھی وقت {now} ہے۔"
+
+    if "السلام علیکم" in command or "ہیلو" in command:
+        name = get_user_name()
+        if name:
+            return "greeting", f"وعلیکم السلام {name}! میں آپ کی کیا مدد کر سکتا ہوں؟"
+        return "greeting", "وعلیکم السلام! میں آپ کی کیا مدد کر سکتا ہوں؟"
+    
     if "i live in" in command_lower:
         city = command_lower.replace("i live in", "").strip()
         store_user_city(city)
