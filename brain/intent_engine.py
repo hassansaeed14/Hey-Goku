@@ -22,4 +22,13 @@ def detect_intent(command):
     if any(word in command for word in ["joke"]):
         return "joke"
 
+    if any(word in command for word in ["study", "explain", "teach", "learn"]):
+        return "study"
+
+    if any(word in command for word in ["research", "search", "find", "look up"]):
+        return "research"
+
+    if any(word in command for word in ["code", "program", "debug", "fix", "write code"]):
+        return "code"
+
     return "general"
