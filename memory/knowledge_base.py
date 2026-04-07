@@ -11,3 +11,15 @@ def store_info(key, value):
 
 def get_info(key):
     return recall(key)
+
+def store_user_age(age):
+    remember("user_age", age)
+
+def get_user_age():
+    return recall("user_age")
+
+def store_user_city(city):
+    remember("user_city", city)
+
+def get_user_city():
+    return recall("user_city")
