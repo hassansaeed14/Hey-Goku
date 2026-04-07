@@ -10,6 +10,7 @@ from memory.knowledge_base import (
 from agents.study_agent import study
 from agents.research_agent import research
 from agents.coding_agent import code_help
+from voice.text_to_speech import set_voice_preference, get_voice_preference
 
 def process_command(command):
 
@@ -70,6 +71,32 @@ def process_command(command):
         if city:
             return "memory", f"You live in {city}."
         return "memory", "I don't know where you live yet."
+    
+    # Voice control commands
+    
+    # Voice control commands
+    if "female voice" in command_lower:
+        set_voice_preference(voice="female")
+        return "voice", "Done! I switched to female voice."
+
+    if "male voice" in command_lower:
+        set_voice_preference(voice="male")
+        return "voice", "Done! I switched to male voice."
+
+    if "speak slow" in command_lower or "slowly" in command_lower:
+        _, speed = get_voice_preference()
+        set_voice_preference(speed="slow")
+        return "voice", "Okay! I will speak slowly now."
+
+    if "speak fast" in command_lower or "faster" in command_lower:
+        _, speed = get_voice_preference()
+        set_voice_preference(speed="fast")
+        return "voice", "Okay! I will speak faster now."
+
+    if "speak normal" in command_lower or "normal speed" in command_lower:
+        _, speed = get_voice_preference()
+        set_voice_preference(speed="normal")
+        return "voice", "Okay! Back to normal speed."
 
     intent = detect_intent(command)
 
