@@ -7,119 +7,326 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        :root {
+            --bg: #07071a;
+            --bg2: #0d0d2b;
+            --card: #13133a;
+            --border: #4f27a833;
+            --purple: #7c3aed;
+            --purple-light: #a78bfa;
+            --purple-dark: #5b21b6;
+            --text: #ffffff;
+            --text-muted: #9170d8;
+            --text-dim: #4f4f7a;
+        }
+
+        body.light {
+            --bg: #f0f0ff;
+            --bg2: #e8e8ff;
+            --card: #ffffff;
+            --border: #7c3aed22;
+            --text: #1a1a3e;
+            --text-muted: #5b21b6;
+            --text-dim: #9170d8;
+        }
+
         body {
-            background: #07071a;
-            color: #ffffff;
+            background: var(--bg);
+            color: var(--text);
             font-family: 'Segoe UI', sans-serif;
             height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             overflow: hidden;
+            transition: background 0.3s, color 0.3s;
         }
 
-        .header {
-            width: 100%;
-            padding: 18px 20px;
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg2);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        .logo {
             text-align: center;
-            background: linear-gradient(180deg, #12123a, #07071a);
-            border-bottom: 1px solid #4f27a855;
+            padding: 10px 20px 25px;
+            border-bottom: 1px solid var(--border);
         }
 
         .orb {
-            width: 55px;
-            height: 55px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #a78bfa, #5b21b6, #1a1a3e);
+            background: radial-gradient(circle at 35% 35%, #c4b5fd, #7c3aed, #1a1a3e);
             margin: 0 auto 10px;
-            box-shadow: 0 0 25px #7c3aed99, 0 0 60px #7c3aed33;
+            box-shadow: 0 0 25px #7c3aed99;
             animation: pulse 3s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 25px #7c3aed99, 0 0 60px #7c3aed33; }
-            50% { box-shadow: 0 0 40px #a78bfacc, 0 0 90px #7c3aed55; }
+        .orb.talking {
+            animation: talking 0.5s infinite;
         }
 
-        .orb.talking {
-            animation: talking 0.6s infinite;
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 25px #7c3aed99; }
+            50% { box-shadow: 0 0 50px #a78bfacc; }
         }
 
         @keyframes talking {
             0%, 100% { transform: scale(1); box-shadow: 0 0 25px #7c3aed99; }
-            50% { transform: scale(1.15); box-shadow: 0 0 60px #a78bfadd; }
+            50% { transform: scale(1.1); box-shadow: 0 0 60px #a78bfadd; }
         }
 
-        .header h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
+        .logo h1 {
+            font-size: 1.3rem;
             background: linear-gradient(135deg, #c4b5fd, #7c3aed);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: 10px;
+            letter-spacing: 8px;
         }
 
-        .header p {
-            color: #7c5cba;
-            font-size: 0.65rem;
-            letter-spacing: 3px;
-            margin-top: 4px;
+        .logo p {
+            color: var(--text-dim);
+            font-size: 0.6rem;
+            letter-spacing: 1px;
+            margin-top: 3px;
         }
 
-        .tabs {
+        .user-info {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
             display: flex;
-            gap: 8px;
-            padding: 12px 20px;
-            width: 100%;
-            max-width: 750px;
+            align-items: center;
+            gap: 12px;
         }
 
-        .tab {
-            padding: 7px 22px;
-            border-radius: 20px;
-            border: 1px solid #4f27a8;
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .user-details h3 {
+            font-size: 0.88rem;
+            color: var(--text);
+        }
+
+        .user-details p {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .plan-badge {
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            letter-spacing: 1px;
+            margin-top: 3px;
+            display: inline-block;
+        }
+
+        .nav {
+            flex: 1;
+            padding: 15px 0;
+        }
+
+        .nav-section {
+            padding: 5px 20px;
+            color: var(--text-dim);
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            margin: 10px 0 5px;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        .nav-item:hover {
+            background: #7c3aed11;
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: #7c3aed22;
+            color: var(--purple-light);
+            border-left-color: var(--purple);
+        }
+
+        .nav-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .agent-selector {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .agent-selector p {
+            color: var(--text-dim);
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .agents {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .agent-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
             background: transparent;
-            color: #9170d8;
+            color: var(--text-muted);
             cursor: pointer;
             font-size: 0.82rem;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            text-align: left;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .agent-btn:hover {
+            background: #7c3aed22;
+            color: var(--purple-light);
+            border-color: var(--purple);
+        }
+
+        .agent-btn.active {
+            background: #7c3aed33;
+            color: var(--purple-light);
+            border-color: var(--purple);
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .topbar {
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg2);
+            transition: background 0.3s;
+        }
+
+        .topbar-title {
+            font-size: 0.95rem;
+            color: var(--purple-light);
+            letter-spacing: 1px;
+        }
+
+        .topbar-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-toggle {
+            display: flex;
+            gap: 3px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 3px;
+        }
+
+        .theme-btn {
+            padding: 5px 12px;
+            border-radius: 15px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
             font-family: 'Segoe UI', sans-serif;
         }
 
-        .tab.active {
-            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+        .theme-btn.active {
+            background: var(--purple);
             color: white;
-            border-color: transparent;
         }
 
-        .chat-container {
-            width: 100%;
-            max-width: 750px;
+        .control-btn {
+            padding: 7px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .control-btn:hover {
+            background: #7c3aed22;
+            color: var(--purple-light);
+            border-color: var(--purple);
+        }
+
+        .lang-select {
+            padding: 7px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            outline: none;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .chat-area {
             flex: 1;
             overflow-y: auto;
-            padding: 15px 20px;
+            padding: 20px 25px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 15px;
             scrollbar-width: thin;
             scrollbar-color: #4f27a8 transparent;
         }
 
-        .history-container {
-            width: 100%;
-            max-width: 750px;
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px 20px;
-            display: none;
-            flex-direction: column;
-            gap: 10px;
-        }
-
         .message {
-            padding: 12px 18px;
+            padding: 13px 18px;
             border-radius: 18px;
-            max-width: 72%;
+            max-width: 75%;
             line-height: 1.65;
             font-size: 0.92rem;
             animation: fadeIn 0.3s ease;
@@ -135,21 +342,65 @@
             align-self: flex-end;
             border-bottom-right-radius: 4px;
             box-shadow: 0 4px 15px #7c3aed33;
+            color: #ffffff;
         }
 
         .aura-message {
-            background: #13133a;
-            border: 1px solid #4f27a844;
+            background: var(--card);
+            border: 1px solid var(--border);
             align-self: flex-start;
             border-bottom-left-radius: 4px;
         }
 
         .aura-label {
-            color: #9170d8;
+            color: var(--text-muted);
             font-size: 0.7rem;
             letter-spacing: 2px;
             margin-bottom: 6px;
             font-weight: 600;
+        }
+
+        .agent-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            margin-left: 8px;
+            background: #7c3aed33;
+            color: var(--purple-light);
+        }
+
+        .msg-content {
+    color: var(--text);
+    line-height: 1.8;
+    white-space: pre-wrap;
+        }
+
+
+        .msg-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .msg-btn {
+            padding: 4px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.72rem;
+            transition: all 0.2s;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .msg-btn:hover {
+            background: #7c3aed22;
+            color: var(--purple-light);
+            border-color: var(--purple);
         }
 
         .typing-indicator {
@@ -157,18 +408,17 @@
             align-items: center;
             gap: 5px;
             padding: 14px 18px;
-            background: #13133a;
-            border: 1px solid #4f27a844;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 18px;
             border-bottom-left-radius: 4px;
             align-self: flex-start;
-            width: fit-content;
         }
 
         .dot {
             width: 7px;
             height: 7px;
-            background: #7c3aed;
+            background: var(--purple);
             border-radius: 50%;
             animation: bounce 1.2s infinite;
         }
@@ -181,37 +431,97 @@
             50% { transform: translateY(-7px); opacity: 1; }
         }
 
-        .input-container {
-            width: 100%;
-            max-width: 750px;
-            padding: 12px 20px 20px;
+        .input-area {
+            padding: 15px 25px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--bg2);
+            transition: background 0.3s;
+        }
+
+        .voice-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .voice-btn {
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.82rem;
+            transition: all 0.2s;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .voice-btn:hover {
+            background: #7c3aed22;
+            color: var(--purple-light);
+            border-color: var(--purple);
+        }
+
+        .voice-btn.recording {
+            background: #ef444422;
+            color: #ef4444;
+            border-color: #ef4444;
+            animation: recordPulse 1s infinite;
+        }
+
+        .voice-btn.stop-btn {
+            background: #ef444411;
+            color: #ef4444;
+            border-color: #ef444444;
+        }
+
+        .voice-btn.stop-btn:hover {
+            background: #ef444422;
+            border-color: #ef4444;
+        }
+
+        @keyframes recordPulse {
+            0%, 100% { box-shadow: 0 0 0 0 #ef444433; }
+            50% { box-shadow: 0 0 0 8px transparent; }
+        }
+
+        .voice-status {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+
+        .input-row {
             display: flex;
             gap: 10px;
         }
 
-        input {
+        input[type="text"] {
             flex: 1;
-            padding: 13px 22px;
-            background: #13133a;
-            border: 1px solid #4f27a8;
+            padding: 13px 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 30px;
-            color: #ffffff;
+            color: var(--text);
             font-size: 0.92rem;
             outline: none;
             transition: all 0.3s;
             font-family: 'Segoe UI', sans-serif;
         }
 
-        input:focus {
-            border-color: #9170d8;
+        input[type="text"]:focus {
+            border-color: var(--purple);
             box-shadow: 0 0 20px #7c3aed22;
         }
 
-        input::placeholder { color: #4f4f7a; }
+        input[type="text"]::placeholder { color: var(--text-dim); }
 
         .send-btn {
-            padding: 13px 28px;
-            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            padding: 13px 25px;
+            background: linear-gradient(135deg, var(--purple), var(--purple-dark));
             border: none;
             border-radius: 30px;
             color: white;
@@ -227,130 +537,581 @@
             box-shadow: 0 0 25px #7c3aed66;
         }
 
+        .history-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 25px;
+            gap: 10px;
+        }
+
         .history-item {
-            background: #13133a;
-            border: 1px solid #4f27a833;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 12px 16px;
             font-size: 0.85rem;
         }
 
-        .history-time { color: #4f4f7a; font-size: 0.72rem; margin-bottom: 6px; }
-        .history-user { color: #a78bfa; margin-bottom: 4px; }
-        .history-aura { color: #d1d5db; }
+        .history-time { color: var(--text-dim); font-size: 0.72rem; margin-bottom: 6px; }
+        .history-user { color: var(--purple-light); margin-bottom: 4px; }
+        .history-aura { color: var(--text); }
 
-        .empty-history {
-            color: #4f4f7a;
+        .settings-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 25px;
+            gap: 20px;
+        }
+
+        .settings-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .settings-card h3 {
+            color: var(--purple-light);
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setting-row:last-child { border-bottom: none; }
+
+        .setting-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .setting-control select {
+            padding: 6px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.82rem;
+            outline: none;
+            font-family: 'Segoe UI', sans-serif;
+            cursor: pointer;
+        }
+
+        .empty-msg {
+            color: var(--text-dim);
             text-align: center;
             margin-top: 40px;
             font-size: 0.9rem;
         }
 
-        @media (max-width: 600px) {
-            .header h1 { font-size: 1.4rem; letter-spacing: 6px; }
-            .message { max-width: 88%; }
-            .send-btn { padding: 13px 18px; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #4f27a8; border-radius: 4px; }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .message { max-width: 90%; }
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="orb" id="orb"></div>
-        <h1>A U R A</h1>
-        <p>AUTONOMOUS UNIVERSAL RESPONSIVE ASSISTANT</p>
-    </div>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <div class="orb" id="orb"></div>
+            <h1>A U R A</h1>
+            <p>AUTONOMOUS UNIVERSAL RESPONSIVE ASSISTANT</p>
+        </div>
 
-    <div class="tabs">
-        <button class="tab active" onclick="showTab('chat', this)">Chat</button>
-        <button class="tab" onclick="showTab('history', this)">History</button>
-    </div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">G</div>
+            <div class="user-details">
+                <h3 id="userName">Guest</h3>
+                <span class="plan-badge" id="userPlan">FREE</span>
+            </div>
+        </div>
 
-    <div class="chat-container" id="chat">
-        <div class="message aura-message">
-            <div class="aura-label">AURA</div>
-            Hello! I am AURA, your personal AI assistant. How can I help you today?
+        <nav class="nav">
+            <div class="nav-section">NAVIGATION</div>
+            <div class="nav-item active" onclick="showPanel('chat', this)">
+                <span class="nav-icon">💬</span> Chat
+            </div>
+            <div class="nav-item" onclick="showPanel('history', this)">
+                <span class="nav-icon">📋</span> History
+            </div>
+            <div class="nav-item" onclick="showPanel('settings', this)">
+                <span class="nav-icon">⚙️</span> Settings
+            </div>
+
+            <div class="nav-section">ACCOUNT</div>
+            <div class="nav-item" onclick="window.location.href='/login'">
+                <span class="nav-icon">🔐</span> Login
+            </div>
+            <div class="nav-item" onclick="window.location.href='/register'">
+                <span class="nav-icon">✨</span> Register
+            </div>
+            <div class="nav-item" onclick="logout()">
+                <span class="nav-icon">🚪</span> Logout
+            </div>
+        </nav>
+
+        <div class="agent-selector">
+            <p>ACTIVE AGENT</p>
+            <div class="agents">
+                <button class="agent-btn active" onclick="setAgent('general', this)">
+                    🤖 General AURA
+                </button>
+                <button class="agent-btn" onclick="setAgent('study', this)">
+                    📚 Study Agent
+                </button>
+                <button class="agent-btn" onclick="setAgent('research', this)">
+                    🔍 Research Agent
+                </button>
+                <button class="agent-btn" onclick="setAgent('code', this)">
+                    💻 Coding Agent
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="history-container" id="history"></div>
+    <!-- Main -->
+    <div class="main">
 
-    <div class="input-container">
-        <input
-            type="text"
-            id="userInput"
-            placeholder="Ask AURA anything..."
-            onkeypress="if(event.key==='Enter') sendMessage()"
-        />
-        <button class="send-btn" onclick="sendMessage()">Send</button>
+        <!-- Top bar -->
+        <div class="topbar">
+            <span class="topbar-title" id="topbarTitle">💬 AURA Chat</span>
+            <div class="topbar-controls">
+                <div class="theme-toggle">
+                    <button class="theme-btn" onclick="setTheme('dark', this)">🌙 Dark</button>
+                    <button class="theme-btn active" onclick="setTheme('system', this)">⚙️ Auto</button>
+                    <button class="theme-btn" onclick="setTheme('light', this)">☀️ Light</button>
+                </div>
+                <select class="lang-select" id="langSelect" onchange="setLanguage(this.value)">
+                    <option value="auto">🌐 Auto</option>
+                    <option value="english">🇬🇧 English</option>
+                    <option value="urdu">🇵🇰 Urdu</option>
+                </select>
+                <button class="control-btn" onclick="clearChat()">🗑️ Clear</button>
+            </div>
+        </div>
+
+        <!-- Chat panel -->
+        <div class="chat-area" id="chatPanel">
+            <div class="message aura-message">
+                <div class="aura-label">AURA</div>
+                <div class="msg-content">Hello! I am AURA, your personal AI assistant. How can I help you today?</div>
+            </div>
+        </div>
+
+        <!-- History panel -->
+        <div class="history-panel" id="historyPanel"></div>
+
+        <!-- Settings panel -->
+        <div class="settings-panel" id="settingsPanel">
+            <div class="settings-card">
+                <h3>🎤 VOICE SETTINGS</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Voice Type</span>
+                    <div class="setting-control">
+                        <select onchange="updateVoiceSetting('voice', this.value)">
+                            <option value="female">Female (Hazel)</option>
+                            <option value="male">Male (David)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Speaking Speed</span>
+                    <div class="setting-control">
+                        <select onchange="updateVoiceSetting('speed', this.value)">
+                            <option value="slow">Slow</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="fast">Fast</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h3>🌍 LANGUAGE SETTINGS</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Response Language</span>
+                    <div class="setting-control">
+                        <select onchange="setLanguage(this.value)">
+                            <option value="auto">Auto Detect</option>
+                            <option value="english">English</option>
+                            <option value="urdu">اردو Urdu</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h3>🤖 ABOUT AURA</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Version</span>
+                    <span class="setting-label">1.0.0</span>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">AI Model</span>
+                    <span class="setting-label">Llama 3.3 70B</span>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Memory System</span>
+                    <span class="setting-label">Vector + JSON</span>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Developer</span>
+                    <span class="setting-label">Hassan Saeed</span>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">University</span>
+                    <span class="setting-label">Hazara University</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="input-area" id="inputArea">
+            <div class="voice-bar">
+                <button class="voice-btn" id="micBtn" onclick="toggleVoice()">
+                    🎤 Speak
+                </button>
+                <button class="voice-btn stop-btn" onclick="stopAudio()">
+                    🛑 Stop
+                </button>
+                <span class="voice-status" id="voiceStatus">Click mic to speak to AURA</span>
+            </div>
+            <div class="input-row">
+                <input
+                    type="text"
+                    id="userInput"
+                    placeholder="Ask AURA anything..."
+                    onkeypress="if(event.key==='Enter') sendMessage()"
+                />
+                <button class="send-btn" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        function showTab(tab, el) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-            if (tab === 'chat') {
-                document.getElementById('chat').style.display = 'flex';
-                document.getElementById('history').style.display = 'none';
+        let currentAgent = 'general'
+        let currentLanguage = 'auto'
+        let isRecording = false
+        let recognition = null
+        let userName = 'Guest'
+        let userPlan = 'FREE'
+
+        // Load user
+        const savedUser = localStorage.getItem('aura_user')
+        if (savedUser) {
+            const user = JSON.parse(savedUser)
+            userName = user.name || user.username
+            userPlan = (user.plan || 'free').toUpperCase()
+            document.getElementById('userName').textContent = userName
+            document.getElementById('userPlan').textContent = userPlan
+            document.getElementById('userAvatar').textContent = userName[0].toUpperCase()
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('aura_theme') || 'system'
+        applyTheme(savedTheme)
+
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.add('light')
+            } else if (theme === 'dark') {
+                document.body.classList.remove('light')
             } else {
-                document.getElementById('chat').style.display = 'none';
-                document.getElementById('history').style.display = 'flex';
-                loadHistory();
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+                if (!prefersDark) {
+                    document.body.classList.add('light')
+                } else {
+                    document.body.classList.remove('light')
+                }
             }
         }
 
-        async function loadHistory() {
-            const res = await fetch('/history');
-            const data = await res.json();
-            const container = document.getElementById('history');
-            container.innerHTML = '';
-            if (data.length === 0) {
-                container.innerHTML = '<p class="empty-history">No chat history yet. Start a conversation!</p>';
-                return;
-            }
-            data.reverse().forEach(item => {
-                container.innerHTML += `
-                    <div class="history-item">
-                        <div class="history-time">${item.time}</div>
-                        <div class="history-user">You: ${item.user}</div>
-                        <div class="history-aura">AURA: ${item.aura}</div>
-                    </div>`;
-            });
+        function setTheme(theme, el) {
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'))
+            el.classList.add('active')
+            localStorage.setItem('aura_theme', theme)
+            applyTheme(theme)
         }
 
+        function showPanel(panel, el) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'))
+            if (el) el.classList.add('active')
+
+            document.getElementById('chatPanel').style.display = panel === 'chat' ? 'flex' : 'none'
+            document.getElementById('historyPanel').style.display = panel === 'history' ? 'flex' : 'none'
+            document.getElementById('settingsPanel').style.display = panel === 'settings' ? 'flex' : 'none'
+            document.getElementById('inputArea').style.display = panel === 'chat' ? 'block' : 'none'
+
+            const titles = {
+                chat: '💬 AURA Chat',
+                history: '📋 Chat History',
+                settings: '⚙️ Settings'
+            }
+            document.getElementById('topbarTitle').textContent = titles[panel]
+
+            if (panel === 'history') loadHistory()
+        }
+
+        function setAgent(agent, el) {
+            currentAgent = agent
+            document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'))
+            el.classList.add('active')
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang
+        }
+
+        function clearChat() {
+            document.getElementById('chatPanel').innerHTML = `
+                <div class="message aura-message">
+                    <div class="aura-label">AURA</div>
+                    <div class="msg-content">Chat cleared. How can I help you?</div>
+                </div>`
+        }
+
+        function logout() {
+            localStorage.removeItem('aura_user')
+            window.location.href = '/login'
+        }
+
+        // Voice input
+        function toggleVoice() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Voice not supported. Please use Chrome browser.')
+                return
+            }
+            if (isRecording) {
+                stopRecording()
+            } else {
+                startRecording()
+            }
+        }
+
+        function startRecording() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+            recognition = new SpeechRecognition()
+            recognition.lang = currentLanguage === 'urdu' ? 'ur-PK' : 'en-US'
+            recognition.continuous = false
+            recognition.interimResults = false
+
+            recognition.onstart = () => {
+                isRecording = true
+                document.getElementById('micBtn').classList.add('recording')
+                document.getElementById('micBtn').textContent = '🔴 Listening...'
+                document.getElementById('voiceStatus').textContent = 'Listening... speak now'
+            }
+
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript
+                document.getElementById('userInput').value = text
+                document.getElementById('voiceStatus').textContent = 'Heard: "' + text + '"'
+                stopRecording()
+                sendMessage()
+            }
+
+            recognition.onerror = () => {
+                stopRecording()
+                document.getElementById('voiceStatus').textContent = 'Could not hear. Try again.'
+            }
+
+            recognition.onend = () => stopRecording()
+            recognition.start()
+        }
+
+        function stopRecording() {
+            isRecording = false
+            if (recognition) recognition.stop()
+            document.getElementById('micBtn').classList.remove('recording')
+            document.getElementById('micBtn').textContent = '🎤 Speak'
+        }
+
+        // Voice output — only first 2 sentences automatically
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel()
+                const clean = text.replace(/[*#`_\[\]()>|]/g, '')
+                const sentences = clean.split(/(?<=[.!?])\s+/)
+                const shortText = sentences.slice(0, 2).join(' ')
+                const utterance = new SpeechSynthesisUtterance(shortText)
+                utterance.lang = currentLanguage === 'urdu' ? 'ur-PK' : 'en-US'
+                utterance.rate = 1.0
+                window.speechSynthesis.speak(utterance)
+                document.getElementById('orb').classList.add('talking')
+                utterance.onend = () => {
+                    document.getElementById('orb').classList.remove('talking')
+                }
+            }
+        }
+
+        // Read full response on demand
+        function readFullResponse(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel()
+                const clean = text.replace(/[*#`_\[\]()>|]/g, '')
+                const utterance = new SpeechSynthesisUtterance(clean)
+                utterance.lang = currentLanguage === 'urdu' ? 'ur-PK' : 'en-US'
+                utterance.rate = 1.0
+                window.speechSynthesis.speak(utterance)
+                document.getElementById('orb').classList.add('talking')
+                utterance.onend = () => {
+                    document.getElementById('orb').classList.remove('talking')
+                }
+            }
+        }
+
+        function stopAudio() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel()
+                document.getElementById('orb').classList.remove('talking')
+                document.getElementById('voiceStatus').textContent = 'Stopped'
+            }
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                document.getElementById('voiceStatus').textContent = 'Copied to clipboard!'
+                setTimeout(() => {
+                    document.getElementById('voiceStatus').textContent = 'Click mic to speak to AURA'
+                }, 2000)
+            })
+        }
+
+        // Send message
         async function sendMessage() {
-            const input = document.getElementById('userInput');
-            const chat = document.getElementById('chat');
-            const text = input.value.trim();
-            if (!text) return;
+            const input = document.getElementById('userInput')
+            const chat = document.getElementById('chatPanel')
+            let text = input.value.trim()
+            if (!text) return
 
-            chat.innerHTML += `<div class="message user-message">${text}</div>`;
-            input.value = '';
+            const displayText = text
+
+            // Add agent prefix if specific agent selected
+            if (currentAgent !== 'general') {
+                text = currentAgent + ' ' + text
+            }
+
+            chat.innerHTML += `<div class="message user-message">${displayText}</div>`
+            input.value = ''
+
             chat.innerHTML += `
                 <div class="typing-indicator" id="typing">
                     <div class="dot"></div>
                     <div class="dot"></div>
                     <div class="dot"></div>
-                </div>`;
-            chat.scrollTop = chat.scrollHeight;
-            document.getElementById('orb').classList.add('talking');
+                </div>`
+            chat.scrollTop = chat.scrollHeight
+            document.getElementById('orb').classList.add('talking')
 
-            const response = await fetch('/chat', {
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, username: userName })
+                })
+
+                const data = await response.json()
+                document.getElementById('typing').remove()
+                document.getElementById('orb').classList.remove('talking')
+
+                const agentTags = {
+                    study: 'STUDY',
+                    research: 'RESEARCH',
+                    code: 'CODING',
+                    memory: 'MEMORY',
+                    voice: 'VOICE',
+                    time: 'TIME',
+                    date: 'DATE'
+                }
+
+                const tag = agentTags[data.intent] ?
+                    `<span class="agent-tag">${agentTags[data.intent]}</span>` : ''
+
+                const msgId = 'msg' + Date.now()
+
+                chat.innerHTML += `
+                    <div class="message aura-message" id="${msgId}">
+                        <div class="aura-label">AURA ${tag}</div>
+                        <div class="msg-content">${data.response}</div><div class="msg-content">${data.response.replace(/\n/g, '<br>')}</div>
+                        <div class="msg-actions">
+                            <button class="msg-btn" onclick="readFullResponse(document.querySelector('#${msgId} .msg-content').textContent)">
+                                🔊 Read Full
+                            </button>
+                            <button class="msg-btn" onclick="stopAudio()">
+                                🛑 Stop
+                            </button>
+                            <button class="msg-btn" onclick="copyText(document.querySelector('#${msgId} .msg-content').textContent)">
+                                📋 Copy
+                            </button>
+                        </div>
+                    </div>`
+
+                chat.scrollTop = chat.scrollHeight
+                
+
+            } catch (e) {
+                document.getElementById('typing').remove()
+                document.getElementById('orb').classList.remove('talking')
+                chat.innerHTML += `
+                    <div class="message aura-message">
+                        <div class="aura-label">AURA</div>
+                        <div class="msg-content">Connection error. Please try again.</div>
+                    </div>`
+            }
+        }
+
+        async function loadHistory() {
+            const container = document.getElementById('historyPanel')
+            container.innerHTML = '<p class="empty-msg">Loading history...</p>'
+            try {
+                const res = await fetch('/history')
+                const data = await res.json()
+                container.innerHTML = ''
+                if (data.length === 0) {
+                    container.innerHTML = '<p class="empty-msg">No chat history yet. Start a conversation!</p>'
+                    return
+                }
+                data.reverse().forEach(item => {
+                    container.innerHTML += `
+                        <div class="history-item">
+                            <div class="history-time">${item.time}</div>
+                            <div class="history-user">You: ${item.user}</div>
+                            <div class="history-aura">AURA: ${item.aura}</div>
+                        </div>`
+                })
+            } catch (e) {
+                container.innerHTML = '<p class="empty-msg">Could not load history.</p>'
+            }
+        }
+
+        async function updateVoiceSetting(type, value) {
+            const command = type === 'voice' ? value + ' voice' : 'speak ' + value
+            await fetch('/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text })
-            });
-
-            const data = await response.json();
-            document.getElementById('typing').remove();
-            document.getElementById('orb').classList.remove('talking');
-
-            chat.innerHTML += `
-                <div class="message aura-message">
-                    <div class="aura-label">AURA</div>
-                    ${data.response}
-                </div>`;
-            chat.scrollTop = chat.scrollHeight;
+                body: JSON.stringify({ text: command, username: userName })
+            })
         }
     </script>
 </body>

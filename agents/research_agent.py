@@ -1,40 +1,71 @@
 from groq import Groq
 from config.settings import GROQ_API_KEY, MODEL_NAME
 from memory.vector_memory import store_memory
+import re
 
 client = Groq(api_key=GROQ_API_KEY)
 
+def clean(text):
+    text = re.sub(r'\*{3,}', '', text)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'#{1,6}\s*', '', text)
+    text = re.sub(r'`{3}[\w]*\n?', '', text)
+    text = re.sub(r'_{2,}', '', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
 def research(topic):
-    print(f"\nAURA Research Agent activated for: {topic}")
+    print(f"\nAURA Research Agent: {topic}")
 
     response = client.chat.completions.create(
         model=MODEL_NAME,
         messages=[
             {
                 "role": "system",
-                "content": """You are AURA's Research Agent.
-                Research topics thoroughly using your knowledge.
-                Structure: 1) Overview 2) Key Facts 3) Latest Developments 4) Conclusion
-                Be detailed and accurate. Under 300 words.
-                Never use symbols like *, #, ` in your response.
-                Write in plain text with numbered points like 1. 2. 3."""
+                "content": (
+                    "You are AURA Research Agent, an expert researcher. "
+                    "Provide thorough research reports with this structure:\n\n"
+                    "RESEARCH REPORT: [Topic]\n\n"
+                    "EXECUTIVE SUMMARY\n"
+                    "[Brief overview of findings]\n\n"
+                    "1. BACKGROUND AND OVERVIEW\n"
+                    "[Detailed background information]\n\n"
+                    "2. KEY FINDINGS\n"
+                    "Finding 1: [Title]\n"
+                    "[Detailed explanation]\n"
+                    "Finding 2: [Title]\n"
+                    "[Detailed explanation]\n"
+                    "Finding 3: [Title]\n"
+                    "[Detailed explanation]\n\n"
+                    "3. CURRENT DEVELOPMENTS\n"
+                    "[Latest developments and trends]\n\n"
+                    "4. STATISTICS AND DATA\n"
+                    "[Relevant statistics and data points]\n\n"
+                    "5. EXPERT OPINIONS\n"
+                    "[What experts say about this topic]\n\n"
+                    "6. CHALLENGES\n"
+                    "[Current challenges and limitations]\n\n"
+                    "7. RECOMMENDATIONS\n"
+                    "[Recommendations based on research]\n\n"
+                    "8. CONCLUSION\n"
+                    "[Summary of research findings]\n\n"
+                    "Write minimum 600 words. "
+                    "Do not use * # ` or markdown. Use plain numbered text."
+                )
             },
             {
                 "role": "user",
                 "content": f"Research this topic thoroughly: {topic}"
             }
-        ]
+        ],
+        max_tokens=2500
     )
 
     result = response.choices[0].message.content
-
-    # Store research in vector memory so AURA learns
-    store_memory(f"Research about {topic}: {result}", {
-        "type": "research",
-        "topic": topic
-    })
-
-    return result
+    cleaned = clean(result)
+    store_memory(f"Research: {topic}", {"type": "research", "topic": topic})
+    return cleaned
 
 def web_search_simulation(query):
     response = client.chat.completions.create(
@@ -42,24 +73,15 @@ def web_search_simulation(query):
         messages=[
             {
                 "role": "system",
-                "content": """You are AURA's web search agent.
-                Simulate searching the web for current information.
-                Give accurate, up to date information.
-                Format: Key findings as bullet points."""
+                "content": "You are a web search agent. Give accurate information as clear numbered points. No markdown."
             },
             {
                 "role": "user",
-                "content": f"Search the web for: {query}"
+                "content": f"Search for: {query}"
             }
-        ]
+        ],
+        max_tokens=1000
     )
-
     result = response.choices[0].message.content
-
-    # Store search results so AURA learns
-    store_memory(f"Web search for {query}: {result}", {
-        "type": "web_search",
-        "query": query
-    })
-
-    return result
+    store_memory(f"Search: {query}", {"type": "web_search"})
+    return clean(result)

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #07071a;
+            color: #ffffff;
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Animated background particles */
+        .bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: #7c3aed;
+            opacity: 0.15;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.15; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(-100px) scale(1); opacity: 0; }
+        }
+
+        /* Glowing grid lines */
+        .grid {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image:
+                linear-gradient(#7c3aed11 1px, transparent 1px),
+                linear-gradient(90deg, #7c3aed11 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        /* Holographic orb */
+        .orb-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+        }
+
+        .orb {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #c4b5fd, #7c3aed, #1a1a3e);
+            box-shadow:
+                0 0 30px #7c3aed99,
+                0 0 60px #7c3aed44,
+                0 0 100px #7c3aed22;
+            animation: orbPulse 3s infinite;
+        }
+
+        .orb-ring {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px solid #7c3aed44;
+            animation: ringExpand 3s infinite;
+        }
+
+        .orb-ring:nth-child(2) {
+            width: 130px; height: 130px;
+            animation-delay: 0.5s;
+        }
+
+        .orb-ring:nth-child(3) {
+            width: 160px; height: 160px;
+            animation-delay: 1s;
+        }
+
+        .orb-ring:nth-child(4) {
+            width: 190px; height: 190px;
+            animation-delay: 1.5s;
+        }
+
+        @keyframes orbPulse {
+            0%, 100% {
+                box-shadow: 0 0 30px #7c3aed99, 0 0 60px #7c3aed44;
+            }
+            50% {
+                box-shadow: 0 0 50px #a78bfacc, 0 0 100px #7c3aed66, 0 0 150px #7c3aed22;
+            }
+        }
+
+        @keyframes ringExpand {
+            0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #ffffff, #c4b5fd, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 12px;
+            margin-bottom: 5px;
+            animation: titleGlow 3s infinite;
+        }
+
+        @keyframes titleGlow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+
+        .subtitle {
+            color: #7c5cba;
+            font-size: 0.65rem;
+            letter-spacing: 3px;
+        }
+
+        /* Login card */
+        .card {
+            background: linear-gradient(135deg, #13133acc, #1a1a3ecc);
+            border: 1px solid #7c3aed33;
+            border-radius: 24px;
+            padding: 35px;
+            margin-top: 25px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 40px #7c3aed11,
+                inset 0 1px 0 #ffffff11;
+            animation: cardAppear 0.8s ease;
+        }
+
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card h2 {
+            color: #c4b5fd;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            color: #9170d8;
+            font-size: 0.72rem;
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 18px;
+            background: #07071a99;
+            border: 1px solid #4f27a855;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 0.92rem;
+            outline: none;
+            transition: all 0.3s;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        input:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 20px #7c3aed33, inset 0 0 20px #7c3aed11;
+        }
+
+        input::placeholder { color: #4f4f7a; }
+
+        /* Animated button */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 600;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 1px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                #ffffff22,
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: btnShine 3s infinite;
+        }
+
+        @keyframes btnShine {
+            0% { left: -50%; }
+            100% { left: 150%; }
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px #7c3aed66;
+        }
+
+        .btn:active { transform: translateY(0); }
+
+        .btn.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #f87171;
+            font-size: 0.82rem;
+            text-align: center;
+            margin-top: 12px;
+            display: none;
+            padding: 10px;
+            background: #f8717111;
+            border-radius: 8px;
+            border: 1px solid #f8717133;
+        }
+
+        .divider {
+            text-align: center;
+            color: #4f4f7a;
+            font-size: 0.8rem;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #4f27a833;
+        }
+
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+
+        .link {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .link a {
+            color: #a78bfa;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .link a:hover { text-decoration: underline; }
+
+        /* Typing animation for placeholder */
+        .status {
+            text-align: center;
+            color: #7c5cba;
+            font-size: 0.72rem;
+            letter-spacing: 2px;
+            margin-top: 15px;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Animated background -->
+    <div class="grid"></div>
+    <div class="bg" id="bg"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="orb-container">
+                <div class="orb"></div>
+                <div class="orb-ring"></div>
+                <div class="orb-ring"></div>
+                <div class="orb-ring"></div>
+            </div>
+            <h1>A U R A</h1>
+            <p class="subtitle">AUTONOMOUS UNIVERSAL RESPONSIVE ASSISTANT</p>
+        </div>
+
+        <div class="card">
+            <h2>WELCOME BACK</h2>
+
+            <div class="form-group">
+                <label>USERNAME</label>
+                <input type="text" id="username" placeholder="Enter your username" />
+            </div>
+
+            <div class="form-group">
+                <label>PASSWORD</label>
+                <input type="password" id="password" placeholder="Enter your password"
+                    onkeypress="if(event.key==='Enter') login()" />
+            </div>
+
+            <button class="btn" id="loginBtn" onclick="login()">
+                ACCESS AURA
+            </button>
+
+            <div class="error" id="error"></div>
+        </div>
+
+        <div class="divider">or</div>
+
+        <div class="link">
+            New to AURA? <a href="/register">Create Account</a>
+        </div>
+
+        <div class="status" id="status">SYSTEM READY</div>
+    </div>
+
+    <script>
+        // Generate floating particles
+        const bg = document.getElementById('bg')
+        for (let i = 0; i < 20; i++) {
+            const p = document.createElement('div')
+            p.className = 'particle'
+            const size = Math.random() * 6 + 2
+            p.style.cssText = `
+                width: ${size}px;
+                height: ${size}px;
+                left: ${Math.random() * 100}%;
+                animation-duration: ${Math.random() * 15 + 10}s;
+                animation-delay: ${Math.random() * 10}s;
+            `
+            bg.appendChild(p)
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value.trim()
+            const password = document.getElementById('password').value.trim()
+            const error = document.getElementById('error')
+            const btn = document.getElementById('loginBtn')
+            const status = document.getElementById('status')
+
+            if (!username || !password) {
+                error.style.display = 'block'
+                error.textContent = 'Please fill in all fields'
+                return
+            }
+
+            btn.classList.add('loading')
+            btn.textContent = 'AUTHENTICATING...'
+            status.textContent = 'VERIFYING IDENTITY...'
+            error.style.display = 'none'
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                })
+
+                const data = await res.json()
+
+                if (res.ok) {
+                    status.textContent = 'ACCESS GRANTED'
+                    btn.textContent = 'WELCOME BACK!'
+                    localStorage.setItem('aura_user', JSON.stringify(data.user))
+                    setTimeout(() => {
+                        window.location.href = '/'
+                    }, 1000)
+                } else {
+                    error.style.display = 'block'
+                    error.textContent = data.detail
+                    btn.classList.remove('loading')
+                    btn.textContent = 'ACCESS AURA'
+                    status.textContent = 'ACCESS DENIED'
+                    setTimeout(() => {
+                        status.textContent = 'SYSTEM READY'
+                    }, 2000)
+                }
+            } catch (e) {
+                error.style.display = 'block'
+                error.textContent = 'Connection error. Try again.'
+                btn.classList.remove('loading')
+                btn.textContent = 'ACCESS AURA'
+            }
+        }
+    </script>
+</body>
+</html>
