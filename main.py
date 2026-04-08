@@ -38,22 +38,6 @@ def get_user_input(voice_mode=False):
     return input("You: ").strip()
 
 
-def speak_response(response, read_full=False):
-    if not response:
-        return
-
-    if read_full:
-        speak(response, read_full=True)
-        return
-
-    if len(response) > 500:
-        short_preview = build_short_preview(response)
-        speak(short_preview)
-        print("AURA: (Say 'read full' to hear the complete response)")
-    else:
-        speak(response)
-
-
 def build_short_preview(text):
     text = text.strip()
 
@@ -68,6 +52,22 @@ def build_short_preview(text):
         return text[:250].rstrip() + "..."
 
     return text
+
+
+def speak_response(response, read_full=False):
+    if not response:
+        return
+
+    if read_full:
+        speak(response, read_full=True)
+        return
+
+    if len(response) > 500:
+        short_preview = build_short_preview(response)
+        speak(short_preview)
+        print("AURA: (Say 'read full' to hear the complete response)")
+    else:
+        speak(response)
 
 
 def start_goku():
@@ -86,27 +86,23 @@ def start_goku():
 
             user_input_lower = user_input.lower().strip()
 
-            # Stop speaking
             if user_input_lower in STOP_COMMANDS:
                 stop_speaking()
                 print("AURA: Speech stopped.")
                 continue
 
-            # Switch to voice mode
             if user_input_lower in VOICE_MODE_COMMANDS:
                 voice_mode = True
                 print("AURA: Voice mode activated.")
                 speak("Voice mode activated. I am listening.")
                 continue
 
-            # Switch to text mode
             if user_input_lower in TEXT_MODE_COMMANDS:
                 voice_mode = False
                 stop_speaking()
                 print("AURA: Text mode activated.")
                 continue
 
-            # Read last full response
             if user_input_lower == "read full":
                 if last_response:
                     print("AURA: Reading full response...")
@@ -115,27 +111,29 @@ def start_goku():
                     print("AURA: I do not have a previous response to read.")
                 continue
 
-            # Exit quickly if direct exit command
             if user_input_lower in EXIT_COMMANDS:
                 print("AURA: Goodbye!")
+                stop_speaking()
                 speak("Goodbye!")
                 break
 
-            # Route through orchestrator first
-            intent = orchestrator.route(user_input)
+            # Orchestrator pre-routing
+            routed_intent, confidence = orchestrator.route(user_input)
 
-            # Process through core AI
+            # Core AI processing
             intent, response = process_command(user_input)
 
-            # Final orchestrator response handling
-            response = orchestrator.process_response(response, intent)
+            # Orchestrator post-processing
+            response = orchestrator.process_response(response, intent, learn=False)
+
             last_response = response
 
-            print(f"\nAURA ({intent}): {response}\n")
+            print(f"\nAURA ({intent} | confidence: {confidence:.2f}): {response}\n")
             speak_response(response)
 
             if intent == "shutdown":
                 print("AURA: Goodbye!")
+                stop_speaking()
                 speak("Goodbye!")
                 break
 
@@ -148,7 +146,10 @@ def start_goku():
         except Exception as e:
             error_message = f"System error: {str(e)}"
             print(f"AURA: {error_message}")
-            speak("I ran into a system error.")
+            try:
+                speak("I ran into a system error.")
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

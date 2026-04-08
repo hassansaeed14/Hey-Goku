@@ -1,4 +1,4 @@
-from brain.intent_engine import detect_intent
+from brain.intent_engine import detect_intent_with_confidence
 from memory.vector_memory import store_memory, search_memory
 from agents.memory.learning_agent import learn_from_interaction
 
@@ -8,6 +8,7 @@ class Orchestrator:
         self.conversation_history = []
         self.active_agent = None
         self.last_intent = None
+        self.last_confidence = 0.0
         self.context = {}
 
     # -------------------------------------
@@ -15,9 +16,12 @@ class Orchestrator:
     # -------------------------------------
 
     def add_to_history(self, role, content, intent=None):
+        if not content:
+            return
+
         self.conversation_history.append({
             "role": role,
-            "content": content,
+            "content": str(content).strip(),
             "intent": intent
         })
 
@@ -53,11 +57,15 @@ class Orchestrator:
     # MEMORY
     # -------------------------------------
 
-    def store_user_turn(self, command, intent):
-        store_memory(command, {
-            "type": "user_input",
-            "intent": intent
-        })
+    def store_user_turn(self, command, intent, confidence=0.0):
+        store_memory(
+            command,
+            {
+                "type": "user_input",
+                "intent": intent,
+                "confidence": confidence
+            }
+        )
 
     def fetch_relevant_memories(self, command, limit=3):
         try:
@@ -85,12 +93,17 @@ class Orchestrator:
     # -------------------------------------
 
     def route(self, command):
-        intent = detect_intent(command)
+        intent, confidence = detect_intent_with_confidence(command)
+
+        if confidence < 0.25:
+            intent = "general"
+
         self.active_agent = intent
         self.last_intent = intent
+        self.last_confidence = confidence
 
         self.add_to_history("user", command, intent=intent)
-        self.store_user_turn(command, intent)
+        self.store_user_turn(command, intent, confidence)
 
         memory_context = self.build_memory_context(command)
         if memory_context:
@@ -98,22 +111,23 @@ class Orchestrator:
 
         self.set_context("last_user_command", command)
         self.set_context("last_intent", intent)
+        self.set_context("last_confidence", confidence)
 
-        return intent
+        return intent, confidence
 
     # -------------------------------------
     # RESPONSE PROCESSING
     # -------------------------------------
 
-    def process_response(self, response, intent):
+    def process_response(self, response, intent, learn=False):
         self.add_to_history("assistant", response, intent=intent)
 
-        user_input = self.get_last_user_message()
-
-        try:
-            learn_from_interaction(user_input, response, intent)
-        except Exception as e:
-            print(f"[Orchestrator Learning Error] {e}")
+        if learn:
+            user_input = self.get_last_user_message()
+            try:
+                learn_from_interaction(user_input, response, intent)
+            except Exception as e:
+                print(f"[Orchestrator Learning Error] {e}")
 
         self.set_context("last_assistant_response", response)
         self.active_agent = intent
@@ -136,12 +150,22 @@ class Orchestrator:
                 return item["content"]
         return ""
 
+    def get_state_summary(self):
+        return {
+            "active_agent": self.active_agent,
+            "last_intent": self.last_intent,
+            "last_confidence": self.last_confidence,
+            "history_count": len(self.conversation_history),
+            "context_keys": list(self.context.keys())
+        }
+
     def reset_session(self):
         self.clear_history()
         self.clear_context()
         self.active_agent = None
         self.last_intent = None
+        self.last_confidence = 0.0
 
 
 # Global orchestrator instance
-orchestrator = Orchestrator()
+        orchestrator = Orchestrator()
