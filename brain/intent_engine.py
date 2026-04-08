@@ -168,6 +168,12 @@ def detect_intent_with_confidence(command):
         "plan my", "task plan for", "project plan", "steps to"
     ]))
 
+    add_score("fitness", _score_match(command_lower, [
+        "workout", "fitness", "exercise", "gym", "training",
+        "workout plan", "fitness plan", "exercise routine",
+        "gym routine", "muscle gain", "weight loss"
+    ]))
+
     add_score("resume", _score_match(command_lower, [
         "create resume", "write resume", "make resume",
         "resume tips", "improve resume", "build my cv"

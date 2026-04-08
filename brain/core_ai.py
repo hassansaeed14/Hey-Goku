@@ -19,8 +19,30 @@ from agents.memory.learning_agent import (
     predict_next_intent
 )
 
-from agents.core.reasoning_agent import reason, compare
+from agents.core.self_improvement_agent import (
+    log_failure,
+    log_low_confidence,
+    log_agent_error
+)
 
+from brain.understanding_engine import clean_user_input, split_multi_intent
+from brain.decision_engine import (
+    should_fallback_to_general,
+    should_use_agent,
+    should_plan,
+    should_add_low_confidence_note,
+    should_treat_as_multi_command,
+    format_multi_response
+)
+
+from agents.core.self_improvement_agent import (
+    log_failure,
+    log_low_confidence,
+    log_agent_error
+)
+
+from agents.core.reasoning_agent import reason, compare
+from agents.productivity.fitness_agent import get_workout_plan
 from agents.productivity.study_agent import study
 from agents.productivity.research_agent import research
 from agents.productivity.coding_agent import code_help
@@ -106,6 +128,7 @@ AGENT_ROUTER = {
     "math": lambda cmd: solve_math(
         cmd.replace("calculate", "").replace("solve", "").strip()
     ),
+    "fitness": lambda cmd: get_workout_plan(cmd),
     "translation": lambda cmd: translate(cmd, extract_translation_target(cmd)),
     "research": lambda cmd: research(cmd),
     "study": lambda cmd: study(cmd),
@@ -192,10 +215,9 @@ def handle_special_intents(intent: str, raw_command: str):
 
 
 def preprocess_command(command: str):
-    raw_command = command.strip()
+    raw_command = clean_user_input(command)
     command_lower = raw_command.lower()
     return raw_command, command_lower
-
 
 def build_enhanced_input(raw_command: str, confidence: float):
     try:
@@ -210,37 +232,46 @@ def build_enhanced_input(raw_command: str, confidence: float):
     except Exception:
         pass
 
-    if confidence < 0.40:
+    if should_add_low_confidence_note(confidence):
         enhanced_input += (
             "\n\nIntent confidence is low. "
-            "Respond conversationally, carefully, and prefer a general helpful answer."
+            "Respond carefully, infer user meaning safely, and handle imperfect wording gracefully."
         )
 
     return enhanced_input
 
 
 def run_agent_or_fallback(intent: str, raw_command: str, enhanced_input: str, confidence: float):
-    if intent in AGENT_ROUTER and confidence >= 0.25:
+    if should_use_agent(intent, confidence, AGENT_ROUTER):
         try:
             return str(AGENT_ROUTER[intent](raw_command))
         except Exception as e:
+            log_agent_error(intent, str(e))
             return f"Agent error: {str(e)}"
 
-    return generate_response(enhanced_input)
+    try:
+        return generate_response(enhanced_input)
+    except Exception as e:
+        log_failure(raw_command, str(e))
+        return "I ran into a problem while processing that request."
 
 
-def append_prediction_hint(response: str, intent: str):
+def append_prediction_hint(response: str, intent: str, debug=False):
+    if not debug:
+        return response
+
     try:
         predicted = predict_next_intent()
         if predicted and predicted != intent:
             response += f"\n\nNext likely: {predicted}"
     except Exception:
         pass
+
     return response
 
 
 def append_plan_if_needed(response: str, intent: str, raw_command: str, confidence: float):
-    if intent not in PLANNING_INTENTS or confidence < 0.40:
+    if not should_plan(intent, confidence):
         return response
 
     try:
@@ -259,8 +290,37 @@ def finalize_response(raw_command: str, response: str, intent: str, language: st
     store_and_learn(raw_command, response, intent)
     return respond_in_language(response, language)
 
+def split_multi_command(command: str):
+    command = command.strip()
 
-def process_command(command: str):
+    if not command:
+        return []
+
+    separators = [
+        " and then ",
+        " then ",
+        " also ",
+        " and ",
+        "&"
+    ]
+
+    parts = [command]
+
+    for sep in separators:
+        new_parts = []
+        for part in parts:
+            split_parts = [p.strip() for p in part.split(sep) if p.strip()]
+            new_parts.extend(split_parts)
+        parts = new_parts
+
+    cleaned = []
+    for part in parts:
+        if part and part not in cleaned:
+            cleaned.append(part)
+
+    return cleaned[:3]
+
+def process_single_command(command: str):
     raw_command, command_lower = preprocess_command(command)
 
     if not raw_command:
@@ -279,7 +339,11 @@ def process_command(command: str):
     language = detect_language(raw_command)
 
     intent, confidence = detect_intent_with_confidence(raw_command)
-    if confidence < 0.25:
+
+    if confidence < 0.40:
+        log_low_confidence(raw_command, confidence)
+
+    if should_fallback_to_general(confidence):
         intent = "general"
 
     special_response = handle_special_intents(intent, raw_command)
@@ -294,8 +358,100 @@ def process_command(command: str):
 
     enhanced_input = build_enhanced_input(raw_command, confidence)
     response = run_agent_or_fallback(intent, raw_command, enhanced_input, confidence)
-    response = append_prediction_hint(response, intent)
     response = append_plan_if_needed(response, intent, raw_command, confidence)
     final_response = finalize_response(raw_command, response, intent, language)
 
     return intent, final_response
+
+
+def format_multi_command_response(results):
+    if not results:
+        return "I couldn't understand the request clearly."
+
+    if len(results) == 1:
+        return results[0]
+
+    formatted = []
+    for i, result in enumerate(results, 1):
+        formatted.append(f"Response {i}:\n{result}")
+
+    return "\n\n".join(formatted)
+
+def smart_split_multi_command(command: str):
+    command = command.strip()
+    if not command:
+        return []
+
+    separators = [
+        " and then ",
+        " then ",
+        " also ",
+        " plus ",
+        " as well as ",
+        "&"
+    ]
+
+    parts = [command]
+
+    for sep in separators:
+        new_parts = []
+        for part in parts:
+            split_parts = [p.strip(" ,.?") for p in part.split(sep) if p.strip(" ,.?")]
+            new_parts.extend(split_parts)
+        parts = new_parts
+
+    expanded = []
+    for i, part in enumerate(parts):
+        fixed = part.strip()
+
+        if i > 0:
+            if fixed.startswith("what's "):
+                fixed = "what is " + fixed[7:]
+            elif fixed.startswith("whats "):
+                fixed = "what is " + fixed[6:]
+            elif fixed.startswith("give me "):
+                fixed = fixed
+            elif fixed.startswith("tell me "):
+                fixed = fixed
+            elif fixed.startswith("translate "):
+                fixed = fixed
+
+        if fixed and fixed not in expanded:
+            expanded.append(fixed)
+
+    return expanded[:3]
+
+def format_multi_command_response(results):
+    if not results:
+        return "I couldn't understand the request clearly."
+
+    if len(results) == 1:
+        return results[0]
+
+    formatted = []
+    for i, result in enumerate(results, 1):
+        formatted.append(f"Response {i}:\n{result}")
+
+    return "\n\n".join(formatted)
+
+
+def process_command(command: str):
+    raw_command, _ = preprocess_command(command)
+
+    if not raw_command:
+        return "general", "Please type something."
+
+    sub_commands = split_multi_intent(raw_command)
+
+    if not should_treat_as_multi_command(sub_commands):
+        return process_single_command(raw_command)
+
+    results = []
+    intents = []
+
+    for sub_command in sub_commands:
+        intent, response = process_single_command(sub_command)
+        intents.append(intent)
+        results.append(response)
+
+    return "multi_command", format_multi_response(results)

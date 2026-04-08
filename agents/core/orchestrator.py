@@ -11,10 +11,6 @@ class Orchestrator:
         self.last_confidence = 0.0
         self.context = {}
 
-    # -------------------------------------
-    # HISTORY
-    # -------------------------------------
-
     def add_to_history(self, role, content, intent=None):
         if not content:
             return
@@ -37,10 +33,6 @@ class Orchestrator:
     def clear_history(self):
         self.conversation_history = []
 
-    # -------------------------------------
-    # CONTEXT
-    # -------------------------------------
-
     def set_context(self, key, value):
         self.context[key] = value
 
@@ -52,10 +44,6 @@ class Orchestrator:
 
     def clear_context(self):
         self.context = {}
-
-    # -------------------------------------
-    # MEMORY
-    # -------------------------------------
 
     def store_user_turn(self, command, intent, confidence=0.0):
         store_memory(
@@ -88,10 +76,6 @@ class Orchestrator:
 
         return "\n".join(lines)
 
-    # -------------------------------------
-    # ROUTING
-    # -------------------------------------
-
     def route(self, command):
         intent, confidence = detect_intent_with_confidence(command)
 
@@ -115,10 +99,6 @@ class Orchestrator:
 
         return intent, confidence
 
-    # -------------------------------------
-    # RESPONSE PROCESSING
-    # -------------------------------------
-
     def process_response(self, response, intent, learn=False):
         self.add_to_history("assistant", response, intent=intent)
 
@@ -133,10 +113,6 @@ class Orchestrator:
         self.active_agent = intent
 
         return response
-
-    # -------------------------------------
-    # HELPERS
-    # -------------------------------------
 
     def get_last_user_message(self):
         for item in reversed(self.conversation_history):
@@ -167,5 +143,4 @@ class Orchestrator:
         self.last_confidence = 0.0
 
 
-# Global orchestrator instance
-        orchestrator = Orchestrator()
+orchestrator = Orchestrator()

@@ -1,0 +1,14 @@
+{
+    "failures": [],
+    "low_confidence_commands": [
+        {
+            "time": "2026-04-09 00:52",
+            "command": "what is tree answer me in urdu",
+            "confidence": 0.25
+        }
+    ],
+    "agent_errors": [],
+    "user_corrections": [],
+    "improvement_suggestions": [],
+    "last_reviewed": null
+}
