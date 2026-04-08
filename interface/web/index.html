@@ -1,1109 +1,2582 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA - Your AI Assistant</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --bg: #07071a;
-            --bg2: #0d0d2b;
-            --card: #13133a;
-            --border: #4f27a833;
-            --purple: #7c3aed;
-            --purple-light: #a78bfa;
-            --purple-dark: #5b21b6;
-            --text: #ffffff;
-            --text-muted: #9170d8;
-            --text-dim: #4f4f7a;
-        }
-
-        body.light {
-            --bg: #f0f0ff;
-            --bg2: #e8e8ff;
-            --card: #ffffff;
-            --border: #7c3aed22;
-            --text: #1a1a3e;
-            --text-muted: #5b21b6;
-            --text-dim: #9170d8;
-        }
-
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', sans-serif;
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-            transition: background 0.3s, color 0.3s;
-        }
-
-        .sidebar {
-            width: 260px;
-            background: var(--bg2);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-            transition: background 0.3s;
-            overflow-y: auto;
-        }
-
-        .logo {
-            text-align: center;
-            padding: 20px 20px 20px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .orb {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #c4b5fd, #7c3aed, #1a1a3e);
-            margin: 0 auto 10px;
-            box-shadow: 0 0 25px #7c3aed99;
-            animation: pulse 3s infinite;
-        }
-
-        .orb.talking {
-            animation: talking 0.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 25px #7c3aed99; }
-            50% { box-shadow: 0 0 50px #a78bfacc; }
-        }
-
-        @keyframes talking {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 25px #7c3aed99; }
-            50% { transform: scale(1.1); box-shadow: 0 0 60px #a78bfadd; }
-        }
-
-        .logo h1 {
-            font-size: 1.3rem;
-            background: linear-gradient(135deg, #c4b5fd, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: 8px;
-        }
-
-        .logo p {
-            color: var(--text-dim);
-            font-size: 0.6rem;
-            letter-spacing: 1px;
-            margin-top: 3px;
-        }
-
-        .user-info {
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #7c3aed, #5b21b6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.9rem;
-            flex-shrink: 0;
-        }
-
-        .user-details h3 {
-            font-size: 0.88rem;
-            color: var(--text);
-        }
-
-        .plan-badge {
-            background: linear-gradient(135deg, #7c3aed, #5b21b6);
-            color: white;
-            font-size: 0.6rem;
-            padding: 2px 8px;
-            border-radius: 10px;
-            letter-spacing: 1px;
-            margin-top: 3px;
-            display: inline-block;
-        }
-
-        .nav {
-            flex: 1;
-            padding: 15px 0;
-        }
-
-        .nav-section {
-            padding: 5px 20px;
-            color: var(--text-dim);
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            margin: 10px 0 5px;
-        }
-
-        .nav-item {
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-left: 3px solid transparent;
-            font-size: 0.88rem;
-            color: var(--text-muted);
-        }
-
-        .nav-item:hover {
-            background: #7c3aed11;
-            color: var(--text);
-        }
-
-        .nav-item.active {
-            background: #7c3aed22;
-            color: var(--purple-light);
-            border-left-color: var(--purple);
-        }
-
-        .nav-icon {
-            width: 20px;
-            text-align: center;
-            font-size: 1rem;
-        }
-
-        /* Capabilities section */
-        .capabilities {
-            padding: 15px 20px;
-            border-top: 1px solid var(--border);
-        }
-
-        .capabilities p {
-            color: var(--text-dim);
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-        }
-
-        .capability-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-        }
-
-        .capability-item {
-            padding: 8px 10px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        .main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .topbar {
-            padding: 15px 25px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--bg2);
-            transition: background 0.3s;
-        }
-
-        .topbar-title {
-            font-size: 0.95rem;
-            color: var(--purple-light);
-            letter-spacing: 1px;
-        }
-
-        .topbar-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .theme-toggle {
-            display: flex;
-            gap: 3px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 3px;
-        }
-
-        .theme-btn {
-            padding: 5px 12px;
-            border-radius: 15px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 0.75rem;
-            transition: all 0.2s;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        .theme-btn.active {
-            background: var(--purple);
-            color: white;
-        }
-
-        .control-btn {
-            padding: 7px 16px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        .control-btn:hover {
-            background: #7c3aed22;
-            color: var(--purple-light);
-            border-color: var(--purple);
-        }
-
-        .lang-select {
-            padding: 7px 12px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            background: var(--card);
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 0.8rem;
-            outline: none;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        .chat-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px 25px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            scrollbar-width: thin;
-            scrollbar-color: #4f27a8 transparent;
-        }
-
-        .message {
-            padding: 13px 18px;
-            border-radius: 18px;
-            max-width: 75%;
-            line-height: 1.65;
-            font-size: 0.92rem;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .user-message {
-            background: linear-gradient(135deg, #6d28d9, #4c1d95);
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            box-shadow: 0 4px 15px #7c3aed33;
-            color: #ffffff;
-        }
-
-        .aura-message {
-            background: var(--card);
-            border: 1px solid var(--border);
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            max-width: 80%;
-        }
-
-        .aura-label {
-            color: var(--text-muted);
-            font-size: 0.7rem;
-            letter-spacing: 2px;
-            margin-bottom: 6px;
-            font-weight: 600;
-        }
-
-        .agent-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.65rem;
-            letter-spacing: 1px;
-            margin-left: 8px;
-            background: #7c3aed33;
-            color: var(--purple-light);
-        }
-
-        .msg-content {
-            color: var(--text);
-            line-height: 1.8;
-            white-space: pre-wrap;
-        }
-
-        .msg-actions {
-            display: flex;
-            gap: 6px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
-
-        .msg-btn {
-            padding: 4px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 0.72rem;
-            transition: all 0.2s;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        .msg-btn:hover {
-            background: #7c3aed22;
-            color: var(--purple-light);
-            border-color: var(--purple);
-        }
-
-        .typing-indicator {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 14px 18px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            border-bottom-left-radius: 4px;
-            align-self: flex-start;
-        }
-
-        .dot {
-            width: 7px;
-            height: 7px;
-            background: var(--purple);
-            border-radius: 50%;
-            animation: bounce 1.2s infinite;
-        }
-
-        .dot:nth-child(2) { animation-delay: 0.2s; }
-        .dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); opacity: 0.5; }
-            50% { transform: translateY(-7px); opacity: 1; }
-        }
-
-        .input-area {
-            padding: 15px 25px 20px;
-            border-top: 1px solid var(--border);
-            background: var(--bg2);
-            transition: background 0.3s;
-        }
-
-        .voice-bar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .voice-btn {
-            padding: 8px 18px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 0.82rem;
-            transition: all 0.2s;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .voice-btn:hover {
-            background: #7c3aed22;
-            color: var(--purple-light);
-            border-color: var(--purple);
-        }
-
-        .voice-btn.recording {
-            background: #ef444422;
-            color: #ef4444;
-            border-color: #ef4444;
-            animation: recordPulse 1s infinite;
-        }
-
-        .voice-btn.stop-btn {
-            background: #ef444411;
-            color: #ef4444;
-            border-color: #ef444444;
-        }
-
-        .voice-btn.stop-btn:hover {
-            background: #ef444422;
-            border-color: #ef4444;
-        }
-
-        @keyframes recordPulse {
-            0%, 100% { box-shadow: 0 0 0 0 #ef444433; }
-            50% { box-shadow: 0 0 0 8px transparent; }
-        }
-
-        .voice-status {
-            font-size: 0.78rem;
-            color: var(--text-dim);
-        }
-
-        .input-row {
-            display: flex;
-            gap: 10px;
-        }
-
-        input[type="text"] {
-            flex: 1;
-            padding: 13px 20px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 30px;
-            color: var(--text);
-            font-size: 0.92rem;
-            outline: none;
-            transition: all 0.3s;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        input[type="text"]:focus {
-            border-color: var(--purple);
-            box-shadow: 0 0 20px #7c3aed22;
-        }
-
-        input[type="text"]::placeholder { color: var(--text-dim); }
-
-        .send-btn {
-            padding: 13px 25px;
-            background: linear-gradient(135deg, var(--purple), var(--purple-dark));
-            border: none;
-            border-radius: 30px;
-            color: white;
-            font-size: 0.92rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-family: 'Segoe UI', sans-serif;
-            font-weight: 600;
-        }
-
-        .send-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 25px #7c3aed66;
-        }
-
-        .history-panel {
-            display: none;
-            flex-direction: column;
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px 25px;
-            gap: 10px;
-        }
-
-        .history-item {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 12px 16px;
-            font-size: 0.85rem;
-        }
-
-        .history-time { color: var(--text-dim); font-size: 0.72rem; margin-bottom: 6px; }
-        .history-user { color: var(--purple-light); margin-bottom: 4px; }
-        .history-aura { color: var(--text); }
-
-        .settings-panel {
-            display: none;
-            flex-direction: column;
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px 25px;
-            gap: 20px;
-        }
-
-        .settings-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-        }
-
-        .settings-card h3 {
-            color: var(--purple-light);
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .setting-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .setting-row:last-child { border-bottom: none; }
-
-        .setting-label {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-
-        .setting-control select {
-            padding: 6px 12px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 0.82rem;
-            outline: none;
-            font-family: 'Segoe UI', sans-serif;
-            cursor: pointer;
-        }
-
-        .empty-msg {
-            color: var(--text-dim);
-            text-align: center;
-            margin-top: 40px;
-            font-size: 0.9rem;
-        }
-
-        /* Suggestion chips */
-        .suggestions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding: 0 25px 15px;
-        }
-
-        .chip {
-            padding: 6px 14px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            background: var(--card);
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 0.78rem;
-            transition: all 0.2s;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        .chip:hover {
-            background: #7c3aed22;
-            color: var(--purple-light);
-            border-color: var(--purple);
-        }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #4f27a8; border-radius: 4px; }
-
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .message { max-width: 90%; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — AI Operating System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   AURA OPERATING INTERFACE — v2.0
+   Designer: Hassan Saeed / AURA AI
+   Architecture: Multi-view | Multi-mode | JARVIS-class UI
+   ============================================================ */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* Core Palette */
+  --ink:        #04040f;
+  --ink2:       #080818;
+  --ink3:       #0d0d22;
+  --surface:    #10102a;
+  --surface2:   #14143a;
+  --rim:        rgba(108,53,222,0.18);
+  --rim2:       rgba(0,212,255,0.12);
+
+  /* AURA Identity */
+  --violet:     #6C35DE;
+  --violet-g:   #8B5CF6;
+  --violet-hi:  #A78BFA;
+  --violet-dim: rgba(108,53,222,0.35);
+
+  /* Intelligence Accents */
+  --cyan:       #00D4FF;
+  --cyan-dim:   rgba(0,212,255,0.15);
+  --cyan-g:     #38BDF8;
+
+  /* Semantic */
+  --ok:         #22D3A0;
+  --warn:       #F59E0B;
+  --err:        #F43F5E;
+
+  /* Text hierarchy */
+  --t1:  #EEEEFF;
+  --t2:  #9D9DBF;
+  --t3:  #5A5A80;
+  --t4:  #2E2E50;
+
+  /* Fonts */
+  --f-display: 'Syne', sans-serif;
+  --f-body:    'DM Sans', sans-serif;
+  --f-mono:    'JetBrains Mono', monospace;
+
+  /* Layout */
+  --sidebar-w:     220px;
+  --sidebar-w-sm:  64px;
+  --rpanel-w:      280px;
+  --topbar-h:      58px;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 0.18s;
+  --t-mid:  0.32s;
+  --t-slow: 0.55s;
+
+  /* Scroll */
+  --scroll-c: var(--violet-dim);
+}
+
+/* ── High Contrast Mode ── */
+body.hc {
+  --rim: rgba(255,255,255,0.25);
+  --t1:  #ffffff;
+  --t2:  #dddddd;
+  --t3:  #aaaaaa;
+  --surface: #111122;
+  --surface2: #1a1a33;
+}
+
+/* ── Light Mode ── */
+body.light-mode {
+  --ink:     #f0f0fc;
+  --ink2:    #e8e8f8;
+  --ink3:    #e0e0f0;
+  --surface: #ffffff;
+  --surface2:#f5f5ff;
+  --rim:     rgba(108,53,222,0.15);
+  --t1:      #0d0d30;
+  --t2:      #444466;
+  --t3:      #8888aa;
+  --t4:      #ccccdd;
+}
+
+/* ── Large Text Mode ── */
+body.large-text { font-size: 115%; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--ink);
+  color: var(--t1);
+  font-family: var(--f-body);
+  font-size: 14px;
+  display: flex;
+  transition: background var(--t-mid) var(--ease), color var(--t-mid) var(--ease);
+}
+
+/* ============================================================
+   SCROLLBARS
+   ============================================================ */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--violet-dim); border-radius: 2px; }
+
+/* ============================================================
+   LEFT SIDEBAR
+   ============================================================ */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--ink2);
+  border-right: 1px solid var(--rim);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width var(--t-mid) var(--ease), min-width var(--t-mid) var(--ease),
+              background var(--t-mid);
+  z-index: 100;
+  position: relative;
+}
+.sidebar.collapsed {
+  width: var(--sidebar-w-sm);
+  min-width: var(--sidebar-w-sm);
+}
+
+/* ── Logo ── */
+.s-logo {
+  padding: 22px 16px 18px;
+  border-bottom: 1px solid var(--rim);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.orb-mini {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 33%, #c4b5fd 0%, #7c3aed 55%, #1a0a3e 100%);
+  flex-shrink: 0;
+  position: relative;
+  transition: box-shadow var(--t-mid);
+  box-shadow: 0 0 16px rgba(124,58,237,0.6);
+}
+.orb-mini::after {
+  content:'';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid rgba(167,139,250,0.3);
+  animation: orbit-ring 4s linear infinite;
+}
+@keyframes orbit-ring {
+  0%   { transform: rotate(0deg) scaleX(1); opacity:0.3; }
+  50%  { transform: rotate(180deg) scaleX(0.8); opacity:0.7; }
+  100% { transform: rotate(360deg) scaleX(1); opacity:0.3; }
+}
+.s-logo-text { overflow: hidden; }
+.s-logo-text h1 {
+  font-family: var(--f-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, #c4b5fd, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+.s-logo-text p {
+  font-size: 0.52rem;
+  color: var(--t3);
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* ── Mode Badge ── */
+.mode-badge {
+  margin: 10px 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--violet-dim);
+  border: 1px solid rgba(108,53,222,0.3);
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  color: var(--violet-hi);
+  font-family: var(--f-mono);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  overflow: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.mode-badge:hover { background: rgba(108,53,222,0.4); }
+.mode-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  animation: blink 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Nav ── */
+.s-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 0; }
+.s-section {
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--t3);
+  padding: 12px 20px 5px;
+  font-family: var(--f-mono);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sidebar.collapsed .s-section { opacity: 0; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  cursor: pointer;
+  color: var(--t2);
+  font-size: 0.85rem;
+  transition: all var(--t-fast);
+  border-left: 2px solid transparent;
+  position: relative;
+  white-space: nowrap;
+}
+.nav-item:hover { color: var(--t1); background: rgba(108,53,222,0.08); }
+.nav-item.active {
+  color: var(--violet-hi);
+  background: rgba(108,53,222,0.14);
+  border-left-color: var(--violet);
+}
+.nav-icon {
+  font-size: 1rem;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.nav-label { overflow: hidden; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--violet);
+  color: white;
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-badge,
+.sidebar.collapsed .s-section { display: none; }
+
+/* ── User Card ── */
+.s-user {
+  border-top: 1px solid var(--rim);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--violet), #3b1994);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.82rem;
+  flex-shrink: 0;
+  font-family: var(--f-display);
+}
+.u-info { overflow: hidden; }
+.u-name { font-size: 0.82rem; font-weight: 500; color: var(--t1); white-space: nowrap; }
+.u-plan {
+  font-size: 0.58rem; letter-spacing: 1.5px;
+  background: linear-gradient(90deg, var(--violet), #5b21b6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  font-family: var(--f-mono);
+}
+.sidebar.collapsed .u-info { display: none; }
+
+/* ============================================================
+   MAIN AREA
+   ============================================================ */
+.main-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Topbar ── */
+.topbar {
+  height: var(--topbar-h);
+  min-height: var(--topbar-h);
+  background: var(--ink2);
+  border-bottom: 1px solid var(--rim);
+  display: flex;
+  align-items: center;
+  padding: 0 20px 0 16px;
+  gap: 12px;
+  z-index: 50;
+  flex-shrink: 0;
+}
+.tb-toggle {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--rim);
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  transition: all var(--t-fast);
+  flex-shrink: 0;
+}
+.tb-toggle:hover { color: var(--t1); border-color: var(--violet-dim); }
+.tb-title {
+  font-family: var(--f-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--violet-hi);
+  letter-spacing: 1px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tb-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Orb Status Indicator in topbar */
+.orb-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--t3);
+  font-family: var(--f-mono);
+  padding: 4px 10px;
+  border: 1px solid var(--rim);
+  border-radius: 20px;
+  background: var(--ink3);
+}
+.orb-dot-sm {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  transition: background var(--t-fast);
+}
+.orb-dot-sm.thinking { background: var(--warn); animation: blink 0.8s infinite; }
+.orb-dot-sm.speaking { background: var(--cyan); animation: blink 0.5s infinite; }
+.orb-dot-sm.listening { background: var(--err); animation: blink 0.7s infinite; }
+.orb-dot-sm.executing { background: var(--violet-hi); animation: blink 0.6s infinite; }
+
+.tb-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--rim);
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: var(--f-body);
+  transition: all var(--t-fast);
+}
+.tb-btn:hover { color: var(--t1); border-color: var(--violet-dim); background: rgba(108,53,222,0.08); }
+
+select.tb-select {
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--rim);
+  background: var(--ink3);
+  color: var(--t2);
+  font-size: 0.75rem;
+  font-family: var(--f-body);
+  outline: none;
+  cursor: pointer;
+}
+
+/* ── Content + Right Panel ── */
+.content-wrap {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+.view {
+  display: none;
+  flex: 1;
+  overflow: hidden;
+  flex-direction: column;
+  animation: fadeUp 0.3s var(--ease);
+}
+.view.active { display: flex; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(10px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+/* ============================================================
+   VIEW: CHAT
+   ============================================================ */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-c) transparent;
+}
+
+/* Messages */
+.msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 78%;
+  animation: msgIn 0.28s var(--ease);
+}
+@keyframes msgIn {
+  from { opacity:0; transform: translateY(12px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.msg.user { align-self: flex-end; }
+.msg.aura { align-self: flex-start; max-width: 82%; }
+
+.msg-bubble {
+  padding: 12px 18px;
+  border-radius: 18px;
+  line-height: 1.75;
+  font-size: 0.9rem;
+}
+.msg.user .msg-bubble {
+  background: linear-gradient(135deg, #5b21b6, #3b0fa0);
+  border-bottom-right-radius: 4px;
+  color: #ede9fe;
+  box-shadow: 0 4px 20px rgba(108,53,222,0.25);
+}
+.msg.aura .msg-bubble {
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-bottom-left-radius: 4px;
+  color: var(--t1);
+}
+
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.msg-label {
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  font-family: var(--f-mono);
+  color: var(--t3);
+  font-weight: 500;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  letter-spacing: 0.8px;
+  font-family: var(--f-mono);
+}
+.tag-agent  { background: rgba(108,53,222,0.2); color: var(--violet-hi); border: 1px solid rgba(108,53,222,0.3); }
+.tag-conf   { background: rgba(0,212,255,0.1);  color: var(--cyan);      border: 1px solid rgba(0,212,255,0.2); }
+.tag-ok     { background: rgba(34,211,160,0.1); color: var(--ok);        border: 1px solid rgba(34,211,160,0.2); }
+
+.msg-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+.act-btn {
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--rim);
+  background: transparent;
+  color: var(--t3);
+  font-size: 0.68rem;
+  font-family: var(--f-body);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.act-btn:hover { color: var(--violet-hi); border-color: var(--violet-dim); }
+
+/* Plan blocks in messages */
+.plan-block {
+  margin-top: 10px;
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(0,212,255,0.03);
+}
+.plan-block-head {
+  padding: 7px 12px;
+  background: rgba(0,212,255,0.07);
+  font-size: 0.68rem;
+  font-family: var(--f-mono);
+  color: var(--cyan);
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.plan-block-body {
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: var(--t2);
+  line-height: 1.7;
+}
+.plan-step {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 4px 0;
+}
+.plan-step-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--violet-dim);
+  color: var(--violet-hi);
+  font-size: 0.6rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--f-mono);
+  margin-top: 2px;
+}
+
+/* Typing Indicator */
+.typing-ind {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 18px;
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+  animation: msgIn 0.28s var(--ease);
+}
+.t-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--violet);
+  animation: tdot 1.4s infinite;
+}
+.t-dot:nth-child(2) { animation-delay: 0.2s; }
+.t-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes tdot {
+  0%,100% { transform:translateY(0); opacity:0.4; }
+  50%     { transform:translateY(-6px); opacity:1; }
+}
+
+/* Suggestion Chips */
+.chips-row {
+  padding: 0 28px 12px;
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--rim);
+  background: var(--surface);
+  color: var(--t2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: var(--f-body);
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+.chip:hover { color: var(--violet-hi); border-color: var(--violet-dim); background: rgba(108,53,222,0.1); }
+
+/* ── Input Area ── */
+.input-area {
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--rim);
+  background: var(--ink2);
+  flex-shrink: 0;
+}
+.voice-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.v-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--rim);
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  font-size: 0.77rem;
+  font-family: var(--f-body);
+  display: flex; align-items: center; gap: 5px;
+  transition: all var(--t-fast);
+}
+.v-btn:hover { color: var(--t1); border-color: var(--violet-dim); background: rgba(108,53,222,0.08); }
+.v-btn.rec {
+  background: rgba(244,63,94,0.1);
+  color: var(--err);
+  border-color: rgba(244,63,94,0.4);
+  animation: recordPulse 1s infinite;
+}
+@keyframes recordPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 0 6px rgba(244,63,94,0.08)} }
+.v-status { font-size: 0.72rem; color: var(--t3); font-family: var(--f-mono); }
+
+.input-row { display: flex; gap: 10px; }
+
+.main-input {
+  flex: 1;
+  padding: 12px 20px;
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 28px;
+  color: var(--t1);
+  font-size: 0.9rem;
+  font-family: var(--f-body);
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.main-input:focus { border-color: var(--violet-dim); box-shadow: 0 0 0 3px rgba(108,53,222,0.1); }
+.main-input::placeholder { color: var(--t3); }
+
+.send-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--violet), #4a1d96);
+  border: none;
+  border-radius: 28px;
+  color: white;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: var(--f-display);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all var(--t-fast);
+}
+.send-btn:hover { transform: scale(1.03); box-shadow: 0 0 20px rgba(108,53,222,0.4); }
+
+/* ============================================================
+   VIEW: MEMORY
+   ============================================================ */
+.panel-view {
+  padding: 24px 28px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  scrollbar-width: thin;
+}
+
+.view-header {
+  margin-bottom: 4px;
+}
+.view-header h2 {
+  font-family: var(--f-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--t1);
+}
+.view-header p {
+  font-size: 0.8rem;
+  color: var(--t3);
+  margin-top: 3px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 14px;
+  padding: 18px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.card:hover { border-color: var(--violet-dim); box-shadow: 0 4px 24px rgba(108,53,222,0.1); }
+.card-holo {
+  border-color: rgba(0,212,255,0.2);
+  background: linear-gradient(135deg, rgba(0,212,255,0.04), rgba(108,53,222,0.04));
+  position: relative;
+  overflow: hidden;
+}
+.card-holo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(0,212,255,0.04) 100%);
+  pointer-events: none;
+}
+.card-holo:hover { border-color: rgba(0,212,255,0.4); box-shadow: 0 4px 28px rgba(0,212,255,0.08); }
+
+.card-title {
+  font-size: 0.65rem;
+  font-family: var(--f-mono);
+  letter-spacing: 2px;
+  color: var(--t3);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rim);
+}
+.card-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--f-display);
+  color: var(--t1);
+  margin-bottom: 4px;
+}
+.card-sub { font-size: 0.78rem; color: var(--t3); }
+
+.mem-list { display: flex; flex-direction: column; gap: 8px; }
+.mem-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink3);
+  border: 1px solid rgba(108,53,222,0.1);
+  font-size: 0.82rem;
+}
+.mem-icon { font-size: 0.9rem; flex-shrink: 0; }
+.mem-key { color: var(--t3); font-family: var(--f-mono); font-size: 0.68rem; flex-shrink: 0; min-width: 80px; }
+.mem-val { color: var(--t1); flex: 1; }
+
+.intent-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.intent-name { font-size: 0.8rem; color: var(--t2); min-width: 100px; }
+.bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ink3);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--violet-g));
+  border-radius: 3px;
+  transition: width 0.6s var(--ease);
+}
+.intent-pct { font-size: 0.72rem; color: var(--t3); font-family: var(--f-mono); min-width: 30px; text-align: right; }
+
+/* ============================================================
+   VIEW: INTELLIGENCE
+   ============================================================ */
+.intel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.intel-grid.full { grid-template-columns: 1fr; }
+
+.confidence-ring {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: conic-gradient(var(--violet) calc(var(--pct,75) * 1%), var(--ink3) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 0 auto 14px;
+}
+.confidence-ring::before {
+  content: attr(data-pct) '%';
+  position: absolute;
+  font-family: var(--f-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--t1);
+}
+.confidence-inner {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rim);
+  font-size: 0.84rem;
+}
+.status-item:last-child { border-bottom: none; }
+.status-key { color: var(--t3); font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.5px; }
+.status-val { color: var(--t1); font-weight: 500; }
+.status-tag {
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-family: var(--f-mono);
+}
+.s-ok  { background: rgba(34,211,160,0.15); color: var(--ok); }
+.s-warn{ background: rgba(245,158,11,0.15);  color: var(--warn); }
+.s-err { background: rgba(244,63,94,0.15);   color: var(--err); }
+.s-info{ background: rgba(108,53,222,0.15);  color: var(--violet-hi); }
+
+.log-entry {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink3);
+  border-left: 3px solid var(--rim);
+  font-size: 0.8rem;
+  align-items: flex-start;
+}
+.log-entry.log-ok  { border-left-color: var(--ok); }
+.log-entry.log-warn{ border-left-color: var(--warn); }
+.log-entry.log-err { border-left-color: var(--err); }
+.log-time { font-family: var(--f-mono); font-size: 0.65rem; color: var(--t3); flex-shrink: 0; padding-top: 1px; }
+.log-msg  { color: var(--t2); line-height: 1.5; }
+
+/* ============================================================
+   VIEW: AUTONOMY
+   ============================================================ */
+.exec-timeline { display: flex; flex-direction: column; gap: 0; }
+.exec-step {
+  display: flex;
+  gap: 14px;
+  position: relative;
+  padding-bottom: 0;
+}
+.exec-step:not(:last-child) .step-connector { flex: 1; }
+.step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.step-circle {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--rim);
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem;
+  font-family: var(--f-mono);
+  color: var(--t3);
+  transition: all var(--t-mid);
+  flex-shrink: 0;
+}
+.step-circle.done  { border-color: var(--ok);   background: rgba(34,211,160,0.1); color: var(--ok); }
+.step-circle.active{ border-color: var(--cyan);  background: rgba(0,212,255,0.1);  color: var(--cyan); animation: stepPulse 1.5s infinite; }
+.step-circle.fail  { border-color: var(--err);   background: rgba(244,63,94,0.1);  color: var(--err); }
+@keyframes stepPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 0 6px rgba(0,212,255,0.1)} }
+.step-line {
+  width: 2px;
+  flex: 1;
+  min-height: 20px;
+  background: var(--rim);
+  margin: 4px 0;
+}
+.step-line.done { background: var(--ok); opacity: 0.4; }
+.step-body {
+  flex: 1;
+  padding-bottom: 20px;
+}
+.step-title { font-size: 0.86rem; font-weight: 500; color: var(--t1); margin-bottom: 4px; }
+.step-detail { font-size: 0.77rem; color: var(--t3); line-height: 1.5; }
+.step-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.2);
+  font-size: 0.65rem;
+  font-family: var(--f-mono);
+  color: var(--cyan);
+}
+
+.exec-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink3);
+  margin: 16px 0;
+  overflow: hidden;
+}
+.exec-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.8s var(--ease);
+}
+
+/* ============================================================
+   VIEW: TASKS
+   ============================================================ */
+.tasks-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.tasks-add input {
+  flex: 1;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 10px;
+  color: var(--t1);
+  font-size: 0.87rem;
+  font-family: var(--f-body);
+  outline: none;
+  transition: border-color var(--t-fast);
+}
+.tasks-add input:focus { border-color: var(--violet-dim); }
+.tasks-add input::placeholder { color: var(--t3); }
+.add-btn {
+  padding: 10px 20px;
+  background: var(--violet-dim);
+  border: 1px solid rgba(108,53,222,0.3);
+  border-radius: 10px;
+  color: var(--violet-hi);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: var(--f-body);
+  transition: all var(--t-fast);
+}
+.add-btn:hover { background: rgba(108,53,222,0.4); }
+
+.task-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  transition: all var(--t-fast);
+}
+.task-card:hover { border-color: var(--violet-dim); }
+.task-card.done { opacity: 0.55; }
+.task-check {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--rim);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--t-fast);
+  background: transparent;
+}
+.task-check:hover { border-color: var(--ok); }
+.task-check.checked { border-color: var(--ok); background: rgba(34,211,160,0.15); }
+.task-text { flex: 1; font-size: 0.87rem; color: var(--t1); }
+.task-card.done .task-text { text-decoration: line-through; color: var(--t3); }
+.task-pri {
+  font-size: 0.65rem;
+  font-family: var(--f-mono);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.task-pri.hi  { background: rgba(244,63,94,0.1);  color: var(--err); }
+.task-pri.med { background: rgba(245,158,11,0.1);  color: var(--warn); }
+.task-pri.lo  { background: rgba(34,211,160,0.1);  color: var(--ok); }
+.task-del {
+  background: transparent;
+  border: none;
+  color: var(--t3);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: color var(--t-fast);
+}
+.task-del:hover { color: var(--err); }
+
+/* ============================================================
+   VIEW: HISTORY
+   ============================================================ */
+.hist-card {
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  transition: all var(--t-fast);
+}
+.hist-card:hover { border-color: var(--violet-dim); }
+.hist-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.hist-time { font-size: 0.65rem; color: var(--t3); font-family: var(--f-mono); }
+.hist-user-q { color: var(--violet-hi); font-size: 0.86rem; font-weight: 500; margin-bottom: 6px; }
+.hist-aura-r { color: var(--t2); font-size: 0.83rem; line-height: 1.6; }
+
+/* ============================================================
+   VIEW: SETTINGS
+   ============================================================ */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.s-card {
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: 14px;
+  padding: 20px;
+}
+.s-card h3 {
+  font-family: var(--f-display);
+  font-size: 0.78rem;
+  letter-spacing: 2px;
+  color: var(--violet-hi);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rim);
+}
+.s-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rim);
+  gap: 12px;
+}
+.s-row:last-child { border-bottom: none; padding-bottom: 0; }
+.s-label { font-size: 0.83rem; color: var(--t2); }
+.s-sublabel { font-size: 0.7rem; color: var(--t3); margin-top: 2px; }
+.s-ctrl select,
+.s-ctrl input[type=range] {
+  padding: 5px 10px;
+  background: var(--ink3);
+  border: 1px solid var(--rim);
+  border-radius: 8px;
+  color: var(--t1);
+  font-size: 0.8rem;
+  font-family: var(--f-body);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Toggle Switch */
+.toggle {
+  width: 38px; height: 20px;
+  background: var(--ink3);
+  border-radius: 10px;
+  border: 1px solid var(--rim);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--t-fast);
+  flex-shrink: 0;
+}
+.toggle.on { background: var(--violet); border-color: var(--violet); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: white;
+  top: 2px; left: 2px;
+  transition: left var(--t-fast);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.toggle.on::after { left: 20px; }
+
+/* Mode Selector */
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.mode-opt {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--rim);
+  background: var(--ink3);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--t-fast);
+}
+.mode-opt:hover { border-color: var(--violet-dim); }
+.mode-opt.sel { border-color: var(--violet); background: rgba(108,53,222,0.15); }
+.mode-opt-name { font-size: 0.78rem; font-weight: 600; color: var(--t1); font-family: var(--f-display); }
+.mode-opt-desc { font-size: 0.62rem; color: var(--t3); margin-top: 3px; }
+
+/* ============================================================
+   RIGHT INTELLIGENCE PANEL
+   ============================================================ */
+.r-panel {
+  width: var(--rpanel-w);
+  min-width: var(--rpanel-w);
+  background: var(--ink2);
+  border-left: 1px solid var(--rim);
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 18px 16px;
+  gap: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-c) transparent;
+  flex-shrink: 0;
+}
+.r-panel.visible { display: flex; }
+
+/* Orb Display */
+.r-orb-wrap {
+  text-align: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rim);
+  margin-bottom: 2px;
+}
+.r-orb {
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 33%, #c4b5fd 0%, #7c3aed 50%, #0d0820 100%);
+  margin: 0 auto 10px;
+  position: relative;
+  transition: box-shadow var(--t-mid);
+  box-shadow: 0 0 30px rgba(124,58,237,0.5);
+}
+.r-orb.idle    { box-shadow: 0 0 20px rgba(124,58,237,0.35); animation: orbIdle 4s ease infinite; }
+.r-orb.thinking{ box-shadow: 0 0 40px rgba(245,158,11,0.5);  animation: orbThink 0.8s ease infinite; }
+.r-orb.speaking{ box-shadow: 0 0 40px rgba(0,212,255,0.5);   animation: orbSpeak 0.4s ease infinite; }
+.r-orb.listening{ box-shadow: 0 0 40px rgba(244,63,94,0.5);  animation: orbSpeak 0.6s ease infinite; }
+.r-orb.executing{ box-shadow: 0 0 40px rgba(167,139,250,0.6); animation: orbExec 0.5s linear infinite; }
+.r-orb.success { box-shadow: 0 0 40px rgba(34,211,160,0.5);  animation: orbIdle 2s ease infinite; }
+.r-orb.error   { box-shadow: 0 0 40px rgba(244,63,94,0.5); }
+
+@keyframes orbIdle  { 0%,100%{transform:scale(1)}     50%{transform:scale(1.04)} }
+@keyframes orbThink { 0%,100%{transform:scale(1)}     50%{transform:scale(1.08)} }
+@keyframes orbSpeak { 0%,100%{transform:scale(1)}     50%{transform:scale(1.12)} }
+@keyframes orbExec  { 0%{transform:rotate(0deg) scale(1)} 50%{transform:rotate(180deg) scale(1.06)} 100%{transform:rotate(360deg) scale(1)} }
+
+.r-orb-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid rgba(167,139,250,0.25);
+  animation: ringRotate 5s linear infinite;
+}
+.r-orb-ring2 {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  border: 1px dashed rgba(108,53,222,0.15);
+  animation: ringRotate 8s linear infinite reverse;
+}
+@keyframes ringRotate { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+.orb-state-label {
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--t3);
+  margin-bottom: 4px;
+}
+.orb-state-val {
+  font-family: var(--f-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--violet-hi);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.r-section { margin-bottom: 4px; }
+.r-section-title {
+  font-size: 0.58rem;
+  font-family: var(--f-mono);
+  letter-spacing: 2px;
+  color: var(--t3);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rim);
+}
+
+.r-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgba(108,53,222,0.05);
+}
+.r-stat-row:last-child { border-bottom: none; }
+.r-stat-key { color: var(--t3); font-family: var(--f-mono); font-size: 0.68rem; }
+.r-stat-val { color: var(--t1); font-weight: 500; }
+
+.mini-conf-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ink3);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.mini-conf-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.6s var(--ease);
+}
+
+/* ============================================================
+   MODE: JARVIS extra orb center stage
+   ============================================================ */
+body.jarvis-mode .r-orb { width: 90px; height: 90px; }
+body.jarvis-mode .main-input { border-radius: 4px; }
+body.jarvis-mode .chat-area { background: linear-gradient(180deg, var(--ink) 0%, rgba(5,5,20,1) 100%); }
+body.jarvis-mode .msg.aura .msg-bubble { border-color: rgba(0,212,255,0.2); }
+
+/* ============================================================
+   MODE: DEVELOPER — show extra badges
+   ============================================================ */
+body.developer-mode .tag-conf,
+body.developer-mode .tag-agent { display: inline-flex; }
+
+/* ============================================================
+   MODE: MINIMAL — hide right panel, collapse extras
+   ============================================================ */
+body.minimal-mode .r-panel { display: none !important; }
+body.minimal-mode .chips-row { display: none; }
+
+/* ============================================================
+   NOTIFICATIONS
+   ============================================================ */
+.notif {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  padding: 12px 20px;
+  background: var(--surface2);
+  border: 1px solid var(--rim);
+  border-radius: 12px;
+  font-size: 0.83rem;
+  color: var(--t1);
+  z-index: 999;
+  animation: notifIn 0.3s var(--ease);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+@keyframes notifIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.notif.ok   { border-color: rgba(34,211,160,0.3); }
+.notif.err  { border-color: rgba(244,63,94,0.3);  }
+.notif.info { border-color: rgba(108,53,222,0.3); }
+
+/* ============================================================
+   EMPTY STATES
+   ============================================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 10px;
+  color: var(--t3);
+  font-size: 0.85rem;
+}
+.empty-icon { font-size: 2.5rem; opacity: 0.5; }
+
+/* ============================================================
+   SCROLLABLE WRAPPER UTILITY
+   ============================================================ */
+.scroll-wrap {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-c) transparent;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 860px) {
+  .sidebar { position: absolute; height: 100%; z-index: 200; transform: translateX(-100%); transition: transform var(--t-mid) var(--ease); }
+  .sidebar.mob-open { transform: translateX(0); }
+  .sidebar.collapsed { width: var(--sidebar-w); min-width: var(--sidebar-w); }
+  .r-panel { display: none !important; }
+  .msg { max-width: 92%; }
+}
+@media (max-width: 520px) {
+  .chat-area { padding: 14px 14px; }
+  .input-area { padding: 10px 14px 14px; }
+  .panel-view { padding: 14px 14px; }
+  .send-btn { padding: 12px 16px; }
+}
+</style>
 </head>
 <body>
 
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="logo">
-            <div class="orb" id="orb"></div>
-            <h1>A U R A</h1>
-            <p>AUTONOMOUS UNIVERSAL RESPONSIVE ASSISTANT</p>
+<!-- ══════════════════════════════════════════════════════════
+     LEFT SIDEBAR
+     ══════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+
+  <div class="s-logo" onclick="toggleSidebar()" title="Toggle sidebar">
+    <div class="orb-mini"></div>
+    <div class="s-logo-text">
+      <h1>A U R A</h1>
+      <p>AUTONOMOUS · UNIVERSAL · RESPONSIVE</p>
+    </div>
+  </div>
+
+  <div class="mode-badge" onclick="showView('settings', null); scrollToModeSettings()" id="modeBadge">
+    <div class="mode-dot"></div>
+    <span id="modeLabel">SMART MODE</span>
+  </div>
+
+  <nav class="s-nav">
+    <div class="s-section">INTERFACE</div>
+    <div class="nav-item active" onclick="showView('chat', this)">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Chat</span>
+    </div>
+    <div class="nav-item" onclick="showView('memory', this)">
+      <span class="nav-icon">🧠</span>
+      <span class="nav-label">Memory</span>
+    </div>
+    <div class="nav-item" onclick="showView('intelligence', this)">
+      <span class="nav-icon">⚡</span>
+      <span class="nav-label">Intelligence</span>
+    </div>
+    <div class="nav-item" onclick="showView('autonomy', this)">
+      <span class="nav-icon">🤖</span>
+      <span class="nav-label">Autonomy</span>
+    </div>
+    <div class="nav-item" onclick="showView('tasks', this)">
+      <span class="nav-icon">✅</span>
+      <span class="nav-label">Tasks & Reminders</span>
+      <span class="nav-badge" id="taskBadge">0</span>
+    </div>
+    <div class="s-section">SYSTEM</div>
+    <div class="nav-item" onclick="showView('history', this)">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">History</span>
+    </div>
+    <div class="nav-item" onclick="showView('settings', this)">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+    </div>
+    <div class="s-section">ACCOUNT</div>
+    <div class="nav-item" onclick="window.location.href='/login'">
+      <span class="nav-icon">🔐</span>
+      <span class="nav-label">Login</span>
+    </div>
+    <div class="nav-item" onclick="window.location.href='/register'">
+      <span class="nav-icon">✨</span>
+      <span class="nav-label">Register</span>
+    </div>
+    <div class="nav-item" onclick="doLogout()">
+      <span class="nav-icon">🚪</span>
+      <span class="nav-label">Logout</span>
+    </div>
+  </nav>
+
+  <div class="s-user">
+    <div class="avatar" id="s-avatar">G</div>
+    <div class="u-info">
+      <div class="u-name" id="s-name">Guest</div>
+      <div class="u-plan" id="s-plan">FREE PLAN</div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN WRAPPER
+     ══════════════════════════════════════════════════════════ -->
+<div class="main-wrap">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <button class="tb-toggle" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+    <span class="tb-title" id="tb-title">💬 AURA Chat</span>
+
+    <div class="tb-right">
+      <div class="orb-status">
+        <div class="orb-dot-sm" id="topDot"></div>
+        <span id="topState">IDLE</span>
+      </div>
+      <select class="tb-select" id="langSel" onchange="setLang(this.value)">
+        <option value="auto">🌐 Auto</option>
+        <option value="english">🇬🇧 English</option>
+        <option value="urdu">🇵🇰 Urdu</option>
+      </select>
+      <button class="tb-btn" onclick="clearChat()">🗑 Clear</button>
+    </div>
+  </header>
+
+  <!-- Content + Right Panel -->
+  <div class="content-wrap">
+
+    <!-- ── VIEW: CHAT ── -->
+    <div class="view active" id="view-chat">
+      <div class="chat-area" id="chatArea">
+        <!-- Welcome message -->
+        <div class="msg aura">
+          <div class="msg-meta">
+            <span class="msg-label">AURA</span>
+            <span class="tag tag-ok">● ONLINE</span>
+          </div>
+          <div class="msg-bubble">
+            Welcome. I am <strong>AURA</strong> — your AI operating system. I understand natural language, remember context, reason through complex requests, plan multi-step tasks, and improve over time.<br><br>
+            Ask me anything — study, code, write, research, translate, analyze, or just have a conversation.
+          </div>
         </div>
+      </div>
 
-        <div class="user-info">
-            <div class="user-avatar" id="userAvatar">G</div>
-            <div class="user-details">
-                <h3 id="userName">Guest</h3>
-                <span class="plan-badge" id="userPlan">FREE</span>
-            </div>
+      <!-- Chips -->
+      <div class="chips-row" id="chipsRow">
+        <span class="chip" onclick="sendChip('What is machine learning?')">📚 Machine Learning</span>
+        <span class="chip" onclick="sendChip('What is the weather in Islamabad today?')">🌤 Weather</span>
+        <span class="chip" onclick="sendChip('Tell me a clever joke')">😄 Joke</span>
+        <span class="chip" onclick="sendChip('Generate a secure password for me')">🔐 Password</span>
+        <span class="chip" onclick="sendChip('Latest news from Pakistan')">📰 Pakistan News</span>
+        <span class="chip" onclick="sendChip('Give me a powerful motivation quote')">💭 Quote</span>
+        <span class="chip" onclick="sendChip('Convert 100 USD to PKR today')">💱 Currency</span>
+        <span class="chip" onclick="sendChip('Write a professional email to my professor requesting an extension')">📧 Email Draft</span>
+        <span class="chip" onclick="sendChip('Create a quiz on Python basics')">🎯 Python Quiz</span>
+        <span class="chip" onclick="sendChip('Help me make a fitness plan for beginners')">💪 Fitness Plan</span>
+      </div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <div class="voice-bar">
+          <button class="v-btn" id="micBtn" onclick="toggleVoice()">🎤 Speak</button>
+          <button class="v-btn" onclick="stopAudio()" style="color:var(--err);border-color:rgba(244,63,94,0.3)">🛑 Stop</button>
+          <span class="v-status" id="vStatus">Click mic to speak</span>
         </div>
-
-        <nav class="nav">
-            <div class="nav-section">NAVIGATION</div>
-            <div class="nav-item active" onclick="showPanel('chat', this)">
-                <span class="nav-icon">💬</span> Chat
-            </div>
-            <div class="nav-item" onclick="showPanel('history', this)">
-                <span class="nav-icon">📋</span> History
-            </div>
-            <div class="nav-item" onclick="showPanel('settings', this)">
-                <span class="nav-icon">⚙️</span> Settings
-            </div>
-
-            <div class="nav-section">ACCOUNT</div>
-            <div class="nav-item" onclick="window.location.href='/login'">
-                <span class="nav-icon">🔐</span> Login
-            </div>
-            <div class="nav-item" onclick="window.location.href='/register'">
-                <span class="nav-icon">✨</span> Register
-            </div>
-            <div class="nav-item" onclick="logout()">
-                <span class="nav-icon">🚪</span> Logout
-            </div>
-        </nav>
-
-        <!-- Capabilities display only -->
-        <div class="capabilities">
-            <p>AURA CAN HELP WITH</p>
-            <div class="capability-grid">
-                <div class="capability-item">📚 Study</div>
-                <div class="capability-item">🔍 Research</div>
-                <div class="capability-item">💻 Coding</div>
-                <div class="capability-item">🌤️ Weather</div>
-                <div class="capability-item">📰 News</div>
-                <div class="capability-item">🧮 Math</div>
-                <div class="capability-item">🌍 Translate</div>
-                <div class="capability-item">📧 Email</div>
-                <div class="capability-item">✍️ Writing</div>
-                <div class="capability-item">🎯 Quiz</div>
-                <div class="capability-item">😄 Jokes</div>
-                <div class="capability-item">💭 Quotes</div>
-                <div class="capability-item">🔐 Password</div>
-                <div class="capability-item">📋 Tasks</div>
-                <div class="capability-item">📄 Resume</div>
-                <div class="capability-item">💱 Currency</div>
-                <div class="capability-item">📖 Dictionary</div>
-                <div class="capability-item">📸 Screenshot</div>
-            </div>
+        <div class="input-row">
+          <input type="text" class="main-input" id="userInput"
+            placeholder="Ask AURA anything — it understands messy input, multi-commands, and more..."
+            onkeypress="if(event.key==='Enter') sendMessage()">
+          <button class="send-btn" onclick="sendMessage()">Send</button>
         </div>
+      </div>
     </div>
 
-    <!-- Main -->
-    <div class="main">
+    <!-- ── VIEW: MEMORY ── -->
+    <div class="view" id="view-memory">
+      <div class="panel-view">
+        <div class="view-header">
+          <h2>🧠 Memory System</h2>
+          <p>What AURA has learned about you and your usage patterns</p>
+        </div>
 
-        <!-- Top bar -->
-        <div class="topbar">
-            <span class="topbar-title" id="topbarTitle">💬 AURA Chat</span>
-            <div class="topbar-controls">
-                <div class="theme-toggle">
-                    <button class="theme-btn" onclick="setTheme('dark', this)">🌙 Dark</button>
-                    <button class="theme-btn active" onclick="setTheme('system', this)">⚙️ Auto</button>
-                    <button class="theme-btn" onclick="setTheme('light', this)">☀️ Light</button>
-                </div>
-                <select class="lang-select" id="langSelect" onchange="setLanguage(this.value)">
-                    <option value="auto">🌐 Auto</option>
-                    <option value="english">🇬🇧 English</option>
-                    <option value="urdu">🇵🇰 Urdu</option>
+        <div class="cards-grid">
+          <div class="card card-holo">
+            <div class="card-title">USER PROFILE</div>
+            <div class="mem-list">
+              <div class="mem-item"><span class="mem-icon">👤</span><span class="mem-key">NAME</span><span class="mem-val" id="mem-name">Guest</span></div>
+              <div class="mem-item"><span class="mem-icon">🗓</span><span class="mem-key">SINCE</span><span class="mem-val" id="mem-since">Today</span></div>
+              <div class="mem-item"><span class="mem-icon">💬</span><span class="mem-key">MSGS</span><span class="mem-val" id="mem-msgs">0</span></div>
+              <div class="mem-item"><span class="mem-icon">🌍</span><span class="mem-key">LANG</span><span class="mem-val" id="mem-lang">Auto</span></div>
+            </div>
+          </div>
+          <div class="card card-holo">
+            <div class="card-title">LEARNED INTERESTS</div>
+            <div class="mem-list" id="mem-interests">
+              <div class="mem-item"><span class="mem-icon">📚</span><span class="mem-val">Study & Research</span></div>
+              <div class="mem-item"><span class="mem-icon">💻</span><span class="mem-val">Coding & Tech</span></div>
+              <div class="mem-item"><span class="mem-icon">📰</span><span class="mem-val">Current News</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">TOP INTENTS USED</div>
+            <div id="intentBars">
+              <div class="intent-bar"><span class="intent-name">Study</span><div class="bar-track"><div class="bar-fill" style="width:78%"></div></div><span class="intent-pct">78%</span></div>
+              <div class="intent-bar"><span class="intent-name">Research</span><div class="bar-track"><div class="bar-fill" style="width:60%"></div></div><span class="intent-pct">60%</span></div>
+              <div class="intent-bar"><span class="intent-name">Coding</span><div class="bar-track"><div class="bar-fill" style="width:45%"></div></div><span class="intent-pct">45%</span></div>
+              <div class="intent-bar"><span class="intent-name">Weather</span><div class="bar-track"><div class="bar-fill" style="width:30%"></div></div><span class="intent-pct">30%</span></div>
+              <div class="intent-bar"><span class="intent-name">Jokes</span><div class="bar-track"><div class="bar-fill" style="width:20%"></div></div><span class="intent-pct">20%</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">GREETING PREVIEW</div>
+            <div style="font-size:0.9rem;color:var(--t2);line-height:1.7;font-style:italic" id="greetPreview">
+              "Welcome back! Based on your usage, I've prepared research and study tools for you. What would you like to explore today?"
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:4px">
+          <div class="card-title">MEMORY INSIGHTS</div>
+          <div class="mem-list">
+            <div class="mem-item"><span class="mem-icon">🔁</span><span class="mem-key">PATTERN</span><span class="mem-val">Most active in evenings. Prefers concise answers with examples.</span></div>
+            <div class="mem-item"><span class="mem-icon">📈</span><span class="mem-key">GROWTH</span><span class="mem-val">Interaction quality improved 23% over last 30 sessions.</span></div>
+            <div class="mem-item"><span class="mem-icon">🎯</span><span class="mem-key">NEXT</span><span class="mem-val">AURA will proactively suggest study materials based on your history.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: INTELLIGENCE ── -->
+    <div class="view" id="view-intelligence">
+      <div class="panel-view">
+        <div class="view-header">
+          <h2>⚡ Intelligence Core</h2>
+          <p>AURA's reasoning, intent detection, and self-improvement systems</p>
+        </div>
+
+        <div class="intel-grid">
+          <div class="card card-holo">
+            <div class="card-title">CONFIDENCE SCORE</div>
+            <div style="
+              width: 90px; height: 90px;
+              border-radius: 50%;
+              background: conic-gradient(var(--violet) 75%, var(--ink3) 0);
+              display: flex; align-items: center; justify-content: center;
+              margin: 0 auto 14px; position: relative;
+            ">
+              <div style="
+                width: 70px; height: 70px; border-radius: 50%;
+                background: var(--surface);
+                display: flex; align-items: center; justify-content: center;
+                font-family: var(--f-mono); font-size: 1.1rem; font-weight: 700;
+                color: var(--t1);
+              " id="confScore">75%</div>
+            </div>
+            <div style="text-align:center;font-size:0.75rem;color:var(--t3)">Last intent detection</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">CURRENT STATE</div>
+            <div class="status-item"><span class="status-key">LAST INTENT</span><span class="tag s-info" id="lastIntent">general</span></div>
+            <div class="status-item"><span class="status-key">ACTIVE AGENT</span><span class="status-val" id="activeAgent">—</span></div>
+            <div class="status-item"><span class="status-key">REASONING</span><span class="tag s-ok">ACTIVE</span></div>
+            <div class="status-item"><span class="status-key">MEMORY</span><span class="tag s-ok">CONNECTED</span></div>
+            <div class="status-item"><span class="status-key">MULTI-CMD</span><span class="tag s-ok">ENABLED</span></div>
+          </div>
+        </div>
+
+        <div class="card card-holo">
+          <div class="card-title">SELF-IMPROVEMENT LOG</div>
+          <div style="display:flex;flex-direction:column;gap:8px" id="improveLog">
+            <div class="log-entry log-ok"><span class="log-time">NOW</span><span class="log-msg">Intent routing accuracy at 94.2%. Messy-input normalization active.</span></div>
+            <div class="log-entry log-ok"><span class="log-time">5m</span><span class="log-msg">Memory context successfully injected into last response.</span></div>
+            <div class="log-entry log-warn"><span class="log-time">12m</span><span class="log-msg">Low confidence (42%) on ambiguous query — fallback to clarification mode.</span></div>
+            <div class="log-entry log-ok"><span class="log-time">18m</span><span class="log-msg">Multi-command split successful: 2 agents invoked in parallel.</span></div>
+            <div class="log-entry log-err"><span class="log-time">25m</span><span class="log-msg">Weather API timeout — fallback response generated. Logged for retry.</span></div>
+          </div>
+        </div>
+
+        <div class="intel-grid">
+          <div class="card">
+            <div class="card-title">AGENT REGISTRY</div>
+            <div class="status-item"><span class="status-key">TOTAL AGENTS</span><span class="status-val">25+</span></div>
+            <div class="status-item"><span class="status-key">LIVE AGENTS</span><span class="tag s-ok">18</span></div>
+            <div class="status-item"><span class="status-key">STANDBY</span><span class="tag s-warn">7</span></div>
+            <div class="status-item"><span class="status-key">ERROR STATE</span><span class="tag s-err">0</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">MODEL INFO</div>
+            <div class="status-item"><span class="status-key">BASE MODEL</span><span class="status-val">Llama 3.3 70B</span></div>
+            <div class="status-item"><span class="status-key">ORCHESTRATOR</span><span class="tag s-ok">ONLINE</span></div>
+            <div class="status-item"><span class="status-key">VERSION</span><span class="status-val">1.0.0</span></div>
+            <div class="status-item"><span class="status-key">DEVELOPER</span><span class="status-val">Hassan Saeed</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: AUTONOMY ── -->
+    <div class="view" id="view-autonomy">
+      <div class="panel-view">
+        <div class="view-header">
+          <h2>🤖 Autonomy Engine</h2>
+          <p>Real-time planning, execution, tool selection, and progress tracking</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">EXECUTION PROGRESS</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:0.8rem;color:var(--t2)">Task: Research & summarize AI trends</span>
+            <span style="font-family:var(--f-mono);font-size:0.72rem;color:var(--cyan)">60%</span>
+          </div>
+          <div class="exec-progress"><div class="exec-progress-fill" style="width:60%"></div></div>
+        </div>
+
+        <div class="card card-holo">
+          <div class="card-title">EXECUTION TIMELINE</div>
+          <div class="exec-timeline">
+            <div class="exec-step">
+              <div class="step-left">
+                <div class="step-circle done">✓</div>
+                <div class="step-line done"></div>
+              </div>
+              <div class="step-body">
+                <div class="step-title">Intent Detection</div>
+                <div class="step-detail">Identified research task with web search and summarization requirements.</div>
+                <span class="step-tool">🔍 intent_classifier</span>
+              </div>
+            </div>
+            <div class="exec-step">
+              <div class="step-left">
+                <div class="step-circle done">✓</div>
+                <div class="step-line done"></div>
+              </div>
+              <div class="step-body">
+                <div class="step-title">Plan Generated</div>
+                <div class="step-detail">Created 4-step execution plan: search → fetch → analyze → summarize.</div>
+                <span class="step-tool">🧭 planner_agent</span>
+              </div>
+            </div>
+            <div class="exec-step">
+              <div class="step-left">
+                <div class="step-circle active">⟳</div>
+                <div class="step-line"></div>
+              </div>
+              <div class="step-body">
+                <div class="step-title">Web Search & Fetch</div>
+                <div class="step-detail">Fetching top sources. 3 of 5 pages retrieved.</div>
+                <span class="step-tool">🌐 web_search_agent</span>
+              </div>
+            </div>
+            <div class="exec-step">
+              <div class="step-left">
+                <div class="step-circle">4</div>
+                <div class="step-line"></div>
+              </div>
+              <div class="step-body">
+                <div class="step-title">Analysis & Summary</div>
+                <div class="step-detail">Pending web fetch completion.</div>
+                <span class="step-tool">📝 summarize_agent</span>
+              </div>
+            </div>
+            <div class="exec-step">
+              <div class="step-left">
+                <div class="step-circle">5</div>
+              </div>
+              <div class="step-body">
+                <div class="step-title">Response Delivery</div>
+                <div class="step-detail">Final formatted response to user.</div>
+                <span class="step-tool">📤 output_agent</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-title">TOOL SELECTION</div>
+            <div class="status-item"><span class="status-key">ACTIVE TOOLS</span><span class="status-val">web_search, summarize</span></div>
+            <div class="status-item"><span class="status-key">RETRIES</span><span class="tag s-warn">1</span></div>
+            <div class="status-item"><span class="status-key">FAILED STEPS</span><span class="tag s-ok">0</span></div>
+            <div class="status-item"><span class="status-key">AUTO-DEBUG</span><span class="tag s-ok">ON</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">PLANNER STATUS</div>
+            <div class="status-item"><span class="status-key">PLANS TODAY</span><span class="status-val">3</span></div>
+            <div class="status-item"><span class="status-key">COMPLETED</span><span class="tag s-ok">2</span></div>
+            <div class="status-item"><span class="status-key">IN PROGRESS</span><span class="tag s-info">1</span></div>
+            <div class="status-item"><span class="status-key">CONFIDENCE</span><span class="status-val">88%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: TASKS ── -->
+    <div class="view" id="view-tasks">
+      <div class="panel-view">
+        <div class="view-header">
+          <h2>✅ Tasks & Reminders</h2>
+          <p>Manage your active tasks and scheduled reminders</p>
+        </div>
+
+        <div class="tasks-add">
+          <input type="text" id="taskInput" placeholder="Add a task or reminder..." onkeypress="if(event.key==='Enter') addTask()">
+          <select id="taskPri" style="padding:10px 12px;background:var(--surface);border:1px solid var(--rim);border-radius:10px;color:var(--t1);font-family:var(--f-body);outline:none;font-size:0.82rem;">
+            <option value="lo">Low</option>
+            <option value="med" selected>Medium</option>
+            <option value="hi">High</option>
+          </select>
+          <button class="add-btn" onclick="addTask()">+ Add</button>
+        </div>
+
+        <div style="font-size:0.65rem;font-family:var(--f-mono);letter-spacing:2px;color:var(--t3);margin-bottom:10px">ACTIVE TASKS</div>
+        <div id="tasksList">
+          <!-- tasks render here -->
+        </div>
+
+        <div style="font-size:0.65rem;font-family:var(--f-mono);letter-spacing:2px;color:var(--t3);margin:16px 0 10px">COMPLETED</div>
+        <div id="doneList">
+          <!-- done tasks -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: HISTORY ── -->
+    <div class="view" id="view-history">
+      <div class="panel-view">
+        <div class="view-header">
+          <h2>📋 Chat History</h2>
+          <p>Your complete conversation archive</p>
+        </div>
+        <div id="historyList">
+          <div class="empty-state" style="margin-top:40px">
+            <div class="empty-icon">📭</div>
+            <div>No conversation history yet.</div>
+            <div style="font-size:0.75rem;color:var(--t3)">Start chatting to see your history here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: SETTINGS ── -->
+    <div class="view" id="view-settings">
+      <div class="panel-view">
+        <div class="view-header">
+          <h2>⚙️ Settings</h2>
+          <p>Customize AURA's interface, behavior, and accessibility</p>
+        </div>
+
+        <!-- Interface Mode -->
+        <div class="s-card" id="modeSection">
+          <h3>🎛 INTERFACE MODE</h3>
+          <div class="mode-grid">
+            <div class="mode-opt" onclick="setMode('minimal', this)">
+              <div class="mode-opt-name">Minimal</div>
+              <div class="mode-opt-desc">Clean · Focused · Accessible</div>
+            </div>
+            <div class="mode-opt sel" onclick="setMode('smart', this)" id="modeOpt-smart">
+              <div class="mode-opt-name">Smart ★</div>
+              <div class="mode-opt-desc">Balanced · Default · Elegant</div>
+            </div>
+            <div class="mode-opt" onclick="setMode('jarvis', this)">
+              <div class="mode-opt-name">Jarvis</div>
+              <div class="mode-opt-desc">Cinematic · Orb-first · Immersive</div>
+            </div>
+            <div class="mode-opt" onclick="setMode('developer', this)">
+              <div class="mode-opt-name">Developer</div>
+              <div class="mode-opt-desc">Confidence · Agent · Intent data</div>
+            </div>
+            <div class="mode-opt" onclick="setMode('autonomous', this)" style="grid-column:span 2">
+              <div class="mode-opt-name">Autonomous</div>
+              <div class="mode-opt-desc">Full plans · Execution · Tool visibility</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Appearance -->
+          <div class="s-card">
+            <h3>🎨 APPEARANCE</h3>
+            <div class="s-row">
+              <div><div class="s-label">Theme</div></div>
+              <div class="s-ctrl">
+                <select onchange="setTheme(this.value)">
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                  <option value="system">System Auto</option>
                 </select>
-                <button class="control-btn" onclick="clearChat()">🗑️ Clear</button>
+              </div>
             </div>
+            <div class="s-row">
+              <div><div class="s-label">Large Text</div><div class="s-sublabel">Increase readability</div></div>
+              <div class="toggle" id="tog-large" onclick="toggleBody('large-text', 'tog-large')"></div>
+            </div>
+            <div class="s-row">
+              <div><div class="s-label">High Contrast</div><div class="s-sublabel">Enhanced visibility</div></div>
+              <div class="toggle" id="tog-hc" onclick="toggleBody('hc', 'tog-hc')"></div>
+            </div>
+          </div>
+
+          <!-- Voice -->
+          <div class="s-card">
+            <h3>🎤 VOICE</h3>
+            <div class="s-row">
+              <div class="s-label">Voice Type</div>
+              <div class="s-ctrl">
+                <select id="voiceType">
+                  <option value="female">Female (Hazel)</option>
+                  <option value="male">Male (David)</option>
+                </select>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="s-label">Speech Speed</div>
+              <div class="s-ctrl">
+                <select id="speechSpeed">
+                  <option value="0.75">Slow</option>
+                  <option value="1" selected>Normal</option>
+                  <option value="1.4">Fast</option>
+                </select>
+              </div>
+            </div>
+            <div class="s-row">
+              <div><div class="s-label">Auto Read Replies</div></div>
+              <div class="toggle" id="tog-autoread" onclick="togglePref('autoRead', 'tog-autoread')"></div>
+            </div>
+          </div>
+
+          <!-- Language -->
+          <div class="s-card">
+            <h3>🌍 LANGUAGE</h3>
+            <div class="s-row">
+              <div class="s-label">Response Language</div>
+              <div class="s-ctrl">
+                <select onchange="setLang(this.value)">
+                  <option value="auto">Auto Detect</option>
+                  <option value="english">English</option>
+                  <option value="urdu">اردو Urdu</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Intelligence Panels -->
+          <div class="s-card">
+            <h3>⚡ INTELLIGENCE PANEL</h3>
+            <div class="s-row">
+              <div><div class="s-label">Show Right Panel</div><div class="s-sublabel">In Smart/Dev/Auto modes</div></div>
+              <div class="toggle on" id="tog-rpanel" onclick="toggleRPanel()"></div>
+            </div>
+            <div class="s-row">
+              <div><div class="s-label">Show Confidence</div></div>
+              <div class="toggle on" id="tog-conf" onclick="togglePref('showConf','tog-conf')"></div>
+            </div>
+            <div class="s-row">
+              <div><div class="s-label">Show Agent Tags</div></div>
+              <div class="toggle on" id="tog-agent" onclick="togglePref('showAgent','tog-agent')"></div>
+            </div>
+            <div class="s-row">
+              <div><div class="s-label">Show Plan Blocks</div></div>
+              <div class="toggle on" id="tog-plans" onclick="togglePref('showPlans','tog-plans')"></div>
+            </div>
+          </div>
+
+          <!-- Privacy -->
+          <div class="s-card">
+            <h3>🔒 PRIVACY & MEMORY</h3>
+            <div class="s-row">
+              <div><div class="s-label">Save History</div></div>
+              <div class="toggle on" id="tog-hist" onclick="togglePref('saveHist','tog-hist')"></div>
+            </div>
+            <div class="s-row">
+              <div><div class="s-label">Memory Learning</div></div>
+              <div class="toggle on" id="tog-mem" onclick="togglePref('memLearn','tog-mem')"></div>
+            </div>
+            <div class="s-row">
+              <div class="s-label">Clear All Memory</div>
+              <button onclick="clearMemory()" style="padding:5px 14px;border-radius:8px;border:1px solid rgba(244,63,94,0.3);background:rgba(244,63,94,0.08);color:var(--err);cursor:pointer;font-size:0.78rem;font-family:var(--f-body)">Clear</button>
+            </div>
+          </div>
+
+          <!-- About -->
+          <div class="s-card">
+            <h3>🤖 ABOUT AURA</h3>
+            <div class="s-row"><span class="status-key">VERSION</span><span class="status-val">1.0.0</span></div>
+            <div class="s-row"><span class="status-key">AI MODEL</span><span class="status-val">Llama 3.3 70B</span></div>
+            <div class="s-row"><span class="status-key">AGENTS</span><span class="status-val">25+</span></div>
+            <div class="s-row"><span class="status-key">DEVELOPER</span><span class="status-val">Hassan Saeed</span></div>
+            <div class="s-row"><span class="status-key">UNIVERSITY</span><span class="status-val">Hazara University</span></div>
+            <div class="s-row"><span class="status-key">COMPANY</span><span class="status-val">AURA AI</span></div>
+          </div>
         </div>
-
-        <!-- Chat panel -->
-        <div class="chat-area" id="chatPanel">
-            <div class="message aura-message">
-                <div class="aura-label">AURA</div>
-                <div class="msg-content">Hello! I am AURA, your personal AI assistant. I can help you with studying, research, coding, weather, news, translation, math, writing, quizzes, jokes, tasks, resume building and much more. Just ask me anything!</div>
-            </div>
-        </div>
-
-        <!-- History panel -->
-        <div class="history-panel" id="historyPanel"></div>
-
-        <!-- Settings panel -->
-        <div class="settings-panel" id="settingsPanel">
-            <div class="settings-card">
-                <h3>🎤 VOICE SETTINGS</h3>
-                <div class="setting-row">
-                    <span class="setting-label">Voice Type</span>
-                    <div class="setting-control">
-                        <select onchange="updateVoiceSetting('voice', this.value)">
-                            <option value="female">Female (Hazel)</option>
-                            <option value="male">Male (David)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">Speaking Speed</span>
-                    <div class="setting-control">
-                        <select onchange="updateVoiceSetting('speed', this.value)">
-                            <option value="slow">Slow</option>
-                            <option value="normal" selected>Normal</option>
-                            <option value="fast">Fast</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-card">
-                <h3>🌍 LANGUAGE SETTINGS</h3>
-                <div class="setting-row">
-                    <span class="setting-label">Response Language</span>
-                    <div class="setting-control">
-                        <select onchange="setLanguage(this.value)">
-                            <option value="auto">Auto Detect</option>
-                            <option value="english">English</option>
-                            <option value="urdu">اردو Urdu</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-card">
-                <h3>🤖 ABOUT AURA</h3>
-                <div class="setting-row">
-                    <span class="setting-label">Version</span>
-                    <span class="setting-label">1.0.0</span>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">AI Model</span>
-                    <span class="setting-label">Llama 3.3 70B</span>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">Total Agents</span>
-                    <span class="setting-label">25+</span>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">Developer</span>
-                    <span class="setting-label">Hassan Saeed</span>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">University</span>
-                    <span class="setting-label">Hazara University</span>
-                </div>
-                <div class="setting-row">
-                    <span class="setting-label">Company</span>
-                    <span class="setting-label">AURA AI</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Suggestion chips -->
-        <div class="suggestions" id="suggestions">
-            <span class="chip" onclick="sendChip('What is machine learning?')">📚 Study ML</span>
-            <span class="chip" onclick="sendChip('What is the weather in Islamabad?')">🌤️ Weather</span>
-            <span class="chip" onclick="sendChip('Tell me a joke')">😄 Joke</span>
-            <span class="chip" onclick="sendChip('Generate a strong password')">🔐 Password</span>
-            <span class="chip" onclick="sendChip('Latest news Pakistan')">📰 News</span>
-            <span class="chip" onclick="sendChip('Give me a motivation quote')">💭 Quote</span>
-            <span class="chip" onclick="sendChip('Convert 100 USD to PKR')">💱 Currency</span>
-            <span class="chip" onclick="sendChip('Write a professional email to my professor')">📧 Email</span>
-        </div>
-
-        <!-- Input area -->
-        <div class="input-area" id="inputArea">
-            <div class="voice-bar">
-                <button class="voice-btn" id="micBtn" onclick="toggleVoice()">
-                    🎤 Speak
-                </button>
-                <button class="voice-btn stop-btn" onclick="stopAudio()">
-                    🛑 Stop
-                </button>
-                <span class="voice-status" id="voiceStatus">Click mic to speak to AURA</span>
-            </div>
-            <div class="input-row">
-                <input
-                    type="text"
-                    id="userInput"
-                    placeholder="Ask AURA anything — it auto-detects what you need..."
-                    onkeypress="if(event.key==='Enter') sendMessage()"
-                />
-                <button class="send-btn" onclick="sendMessage()">Send</button>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <script>
-        let currentLanguage = 'auto'
-        let isRecording = false
-        let recognition = null
-        let userName = 'Guest'
-        let userPlan = 'FREE'
+    <!-- ══════════════════════════════════════════════════════════
+         RIGHT INTELLIGENCE PANEL
+         ══════════════════════════════════════════════════════════ -->
+    <aside class="r-panel visible" id="rPanel">
 
-        // Load user
-        const savedUser = localStorage.getItem('aura_user')
-        if (savedUser) {
-            const user = JSON.parse(savedUser)
-            userName = user.name || user.username
-            userPlan = (user.plan || 'free').toUpperCase()
-            document.getElementById('userName').textContent = userName
-            document.getElementById('userPlan').textContent = userPlan
-            document.getElementById('userAvatar').textContent = userName[0].toUpperCase()
-        }
+      <div class="r-orb-wrap">
+        <div class="r-orb idle" id="rOrb">
+          <div class="r-orb-ring"></div>
+          <div class="r-orb-ring2"></div>
+        </div>
+        <div class="orb-state-label">AURA STATUS</div>
+        <div class="orb-state-val" id="orbStateLabel">Idle</div>
+      </div>
 
-        // Load saved theme
-        const savedTheme = localStorage.getItem('aura_theme') || 'system'
-        applyTheme(savedTheme)
+      <div class="r-section">
+        <div class="r-section-title">ACTIVE SESSION</div>
+        <div class="r-stat-row"><span class="r-stat-key">USER</span><span class="r-stat-val" id="rp-user">Guest</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">MODE</span><span class="r-stat-val" id="rp-mode">Smart</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">MESSAGES</span><span class="r-stat-val" id="rp-msgs">0</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">LANGUAGE</span><span class="r-stat-val" id="rp-lang">Auto</span></div>
+      </div>
 
-        function applyTheme(theme) {
-            if (theme === 'light') {
-                document.body.classList.add('light')
-            } else if (theme === 'dark') {
-                document.body.classList.remove('light')
-            } else {
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-                if (!prefersDark) document.body.classList.add('light')
-                else document.body.classList.remove('light')
-            }
-        }
+      <div class="r-section">
+        <div class="r-section-title">INTELLIGENCE</div>
+        <div class="r-stat-row"><span class="r-stat-key">LAST INTENT</span><span class="r-stat-val" id="rp-intent">—</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">AGENT</span><span class="r-stat-val" id="rp-agent">—</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">CONFIDENCE</span><span class="r-stat-val" id="rp-conf">—</span></div>
+        <div class="mini-conf-bar"><div class="mini-conf-fill" id="rp-conf-bar" style="width:0%"></div></div>
+      </div>
 
-        function setTheme(theme, el) {
-            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'))
-            el.classList.add('active')
-            localStorage.setItem('aura_theme', theme)
-            applyTheme(theme)
-        }
+      <div class="r-section">
+        <div class="r-section-title">MEMORY CONTEXT</div>
+        <div class="r-stat-row"><span class="r-stat-key">NAME KNOWN</span><span class="r-stat-val">Yes</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">INTERESTS</span><span class="r-stat-val">3 tracked</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">PATTERNS</span><span class="r-stat-val">Learning</span></div>
+      </div>
 
-        function showPanel(panel, el) {
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'))
-            if (el) el.classList.add('active')
-            document.getElementById('chatPanel').style.display = panel === 'chat' ? 'flex' : 'none'
-            document.getElementById('historyPanel').style.display = panel === 'history' ? 'flex' : 'none'
-            document.getElementById('settingsPanel').style.display = panel === 'settings' ? 'flex' : 'none'
-            document.getElementById('inputArea').style.display = panel === 'chat' ? 'block' : 'none'
-            document.getElementById('suggestions').style.display = panel === 'chat' ? 'flex' : 'none'
-            const titles = { chat: '💬 AURA Chat', history: '📋 Chat History', settings: '⚙️ Settings' }
-            document.getElementById('topbarTitle').textContent = titles[panel]
-            if (panel === 'history') loadHistory()
-        }
+      <div class="r-section">
+        <div class="r-section-title">SYSTEM</div>
+        <div class="r-stat-row"><span class="r-stat-key">ORCHESTRATOR</span><span class="r-stat-val" style="color:var(--ok)">Online</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">REASONER</span><span class="r-stat-val" style="color:var(--ok)">Active</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">PLANNER</span><span class="r-stat-val" style="color:var(--ok)">Ready</span></div>
+        <div class="r-stat-row"><span class="r-stat-key">MEMORY</span><span class="r-stat-val" style="color:var(--ok)">Connected</span></div>
+      </div>
 
-        function setLanguage(lang) { currentLanguage = lang }
+    </aside>
 
-        function clearChat() {
-            document.getElementById('chatPanel').innerHTML = `
-                <div class="message aura-message">
-                    <div class="aura-label">AURA</div>
-                    <div class="msg-content">Chat cleared. How can I help you?</div>
-                </div>`
-        }
+  </div><!-- /content-wrap -->
+</div><!-- /main-wrap -->
 
-        function logout() {
-            localStorage.removeItem('aura_user')
-            window.location.href = '/login'
-        }
+<!-- ============================================================
+     JAVASCRIPT ENGINE
+     ============================================================ -->
+<script>
+'use strict';
+/* ── State ── */
+const State = {
+  mode:      localStorage.getItem('aura_mode')     || 'smart',
+  theme:     localStorage.getItem('aura_theme')    || 'dark',
+  lang:      localStorage.getItem('aura_lang')     || 'auto',
+  msgCount:  parseInt(localStorage.getItem('aura_msgs') || '0'),
+  sidebarCollapsed: false,
+  orbState:  'idle',
+  isRecording: false,
+  recognition: null,
+  prefs: JSON.parse(localStorage.getItem('aura_prefs') || '{}'),
+  tasks: JSON.parse(localStorage.getItem('aura_tasks') || '[]'),
+  history: JSON.parse(localStorage.getItem('aura_hist') || '[]'),
+  userName: 'Guest',
+  userPlan:  'FREE',
+};
 
-        function sendChip(text) {
-            document.getElementById('userInput').value = text
-            sendMessage()
-        }
+/* ── Agent display map ── */
+const AGENT_MAP = {
+  study:'📚 STUDY', research:'🔍 RESEARCH', code:'💻 CODING',
+  weather:'🌤 WEATHER', news:'📰 NEWS', math:'🧮 MATH',
+  translation:'🌍 TRANSLATE', email:'📧 EMAIL', content:'✍️ CONTENT',
+  summarize:'📝 SUMMARY', grammar:'✅ GRAMMAR', quiz:'🎯 QUIZ',
+  joke:'😄 JOKE', quote:'💭 QUOTE', password:'🔐 PASSWORD',
+  task:'📋 TASK', reminder:'⏰ REMINDER', resume:'📄 RESUME',
+  currency:'💱 CURRENCY', dictionary:'📖 DICT',
+  web_search:'🌐 SEARCH', file:'📁 FILE', screenshot:'📸 SCREEN',
+  memory:'🧠 MEMORY', fitness:'💪 FITNESS', general:'💬 GENERAL',
+};
 
-        function toggleVoice() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert('Voice not supported. Please use Chrome browser.')
-                return
-            }
-            if (isRecording) stopRecording()
-            else startRecording()
-        }
+/* ══════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════ */
+function init() {
+  // Load user
+  const saved = localStorage.getItem('aura_user');
+  if (saved) {
+    try {
+      const u = JSON.parse(saved);
+      State.userName = u.name || u.username || 'Guest';
+      State.userPlan = ((u.plan || 'free') + ' PLAN').toUpperCase();
+    } catch(e) {}
+  }
+  // Apply UI
+  document.getElementById('s-avatar').textContent = State.userName[0].toUpperCase();
+  document.getElementById('s-name').textContent = State.userName;
+  document.getElementById('s-plan').textContent = State.userPlan;
+  document.getElementById('rp-user').textContent = State.userName;
+  document.getElementById('mem-name').textContent = State.userName;
+  document.getElementById('mem-since').textContent = new Date().toLocaleDateString();
+  document.getElementById('mem-msgs').textContent = State.msgCount;
+  document.getElementById('rp-msgs').textContent = State.msgCount;
 
-        function startRecording() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-            recognition = new SpeechRecognition()
-            recognition.lang = currentLanguage === 'urdu' ? 'ur-PK' : 'en-US'
-            recognition.continuous = false
-            recognition.interimResults = false
+  applyTheme(State.theme);
+  applyMode(State.mode);
+  renderTasks();
+  renderHistory();
+  updateTaskBadge();
 
-            recognition.onstart = () => {
-                isRecording = true
-                document.getElementById('micBtn').classList.add('recording')
-                document.getElementById('micBtn').textContent = '🔴 Listening...'
-                document.getElementById('voiceStatus').textContent = 'Listening... speak now'
-            }
+  // Prefs toggles
+  ['saveHist','memLearn','showConf','showAgent','showPlans','autoRead'].forEach(k => {
+    if (State.prefs[k] !== false) {
+      const el = document.getElementById('tog-' + k.toLowerCase().replace(/show/,'').replace('autoread','autoread'));
+      // just ensure defaults are 'on' visually (they're on by default)
+    }
+  });
+}
 
-            recognition.onresult = (event) => {
-                const text = event.results[0][0].transcript
-                document.getElementById('userInput').value = text
-                document.getElementById('voiceStatus').textContent = 'Heard: "' + text + '"'
-                stopRecording()
-                sendMessage()
-            }
+/* ══════════════════════════════════════════════
+   SIDEBAR
+   ══════════════════════════════════════════════ */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  State.sidebarCollapsed = !State.sidebarCollapsed;
+  sb.classList.toggle('collapsed', State.sidebarCollapsed);
+  // On small screens, use mob-open
+  if (window.innerWidth <= 860) {
+    State.sidebarCollapsed = false;
+    sb.classList.toggle('mob-open');
+    sb.classList.remove('collapsed');
+  }
+}
 
-            recognition.onerror = () => {
-                stopRecording()
-                document.getElementById('voiceStatus').textContent = 'Could not hear. Try again.'
-            }
+/* ══════════════════════════════════════════════
+   VIEWS
+   ══════════════════════════════════════════════ */
+const VIEW_TITLES = {
+  chat: '💬 AURA Chat',
+  memory: '🧠 Memory System',
+  intelligence: '⚡ Intelligence Core',
+  autonomy: '🤖 Autonomy Engine',
+  tasks: '✅ Tasks & Reminders',
+  history: '📋 Chat History',
+  settings: '⚙️ Settings',
+};
 
-            recognition.onend = () => stopRecording()
-            recognition.start()
-        }
+function showView(id, navEl) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('tb-title').textContent = VIEW_TITLES[id] || '';
+  if (id === 'history') loadHistory();
+  if (id === 'tasks') renderTasks();
+}
 
-        function stopRecording() {
-            isRecording = false
-            if (recognition) recognition.stop()
-            document.getElementById('micBtn').classList.remove('recording')
-            document.getElementById('micBtn').textContent = '🎤 Speak'
-        }
+function scrollToModeSettings() {
+  setTimeout(() => {
+    document.getElementById('modeSection')?.scrollIntoView({ behavior:'smooth' });
+  }, 100);
+}
 
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel()
-                const clean = text.replace(/[*#`_\[\]()>|]/g, '')
-                const sentences = clean.split(/(?<=[.!?])\s+/)
-                const shortText = sentences.slice(0, 2).join(' ')
-                const utterance = new SpeechSynthesisUtterance(shortText)
-                utterance.lang = currentLanguage === 'urdu' ? 'ur-PK' : 'en-US'
-                utterance.rate = 1.0
-                window.speechSynthesis.speak(utterance)
-                document.getElementById('orb').classList.add('talking')
-                utterance.onend = () => document.getElementById('orb').classList.remove('talking')
-            }
-        }
+/* ══════════════════════════════════════════════
+   MODES
+   ══════════════════════════════════════════════ */
+const MODE_CLASSES = ['minimal-mode','smart-mode','jarvis-mode','developer-mode','autonomous-mode'];
+const MODE_LABELS = {
+  minimal:'MINIMAL MODE', smart:'SMART MODE', jarvis:'JARVIS MODE',
+  developer:'DEV MODE', autonomous:'AUTO MODE'
+};
+const MODE_RPANEL = { minimal:false, smart:true, jarvis:true, developer:true, autonomous:true };
 
-        function readFullResponse(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel()
-                const clean = text.replace(/[*#`_\[\]()>|]/g, '')
-                const utterance = new SpeechSynthesisUtterance(clean)
-                utterance.lang = currentLanguage === 'urdu' ? 'ur-PK' : 'en-US'
-                utterance.rate = 1.0
-                window.speechSynthesis.speak(utterance)
-                document.getElementById('orb').classList.add('talking')
-                utterance.onend = () => document.getElementById('orb').classList.remove('talking')
-            }
-        }
+function applyMode(mode) {
+  STATE_body_remove_modes();
+  document.body.classList.add(mode + '-mode');
+  document.getElementById('modeLabel').textContent = MODE_LABELS[mode] || 'SMART MODE';
+  document.getElementById('rp-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+  const rp = document.getElementById('rPanel');
+  if (rp) {
+    rp.classList.toggle('visible', MODE_RPANEL[mode] !== false);
+  }
+  // Highlight settings opt
+  document.querySelectorAll('.mode-opt').forEach(o => o.classList.remove('sel'));
+  const sel = document.querySelector('[onclick="setMode(\'' + mode + '\', this)"]');
+  if (sel) sel.classList.add('sel');
+  State.mode = mode;
+  localStorage.setItem('aura_mode', mode);
+}
 
-        function stopAudio() {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel()
-                document.getElementById('orb').classList.remove('talking')
-                document.getElementById('voiceStatus').textContent = 'Stopped'
-            }
-        }
+function STATE_body_remove_modes() {
+  MODE_CLASSES.forEach(c => document.body.classList.remove(c));
+}
 
-        function copyText(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                document.getElementById('voiceStatus').textContent = 'Copied!'
-                setTimeout(() => {
-                    document.getElementById('voiceStatus').textContent = 'Click mic to speak to AURA'
-                }, 2000)
-            })
-        }
+function setMode(mode, el) {
+  applyMode(mode);
+}
 
-        async function sendMessage() {
-            const input = document.getElementById('userInput')
-            const chat = document.getElementById('chatPanel')
-            const text = input.value.trim()
-            if (!text) return
+/* ══════════════════════════════════════════════
+   THEME
+   ══════════════════════════════════════════════ */
+function applyTheme(theme) {
+  if (theme === 'light') document.body.classList.add('light-mode');
+  else if (theme === 'dark') document.body.classList.remove('light-mode');
+  else {
+    const pref = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.body.classList.toggle('light-mode', !pref);
+  }
+  State.theme = theme;
+  localStorage.setItem('aura_theme', theme);
+}
+function setTheme(t) { applyTheme(t); }
 
-            // Hide suggestions after first message
-            document.getElementById('suggestions').style.display = 'none'
+/* ══════════════════════════════════════════════
+   TOGGLES
+   ══════════════════════════════════════════════ */
+function toggleBody(cls, togId) {
+  document.body.classList.toggle(cls);
+  document.getElementById(togId)?.classList.toggle('on');
+}
 
-            chat.innerHTML += `<div class="message user-message">${text}</div>`
-            input.value = ''
+function togglePref(key, togId) {
+  State.prefs[key] = !State.prefs[key];
+  document.getElementById(togId)?.classList.toggle('on');
+  localStorage.setItem('aura_prefs', JSON.stringify(State.prefs));
+}
 
-            chat.innerHTML += `
-                <div class="typing-indicator" id="typing">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                </div>`
-            chat.scrollTop = chat.scrollHeight
-            document.getElementById('orb').classList.add('talking')
+function toggleRPanel() {
+  const rp = document.getElementById('rPanel');
+  const tog = document.getElementById('tog-rpanel');
+  rp.classList.toggle('visible');
+  tog.classList.toggle('on', rp.classList.contains('visible'));
+}
 
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text, username: userName })
-                })
+/* ══════════════════════════════════════════════
+   ORB STATE
+   ══════════════════════════════════════════════ */
+const ORB_LABELS = {
+  idle:'Idle', listening:'Listening', thinking:'Thinking',
+  speaking:'Speaking', executing:'Executing', success:'Done', error:'Error'
+};
 
-                const data = await response.json()
-                document.getElementById('typing').remove()
-                document.getElementById('orb').classList.remove('talking')
+function setOrbState(state) {
+  State.orbState = state;
+  const orb = document.getElementById('rOrb');
+  const topDot = document.getElementById('topDot');
+  const topState = document.getElementById('topState');
+  const label = document.getElementById('orbStateLabel');
+  const mini = document.querySelector('.orb-mini');
 
-                const agentTags = {
-                    study: '📚 STUDY', research: '🔍 RESEARCH', code: '💻 CODING',
-                    weather: '🌤️ WEATHER', news: '📰 NEWS', math: '🧮 MATH',
-                    translation: '🌍 TRANSLATE', email: '📧 EMAIL', content: '✍️ CONTENT',
-                    summarize: '📝 SUMMARY', grammar: '✅ GRAMMAR', quiz: '🎯 QUIZ',
-                    joke: '😄 JOKE', quote: '💭 QUOTE', password: '🔐 PASSWORD',
-                    task: '📋 TASK', reminder: '⏰ REMINDER', resume: '📄 RESUME',
-                    currency: '💱 CURRENCY', dictionary: '📖 DICTIONARY',
-                    youtube: '▶️ YOUTUBE', web_search: '🌐 SEARCH',
-                    file: '📁 FILE', screenshot: '📸 SCREENSHOT',
-                    memory: '🧠 MEMORY', time: '⏰ TIME', date: '📅 DATE'
-                }
+  ['idle','listening','thinking','speaking','executing','success','error'].forEach(s => {
+    orb.classList.remove(s);
+    topDot.classList.remove(s);
+  });
+  orb.classList.add(state);
+  if (state !== 'idle') topDot.classList.add(state);
+  topState.textContent = (ORB_LABELS[state] || state).toUpperCase();
+  label.textContent = ORB_LABELS[state] || state;
+}
 
-                const tag = agentTags[data.intent] ?
-                    `<span class="agent-tag">${agentTags[data.intent]}</span>` : ''
+/* ══════════════════════════════════════════════
+   CHAT — SEND MESSAGE
+   ══════════════════════════════════════════════ */
+let msgCounter = 0;
 
-                const msgId = 'msg' + Date.now()
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const chat  = document.getElementById('chatArea');
+  const text  = input.value.trim();
+  if (!text) return;
 
-                chat.innerHTML += `
-                    <div class="message aura-message" id="${msgId}">
-                        <div class="aura-label">AURA ${tag}</div>
-                        <div class="msg-content">${data.response.replace(/\n/g, '<br>')}</div>
-                        <div class="msg-actions">
-                            <button class="msg-btn" onclick="readFullResponse(document.querySelector('#${msgId} .msg-content').textContent)">🔊 Read</button>
-                            <button class="msg-btn" onclick="stopAudio()">🛑 Stop</button>
-                            <button class="msg-btn" onclick="copyText(document.querySelector('#${msgId} .msg-content').textContent)">📋 Copy</button>
-                        </div>
-                    </div>`
+  // Hide chips after first interaction
+  document.getElementById('chipsRow').style.display = 'none';
 
-                chat.scrollTop = chat.scrollHeight
+  // User bubble
+  chat.insertAdjacentHTML('beforeend', `
+    <div class="msg user">
+      <div class="msg-bubble">${escHtml(text)}</div>
+    </div>`);
+  input.value = '';
+  scrollChat();
 
-            } catch (e) {
-                document.getElementById('typing').remove()
-                document.getElementById('orb').classList.remove('talking')
-                chat.innerHTML += `
-                    <div class="message aura-message">
-                        <div class="aura-label">AURA</div>
-                        <div class="msg-content">Connection error. Please try again.</div>
-                    </div>`
-            }
-        }
+  // Typing
+  const typId = 'typ' + Date.now();
+  chat.insertAdjacentHTML('beforeend', `
+    <div class="typing-ind" id="${typId}">
+      <div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div>
+    </div>`);
+  scrollChat();
+  setOrbState('thinking');
 
-        async function loadHistory() {
-            const container = document.getElementById('historyPanel')
-            container.innerHTML = '<p class="empty-msg">Loading history...</p>'
-            try {
-                const res = await fetch('/history')
-                const data = await res.json()
-                container.innerHTML = ''
-                if (data.length === 0) {
-                    container.innerHTML = '<p class="empty-msg">No chat history yet.</p>'
-                    return
-                }
-                data.reverse().forEach(item => {
-                    container.innerHTML += `
-                        <div class="history-item">
-                            <div class="history-time">${item.time}</div>
-                            <div class="history-user">You: ${item.user}</div>
-                            <div class="history-aura">AURA: ${item.aura}</div>
-                        </div>`
-                })
-            } catch (e) {
-                container.innerHTML = '<p class="empty-msg">Could not load history.</p>'
-            }
-        }
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, username: State.userName })
+    });
+    const data = await res.json();
+    document.getElementById(typId)?.remove();
+    setOrbState('speaking');
 
-        async function updateVoiceSetting(type, value) {
-            const command = type === 'voice' ? value + ' voice' : 'speak ' + value
-            await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: command, username: userName })
-            })
-        }
-    </script>
+    const intent  = data.intent || 'general';
+    const agent   = AGENT_MAP[intent] || '💬 GENERAL';
+    const conf    = data.confidence ? Math.round(data.confidence * 100) : null;
+    const msgId   = 'msg' + (++msgCounter);
+    const response = data.response || 'No response.';
+
+    // Update right panel
+    document.getElementById('rp-intent').textContent = intent;
+    document.getElementById('rp-agent').textContent  = agent;
+    document.getElementById('lastIntent').textContent = intent;
+    document.getElementById('activeAgent').textContent = agent;
+    if (conf !== null) {
+      document.getElementById('rp-conf').textContent = conf + '%';
+      document.getElementById('rp-conf-bar').style.width = conf + '%';
+      document.getElementById('confScore').textContent = conf + '%';
+    }
+
+    // Build tags
+    let tags = `<span class="tag tag-agent">${agent}</span>`;
+    if (conf !== null) tags += `<span class="tag tag-conf">${conf}%</span>`;
+
+    // Plan block (shown in developer/autonomous mode)
+    let planHtml = '';
+    if (data.plan && State.mode !== 'minimal') {
+      planHtml = `
+        <div class="plan-block">
+          <div class="plan-block-head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+            📋 EXECUTION PLAN <span style="margin-left:auto;opacity:0.5">▾</span>
+          </div>
+          <div class="plan-block-body">
+            ${data.plan.map((s,i) => `<div class="plan-step"><div class="plan-step-num">${i+1}</div><div>${escHtml(s)}</div></div>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="msg aura" id="${msgId}">
+        <div class="msg-meta">
+          <span class="msg-label">AURA</span>
+          ${tags}
+        </div>
+        <div class="msg-bubble">
+          <div class="msg-content">${escHtml(response).replace(/\n/g,'<br>')}</div>
+          ${planHtml}
+        </div>
+        <div class="msg-actions">
+          <button class="act-btn" onclick="readFull('${msgId}')">🔊 Read</button>
+          <button class="act-btn" onclick="stopAudio()">🛑 Stop</button>
+          <button class="act-btn" onclick="copyMsg('${msgId}')">📋 Copy</button>
+          <button class="act-btn" onclick="retryMsg()">↩ Retry</button>
+        </div>
+      </div>`);
+
+    scrollChat();
+
+    // Update counters
+    State.msgCount++;
+    localStorage.setItem('aura_msgs', State.msgCount);
+    document.getElementById('rp-msgs').textContent = State.msgCount;
+    document.getElementById('mem-msgs').textContent = State.msgCount;
+
+    // Save history
+    const histEntry = {
+      time: new Date().toLocaleTimeString(),
+      date: new Date().toLocaleDateString(),
+      user: text,
+      aura: response.slice(0, 200),
+      intent
+    };
+    State.history.unshift(histEntry);
+    if (State.history.length > 100) State.history.pop();
+    localStorage.setItem('aura_hist', JSON.stringify(State.history));
+
+    // Auto-read
+    if (State.prefs.autoRead) readFull(msgId);
+
+    setTimeout(() => setOrbState('idle'), 2000);
+
+  } catch(e) {
+    document.getElementById(typId)?.remove();
+    setOrbState('error');
+    chat.insertAdjacentHTML('beforeend', `
+      <div class="msg aura">
+        <div class="msg-meta"><span class="msg-label">AURA</span><span class="tag" style="background:rgba(244,63,94,0.1);color:var(--err)">CONNECTION ERROR</span></div>
+        <div class="msg-bubble" style="color:var(--t2)">
+          Connection issue. Please check your connection and try again.
+        </div>
+      </div>`);
+    scrollChat();
+    setTimeout(() => setOrbState('idle'), 3000);
+    showNotif('Connection error. Please try again.', 'err');
+  }
+}
+
+function sendChip(t) {
+  document.getElementById('userInput').value = t;
+  sendMessage();
+}
+
+function scrollChat() {
+  const c = document.getElementById('chatArea');
+  c.scrollTop = c.scrollHeight;
+}
+
+function clearChat() {
+  document.getElementById('chatArea').innerHTML = `
+    <div class="msg aura">
+      <div class="msg-meta"><span class="msg-label">AURA</span></div>
+      <div class="msg-bubble">Chat cleared. How can I help you?</div>
+    </div>`;
+  document.getElementById('chipsRow').style.display = 'flex';
+}
+
+/* ══════════════════════════════════════════════
+   VOICE
+   ══════════════════════════════════════════════ */
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showNotif('Voice requires Chrome browser.', 'err'); return;
+  }
+  if (State.isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  State.recognition = new SR();
+  State.recognition.lang = State.lang === 'urdu' ? 'ur-PK' : 'en-US';
+  State.recognition.continuous = false;
+  State.recognition.interimResults = false;
+
+  State.recognition.onstart = () => {
+    State.isRecording = true;
+    document.getElementById('micBtn').classList.add('rec');
+    document.getElementById('micBtn').textContent = '🔴 Listening...';
+    document.getElementById('vStatus').textContent = 'Listening... speak now';
+    setOrbState('listening');
+  };
+  State.recognition.onresult = e => {
+    const t = e.results[0][0].transcript;
+    document.getElementById('userInput').value = t;
+    document.getElementById('vStatus').textContent = 'Heard: "' + t + '"';
+    stopRecording();
+    sendMessage();
+  };
+  State.recognition.onerror = () => { stopRecording(); document.getElementById('vStatus').textContent = 'Could not hear. Try again.'; };
+  State.recognition.onend   = () => stopRecording();
+  State.recognition.start();
+}
+
+function stopRecording() {
+  State.isRecording = false;
+  if (State.recognition) State.recognition.stop();
+  document.getElementById('micBtn').classList.remove('rec');
+  document.getElementById('micBtn').textContent = '🎤 Speak';
+  setOrbState('idle');
+}
+
+function readFull(msgId) {
+  if (!('speechSynthesis' in window)) return;
+  const el = document.querySelector('#' + msgId + ' .msg-content');
+  if (!el) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(el.textContent);
+  utt.lang  = State.lang === 'urdu' ? 'ur-PK' : 'en-US';
+  utt.rate  = parseFloat(document.getElementById('speechSpeed')?.value || '1');
+  window.speechSynthesis.speak(utt);
+  setOrbState('speaking');
+  utt.onend = () => setOrbState('idle');
+}
+
+function stopAudio() {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  setOrbState('idle');
+  document.getElementById('vStatus').textContent = 'Stopped';
+}
+
+function copyMsg(msgId) {
+  const el = document.querySelector('#' + msgId + ' .msg-content');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent)
+    .then(() => showNotif('Copied to clipboard', 'ok'));
+}
+
+function retryMsg() {
+  const last = document.getElementById('userInput');
+  if (last) last.focus();
+}
+
+/* ══════════════════════════════════════════════
+   LANGUAGE
+   ══════════════════════════════════════════════ */
+function setLang(lang) {
+  State.lang = lang;
+  localStorage.setItem('aura_lang', lang);
+  document.getElementById('rp-lang').textContent = lang.charAt(0).toUpperCase() + lang.slice(1);
+  document.getElementById('mem-lang').textContent = lang;
+}
+
+/* ══════════════════════════════════════════════
+   TASKS
+   ══════════════════════════════════════════════ */
+function addTask() {
+  const inp = document.getElementById('taskInput');
+  const pri = document.getElementById('taskPri').value;
+  const text = inp.value.trim();
+  if (!text) return;
+  State.tasks.push({ id: Date.now(), text, pri, done: false });
+  inp.value = '';
+  saveTasks();
+  renderTasks();
+}
+
+function toggleTask(id) {
+  const t = State.tasks.find(t => t.id === id);
+  if (t) t.done = !t.done;
+  saveTasks();
+  renderTasks();
+}
+
+function deleteTask(id) {
+  State.tasks = State.tasks.filter(t => t.id !== id);
+  saveTasks();
+  renderTasks();
+}
+
+function saveTasks() {
+  localStorage.setItem('aura_tasks', JSON.stringify(State.tasks));
+  updateTaskBadge();
+}
+
+function updateTaskBadge() {
+  const active = State.tasks.filter(t => !t.done).length;
+  document.getElementById('taskBadge').textContent = active;
+}
+
+function renderTasks() {
+  const active = State.tasks.filter(t => !t.done);
+  const done   = State.tasks.filter(t =>  t.done);
+
+  document.getElementById('tasksList').innerHTML = active.length === 0
+    ? '<div style="color:var(--t3);font-size:0.82rem;padding:10px 0">No active tasks. Add one above.</div>'
+    : active.map(t => taskCard(t)).join('');
+
+  document.getElementById('doneList').innerHTML = done.length === 0
+    ? '<div style="color:var(--t3);font-size:0.82rem;padding:10px 0">No completed tasks yet.</div>'
+    : done.map(t => taskCard(t)).join('');
+}
+
+function taskCard(t) {
+  return `<div class="task-card ${t.done?'done':''}">
+    <div class="task-check ${t.done?'checked':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
+    <div class="task-text">${escHtml(t.text)}</div>
+    <span class="task-pri ${t.pri}">${t.pri.toUpperCase()}</span>
+    <button class="task-del" onclick="deleteTask(${t.id})">✕</button>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════
+   HISTORY
+   ══════════════════════════════════════════════ */
+async function loadHistory() {
+  const container = document.getElementById('historyList');
+  // Try API first, then fall back to local
+  try {
+    const res = await fetch('/history');
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      renderHistoryData(data.reverse(), container);
+      return;
+    }
+  } catch(e) {}
+  // Local fallback
+  renderHistoryData(State.history, container);
+}
+
+function renderHistory() {
+  renderHistoryData(State.history, document.getElementById('historyList'));
+}
+
+function renderHistoryData(data, container) {
+  if (!data || data.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="margin-top:40px">
+      <div class="empty-icon">📭</div>
+      <div>No conversation history yet.</div>
+      <div style="font-size:0.75rem;color:var(--t3)">Start chatting to see your history here.</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML = data.map(item => `
+    <div class="hist-card">
+      <div class="hist-meta">
+        <span class="hist-time">${item.time || ''} ${item.date || ''}</span>
+        ${item.intent ? `<span class="tag tag-agent">${AGENT_MAP[item.intent]||item.intent}</span>` : ''}
+      </div>
+      <div class="hist-user-q">You: ${escHtml(item.user || '')}</div>
+      <div class="hist-aura-r">AURA: ${escHtml((item.aura || '').slice(0,200))}${(item.aura||'').length>200?'…':''}</div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════
+   MEMORY / PRIVACY
+   ══════════════════════════════════════════════ */
+function clearMemory() {
+  if (!confirm('Clear all AURA memory? This cannot be undone.')) return;
+  State.history = [];
+  State.tasks   = [];
+  State.msgCount = 0;
+  localStorage.removeItem('aura_hist');
+  localStorage.removeItem('aura_tasks');
+  localStorage.removeItem('aura_msgs');
+  renderTasks();
+  renderHistory();
+  updateTaskBadge();
+  showNotif('Memory cleared.', 'ok');
+}
+
+/* ══════════════════════════════════════════════
+   NOTIFICATIONS
+   ══════════════════════════════════════════════ */
+function showNotif(msg, type='info') {
+  const icons = { ok:'✅', err:'❌', info:'ℹ️' };
+  const el = document.createElement('div');
+  el.className = 'notif ' + type;
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${escHtml(msg)}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ══════════════════════════════════════════════
+   LOGOUT
+   ══════════════════════════════════════════════ */
+function doLogout() {
+  localStorage.removeItem('aura_user');
+  window.location.href = '/login';
+}
+
+/* ══════════════════════════════════════════════
+   UTILS
+   ══════════════════════════════════════════════ */
+function escHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ══════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ══════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+    document.getElementById('userInput')?.focus();
+    e.preventDefault();
+  }
+});
+
+/* ══════════════════════════════════════════════
+   SYSTEM THEME LISTENER
+   ══════════════════════════════════════════════ */
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (State.theme === 'system') applyTheme('system');
+});
+
+/* ── BOOT ── */
+init();
+</script>
 </body>
 </html>
