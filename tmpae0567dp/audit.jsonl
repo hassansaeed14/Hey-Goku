@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-10 23:51:40", "action_name": "file_delete", "allowed": false, "trust_level": "critical", "reason": "PIN_REQUIRED", "username": "beast", "session_id": "audit-test"}

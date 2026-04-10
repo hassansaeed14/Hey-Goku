@@ -1,0 +1,15 @@
+{
+  "default": {
+    "active_topic": "My name is Hassan and",
+    "active_file": "Aura Report.docx",
+    "active_url": null,
+    "last_agent": null,
+    "last_task": null,
+    "last_translation": null,
+    "current_goal": null,
+    "current_mode": "smart",
+    "unresolved_follow_up": null,
+    "recent_references": [],
+    "updated_at": "2026-04-10 23:50:38"
+  }
+}

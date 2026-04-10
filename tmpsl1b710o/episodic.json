@@ -1,0 +1,12 @@
+[
+  {
+    "event_type": "memory_signal",
+    "summary": "research: My name is Hassan and summarize Aura Report.docx",
+    "timestamp": "2026-04-10 23:50:38",
+    "intent": "last_action",
+    "success": true,
+    "metadata": {
+      "reason": "useful_event"
+    }
+  }
+]

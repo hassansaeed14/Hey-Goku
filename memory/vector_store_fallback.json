@@ -393,5 +393,61 @@
       ],
       "timestamp": "2026-04-10 23:29:30"
     }
+  },
+  {
+    "id": "mem_20260410235148060064",
+    "text": "reminder_add",
+    "metadata": {
+      "id": 1,
+      "text": "Review AURA build",
+      "timestamp": "2026-04-10 23:51:48"
+    }
+  },
+  {
+    "id": "mem_20260410235150998880",
+    "text": "translation",
+    "metadata": {
+      "target": "Urdu",
+      "source": "English",
+      "timestamp": "2026-04-10 23:51:48"
+    }
+  },
+  {
+    "id": "mem_20260410235151006902",
+    "text": "YouTube analyzed: AURA Demo",
+    "metadata": {
+      "type": "youtube_summary",
+      "video_id": "abc123xyz89",
+      "channel": "HeyGoku",
+      "timestamp": "2026-04-10 23:51:51"
+    }
+  },
+  {
+    "id": "mem_20260411002356114072",
+    "text": "reminder_add",
+    "metadata": {
+      "id": 1,
+      "text": "Review AURA build",
+      "timestamp": "2026-04-11 00:23:56"
+    }
+  },
+  {
+    "id": "mem_20260411002359045635",
+    "text": "translation",
+    "metadata": {
+      "target": "Urdu",
+      "source": "English",
+      "timestamp": "2026-04-11 00:23:56"
+    }
+  },
+  {
+    "id": "mem_20260411002359062296",
+    "text": "YouTube analyzed: AURA Demo",
+    "metadata": {
+      "type": "youtube_summary",
+      "video_id": "abc123xyz89",
+      "channel": "HeyGoku",
+      "timestamp": "2026-04-11 00:23:59"
+    }
   }
 ]
