@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA - First Run Setup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060814;
+      --panel: rgba(16, 21, 39, 0.9);
+      --line: rgba(143, 99, 255, 0.22);
+      --text: #f4f0ff;
+      --muted: #ada5ca;
+      --accent: #8f63ff;
+      --cyan: #62d4ff;
+      --red: #f06a82;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(143, 99, 255, 0.2), transparent 28%),
+        radial-gradient(circle at 80% 20%, rgba(98, 212, 255, 0.12), transparent 20%),
+        linear-gradient(180deg, #04050b, var(--bg));
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .shell {
+      width: min(720px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 42%), var(--panel);
+      padding: 32px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.75rem;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 3rem);
+    }
+    .lead {
+      margin: 0 0 24px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(7, 11, 23, 0.8);
+      color: var(--text);
+      padding: 14px 16px;
+      font: inherit;
+    }
+    input:focus, select:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(143, 99, 255, 0.25);
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font: inherit;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), #5c72ff);
+      box-shadow: 0 18px 36px rgba(96, 73, 194, 0.35);
+    }
+    .note, .error {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      display: none;
+      line-height: 1.5;
+    }
+    .note {
+      background: rgba(98, 212, 255, 0.1);
+      border: 1px solid rgba(98, 212, 255, 0.24);
+      color: #dff7ff;
+    }
+    .error {
+      background: rgba(240, 106, 130, 0.1);
+      border: 1px solid rgba(240, 106, 130, 0.24);
+      color: #ffd9df;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <p class="eyebrow">AURA Private Bootstrap</p>
+    <h1>Welcome to AURA. Create your owner account.</h1>
+    <p class="lead">
+      This is the only public bootstrap step. You will create the private owner account,
+      define the master PIN, and lock AURA into invite-only access from this point forward.
+    </p>
+
+    <form id="setupForm">
+      <div class="grid">
+        <label>Full name
+          <input id="name" required placeholder="Owner full name">
+        </label>
+        <label>Username
+          <input id="username" required placeholder="owner">
+        </label>
+        <label>Email
+          <input id="email" type="email" required placeholder="owner@example.com">
+        </label>
+        <label>Password
+          <input id="password" type="password" required placeholder="Create a strong password">
+        </label>
+        <label>Confirm password
+          <input id="confirmPassword" type="password" required placeholder="Repeat the password">
+        </label>
+        <label>Master PIN
+          <input id="masterPin" type="password" required placeholder="At least 4 digits">
+        </label>
+        <label>Preferred name
+          <input id="preferredName" placeholder="Optional">
+        </label>
+        <label>Title
+          <select id="title">
+            <option value="sir">Sir</option>
+            <option value="ma'am">Ma'am</option>
+          </select>
+        </label>
+      </div>
+      <div class="actions">
+        <button type="submit" id="setupButton">Bring AURA Online</button>
+        <span id="statusText">Awaiting initialization.</span>
+      </div>
+      <div class="note" id="successBox"></div>
+      <div class="error" id="errorBox"></div>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('setupForm')
+    const button = document.getElementById('setupButton')
+    const statusText = document.getElementById('statusText')
+    const successBox = document.getElementById('successBox')
+    const errorBox = document.getElementById('errorBox')
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      errorBox.style.display = 'none'
+      successBox.style.display = 'none'
+
+      const payload = {
+        name: document.getElementById('name').value.trim(),
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value.trim(),
+        master_pin: document.getElementById('masterPin').value.trim(),
+        preferred_name: document.getElementById('preferredName').value.trim(),
+        title: document.getElementById('title').value,
+      }
+
+      const confirmPassword = document.getElementById('confirmPassword').value.trim()
+      if (payload.password !== confirmPassword) {
+        errorBox.textContent = 'Passwords do not match.'
+        errorBox.style.display = 'block'
+        return
+      }
+
+      button.disabled = true
+      statusText.textContent = 'Creating the owner account and securing AURA...'
+
+      try {
+        const response = await fetch('/api/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || 'Setup failed.')
+        }
+        successBox.textContent = data.message || 'AURA online. Owner account created.'
+        successBox.style.display = 'block'
+        statusText.textContent = 'Owner account ready. Redirecting to login...'
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 1400)
+      } catch (error) {
+        errorBox.textContent = error.message
+        errorBox.style.display = 'block'
+        statusText.textContent = 'Initialization blocked.'
+      } finally {
+        button.disabled = false
+      }
+    })
+  </script>
+</body>
+</html>

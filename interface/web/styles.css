@@ -555,6 +555,12 @@ a:focus-visible {
   background: rgba(143, 99, 255, 0.12);
 }
 
+.ghost-button.is-on {
+  border-color: rgba(98, 212, 255, 0.28);
+  background: linear-gradient(180deg, rgba(98, 212, 255, 0.11), rgba(143, 99, 255, 0.06));
+  color: var(--text-1);
+}
+
 .ghost-button--quiet {
   color: var(--text-3);
 }
@@ -864,6 +870,7 @@ a:focus-visible {
   align-content: center;
   gap: 18px;
   padding: 8px 0;
+  position: relative;
 }
 
 .orb-hero,
@@ -871,6 +878,7 @@ a:focus-visible {
   position: relative;
   border-radius: 50%;
   isolation: isolate;
+  cursor: pointer;
 }
 
 .orb-hero {
@@ -939,6 +947,25 @@ a:focus-visible {
 .orb-state,
 .rail-orb__copy {
   text-align: center;
+}
+
+.orb-menu {
+  position: absolute;
+  top: 18px;
+  right: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 180px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid var(--line-strong);
+  background: rgba(7, 11, 23, 0.94);
+  box-shadow: var(--shadow-md);
+  z-index: 6;
+}
+
+.orb-menu[hidden] {
+  display: none;
 }
 
 .orb-state strong,
@@ -1103,10 +1130,39 @@ a:focus-visible {
   white-space: pre-wrap;
 }
 
+.message__subnote {
+  color: var(--text-3);
+  font-size: 0.78rem;
+}
+
+.message__text--streaming::after {
+  content: "";
+  display: inline-block;
+  width: 0.62rem;
+  height: 1.05em;
+  margin-left: 0.18rem;
+  vertical-align: -0.12em;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent-strong), var(--cyan));
+  box-shadow: 0 0 18px rgba(143, 99, 255, 0.45);
+  animation: stream-cursor-blink 1s steps(1, end) infinite;
+}
+
 .message__actions {
   padding-bottom: 18px;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+@keyframes stream-cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.2;
+  }
 }
 
 .message__action {
@@ -1223,6 +1279,10 @@ a:focus-visible {
 
 .view-grid--autonomy {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.view-grid--history {
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
 }
 
 .view-grid--tasks,
@@ -1451,6 +1511,40 @@ a:focus-visible {
   padding: 16px;
 }
 
+.history-session-list {
+  display: grid;
+  gap: 12px;
+}
+
+.session-card {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: transform var(--motion-fast), border-color var(--motion-fast), background var(--motion-fast);
+}
+
+.session-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+}
+
+.session-card.is-active {
+  border-color: var(--line-strong);
+  background: linear-gradient(180deg, rgba(143, 99, 255, 0.16), rgba(98, 212, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.session-card span,
+.session-card small {
+  color: var(--text-3);
+}
+
 .item-card__top,
 .history-card__head {
   margin-bottom: 12px;
@@ -1645,16 +1739,21 @@ body.is-simple-ui .mode-card {
 .orb-hero[data-state="listening"] .orb-hero__ring,
 .rail-orb[data-state="listening"] .rail-orb__ring {
   animation: listening 1.4s ease-in-out infinite;
+  border-color: rgba(105, 240, 174, 0.55);
 }
 
 .orb-hero[data-state="thinking"] .orb-hero__glow,
 .rail-orb[data-state="thinking"] .rail-orb__glow {
   animation: thinking 1.2s linear infinite;
+  background: radial-gradient(circle, rgba(255, 204, 2, 0.32), rgba(230, 81, 0, 0.08), transparent 68%);
 }
 
 .orb-hero[data-state="speaking"] .orb-hero__core,
 .rail-orb[data-state="speaking"] .rail-orb__core {
   animation: speaking 900ms ease-in-out infinite;
+  background:
+    radial-gradient(circle at 34% 30%, #ffffff, rgba(255, 255, 255, 0.92) 8%, rgba(255, 255, 255, 0.08) 10%, transparent 12%),
+    radial-gradient(circle at 40% 34%, #ffffff, #c6efff 14%, #4fc3f7 42%, #14203b 78%);
 }
 
 .orb-hero[data-state="executing"] .orb-hero__ring--a,
@@ -1676,6 +1775,19 @@ body.is-simple-ui .mode-card {
   background:
     radial-gradient(circle at 34% 30%, #ffffff, rgba(255, 255, 255, 0.78) 7%, rgba(255, 255, 255, 0.08) 8%, transparent 10%),
     radial-gradient(circle at 40% 34%, #fff7f9, #ffc9d4 12%, #f06a82 44%, #2d1520 76%);
+}
+
+.orb-hero[data-state="locked"] .orb-hero__core,
+.rail-orb[data-state="locked"] .rail-orb__core {
+  animation: none;
+  background:
+    radial-gradient(circle at 34% 30%, #f1f1f1, rgba(255, 255, 255, 0.72) 7%, rgba(255, 255, 255, 0.08) 8%, transparent 10%),
+    radial-gradient(circle at 40% 34%, #9ea4b3, #616161 16%, #32363f 44%, #181a1f 78%);
+}
+
+.orb-hero[data-state="locked"] .orb-hero__glow,
+.rail-orb[data-state="locked"] .rail-orb__glow {
+  background: radial-gradient(circle, rgba(97, 97, 97, 0.24), transparent 68%);
 }
 
 @keyframes orbit {
@@ -1849,6 +1961,7 @@ body.is-simple-ui .mode-card {
 
   .hero-grid,
   .panel--hero,
+  .view-grid--history,
   .view-grid--tasks,
   .view-grid--settings,
   .view-grid--autonomy,

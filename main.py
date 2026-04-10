@@ -3,6 +3,15 @@ from config.settings import APP_NAME, VERSION
 from voice.text_to_speech import speak, stop_speaking
 from voice.speech_to_text import listen
 from agents.core.orchestrator import orchestrator
+try:
+    from flask import Flask, jsonify, request
+except ImportError:  # pragma: no cover - optional for CLI-only environments
+    Flask = None
+    jsonify = None
+    request = None
+
+
+app = Flask(__name__) if Flask else None
 
 
 WELCOME_MESSAGE = (
@@ -14,6 +23,44 @@ STOP_COMMANDS = {"stop", "stop talking", "quiet", "silence", "shut up"}
 VOICE_MODE_COMMANDS = {"voice mode", "start voice mode", "talk mode"}
 TEXT_MODE_COMMANDS = {"text mode", "typing mode"}
 EXIT_COMMANDS = {"bye", "goodbye", "exit", "quit", "shutdown"}
+
+
+def _add_chat_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
+if app is not None:
+    @app.route("/api/chat", methods=["POST"])
+    def api_chat():
+        try:
+            payload = request.get_json(silent=True) or {}
+            message = (payload.get("message") or "").strip()
+            _mode = (payload.get("mode") or "hybrid").strip() or "hybrid"
+
+            if not message:
+                raise ValueError("message is required")
+
+            routed_agent, _confidence = orchestrator.route(message)
+            intent, response = process_command(message)
+            response = orchestrator.process_response(response, intent, learn=False)
+
+            reply_payload = {
+                "reply": response,
+                "agent": routed_agent or intent or "general",
+                "status": "ok",
+            }
+            flask_response = jsonify(reply_payload)
+            flask_response.status_code = 200
+            return _add_chat_cors_headers(flask_response)
+        except Exception as error:
+            flask_response = jsonify({
+                "error": str(error),
+                "status": "error",
+            })
+            flask_response.status_code = 500
+            return _add_chat_cors_headers(flask_response)
 
 
 def print_banner():

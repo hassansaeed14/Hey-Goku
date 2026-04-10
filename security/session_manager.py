@@ -1,50 +1,156 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import secrets
 from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict, Optional
 
-from security.security_config import SESSION_APPROVAL_DELTA
-
-
-SESSION_FILE = Path("memory/session_approvals.json")
+from security.security_config import ACTION_APPROVAL_FILE, AUTH_SESSION_IDLE_DELTA, SESSION_APPROVAL_DELTA, SESSIONS_FILE
 
 
-def _load_sessions() -> Dict[str, Dict[str, str]]:
-    if not SESSION_FILE.exists():
-        return {}
+def _now() -> datetime:
+    return datetime.utcnow()
+
+
+def _read_json(path: Path, fallback: Any) -> Any:
+    if not path.exists():
+        return fallback
     try:
-        payload = json.loads(SESSION_FILE.read_text(encoding="utf-8"))
-        return payload if isinstance(payload, dict) else {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload
     except Exception:
-        return {}
+        return fallback
 
 
-def _save_sessions(payload: Dict[str, Dict[str, str]]) -> None:
-    SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
-    SESSION_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+def _write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
+
+
+def _load_login_sessions() -> Dict[str, Dict[str, Dict[str, str]]]:
+    payload = _read_json(SESSIONS_FILE, {"sessions": {}})
+    if not isinstance(payload, dict):
+        return {"sessions": {}}
+    sessions = payload.get("sessions", {})
+    if not isinstance(sessions, dict):
+        sessions = {}
+    return {"sessions": sessions}
+
+
+def _save_login_sessions(payload: Dict[str, Dict[str, Dict[str, str]]]) -> None:
+    _write_json(SESSIONS_FILE, payload)
+
+
+def create_login_session(*, user_id: str, username: str, ip_address: str, user_agent: str) -> str:
+    raw_token = secrets.token_hex(32)
+    token_hash = _hash_token(raw_token)
+    payload = _load_login_sessions()
+    sessions = payload["sessions"]
+
+    stale_hashes = [
+        key
+        for key, entry in sessions.items()
+        if entry.get("user_id") == user_id or entry.get("username") == username
+    ]
+    for stale_hash in stale_hashes:
+        sessions.pop(stale_hash, None)
+
+    sessions[token_hash] = {
+        "user_id": user_id,
+        "username": username,
+        "ip_address": ip_address,
+        "user_agent": user_agent,
+        "created_at": _now().isoformat(),
+        "last_seen_at": _now().isoformat(),
+    }
+    _save_login_sessions(payload)
+    return raw_token
+
+
+def get_login_session(token: str, *, touch: bool = True) -> Optional[Dict[str, str]]:
+    if not token:
+        return None
+    payload = _load_login_sessions()
+    sessions = payload["sessions"]
+    token_hash = _hash_token(token)
+    entry = sessions.get(token_hash)
+    if not entry:
+        return None
+
+    try:
+        last_seen_at = datetime.fromisoformat(entry["last_seen_at"])
+    except Exception:
+        sessions.pop(token_hash, None)
+        _save_login_sessions(payload)
+        return None
+
+    if _now() - last_seen_at > AUTH_SESSION_IDLE_DELTA:
+        sessions.pop(token_hash, None)
+        _save_login_sessions(payload)
+        return None
+
+    if touch:
+        entry["last_seen_at"] = _now().isoformat()
+        sessions[token_hash] = entry
+        _save_login_sessions(payload)
+    return dict(entry)
+
+
+def invalidate_login_session(token: str) -> None:
+    if not token:
+        return
+    payload = _load_login_sessions()
+    payload["sessions"].pop(_hash_token(token), None)
+    _save_login_sessions(payload)
+
+
+def invalidate_user_sessions(*, user_id: str | None = None, username: str | None = None) -> None:
+    payload = _load_login_sessions()
+    sessions = payload["sessions"]
+    for token_hash, entry in list(sessions.items()):
+        if (user_id and entry.get("user_id") == user_id) or (username and entry.get("username") == username):
+            sessions.pop(token_hash, None)
+    _save_login_sessions(payload)
+
+
+def list_login_sessions() -> list[dict[str, str]]:
+    payload = _load_login_sessions()
+    return [dict(item) for item in payload["sessions"].values()]
+
+
+def _load_action_approvals() -> Dict[str, Dict[str, float]]:
+    payload = _read_json(ACTION_APPROVAL_FILE, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_action_approvals(payload: Dict[str, Dict[str, float]]) -> None:
+    _write_json(ACTION_APPROVAL_FILE, payload)
 
 
 def approve_action(session_id: str, action_name: str, *, minutes: int | None = None) -> Dict[str, object]:
-    ttl = SESSION_APPROVAL_DELTA if minutes is None else timedelta(minutes=minutes)
-    payload = _load_sessions()
+    ttl_seconds = int((minutes * 60) if minutes is not None else SESSION_APPROVAL_DELTA.total_seconds())
+    payload = _load_action_approvals()
     session_key = str(session_id or "default").strip()
     payload.setdefault(session_key, {})
-    payload[session_key][str(action_name or "").strip().lower()] = (datetime.now() + ttl).isoformat()
-    _save_sessions(payload)
+    payload[session_key][str(action_name or "").strip().lower()] = (_now().timestamp() + ttl_seconds)
+    _save_action_approvals(payload)
     return {"success": True, "session_id": session_key, "action_name": action_name}
 
 
 def is_action_approved(session_id: str, action_name: str) -> bool:
-    payload = _load_sessions()
+    payload = _load_action_approvals()
     session_key = str(session_id or "default").strip()
     expiry = payload.get(session_key, {}).get(str(action_name or "").strip().lower())
     if not expiry:
         return False
     try:
-        if datetime.now() <= datetime.fromisoformat(expiry):
+        if _now().timestamp() <= float(expiry):
             return True
     except Exception:
         pass
@@ -53,8 +159,8 @@ def is_action_approved(session_id: str, action_name: str) -> bool:
 
 
 def revoke_action(session_id: str, action_name: str) -> None:
-    payload = _load_sessions()
+    payload = _load_action_approvals()
     session_key = str(session_id or "default").strip()
     if session_key in payload:
         payload[session_key].pop(str(action_name or "").strip().lower(), None)
-        _save_sessions(payload)
+        _save_action_approvals(payload)

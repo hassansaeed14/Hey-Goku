@@ -360,10 +360,10 @@
             <div class="error" id="error"></div>
         </div>
 
-        <div class="divider">or</div>
+        <div class="divider">private access</div>
 
         <div class="link">
-            New to AURA? <a href="/register">Create Account</a>
+            AURA is invite-only. Contact the owner for approval.
         </div>
 
         <div class="status" id="status">SYSTEM READY</div>
@@ -416,7 +416,6 @@
                 if (res.ok) {
                     status.textContent = 'ACCESS GRANTED'
                     btn.textContent = 'WELCOME BACK!'
-                    localStorage.setItem('aura_user', JSON.stringify(data.user))
                     setTimeout(() => {
                         window.location.href = '/'
                     }, 1000)
@@ -437,6 +436,24 @@
                 btn.textContent = 'ACCESS AURA'
             }
         }
+
+        async function bootstrapAuthState() {
+            try {
+                const res = await fetch('/api/auth/session')
+                const data = await res.json()
+                if (data.setup_required) {
+                    window.location.href = '/setup'
+                    return
+                }
+                if (data.authenticated) {
+                    window.location.href = '/'
+                }
+            } catch (e) {
+                // Keep the login form visible if the session probe fails.
+            }
+        }
+
+        bootstrapAuthState()
     </script>
 </body>
 </html>

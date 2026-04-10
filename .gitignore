@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 memory/user_memory.json
 .venv/
+security/.secret.key
+security/whitelist.json
+security/confirmation_codes.json
+security/rate_limits.json
+security/sessions.json

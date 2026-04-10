@@ -223,5 +223,20 @@
         "time": "2026-04-08 14:09:47",
         "user": "BUT I LOGIN THROUGH MY PERSONAL INFORMATION",
         "aura": "I apologize, but I don't actually have access to your personal information or login details, I'm a conversational AI, our conversation just started and I don't retain any information about you."
+    },
+    {
+        "time": "2026-04-10 17:37:37",
+        "user": "hello there",
+        "aura": "I couldn't generate a useful response right now."
+    },
+    {
+        "time": "2026-04-10 17:38:59",
+        "user": "hello there",
+        "aura": "Hello world"
+    },
+    {
+        "time": "2026-04-10 17:41:11",
+        "user": "hello there",
+        "aura": "AURA streams"
     }
 ]

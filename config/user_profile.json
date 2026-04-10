@@ -1,0 +1,12 @@
+{
+  "preferred_name": "",
+  "title": "sir",
+  "language": "en",
+  "voice_profile": "jarvis",
+  "voice_gender": "male",
+  "voice_rate": 0.95,
+  "voice_pitch": 0.85,
+  "voice_volume": 1.0,
+  "auto_speak": true,
+  "proactive_suggestions": true
+}

@@ -3,15 +3,12 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from voice.voice_config import load_voice_settings
+from voice.voice_manager import build_spoken_preview, choose_voice_metadata, format_speech_text
 
 try:
     import pyttsx3  # type: ignore
 except Exception:  # pragma: no cover
     pyttsx3 = None
-
-
-def tts_available() -> bool:
-    return _build_engine() is not None
 
 
 def _build_engine():
@@ -23,17 +20,8 @@ def _build_engine():
         return None
 
 
-def _pick_voice(engine, voice_gender: str):
-    requested = str(voice_gender or "").strip().lower()
-    voices = engine.getProperty("voices")
-    if not voices:
-        return None
-    if requested in {"female", "male"}:
-        for voice in voices:
-            label = f"{getattr(voice, 'name', '')} {getattr(voice, 'id', '')}".lower()
-            if requested in label:
-                return voice
-    return voices[0]
+def tts_available() -> bool:
+    return _build_engine() is not None
 
 
 def list_voices() -> List[Dict[str, Any]]:
@@ -52,7 +40,19 @@ def list_voices() -> List[Dict[str, Any]]:
     return voices
 
 
-def speak_text(text: str, *, blocking: bool = True) -> Dict[str, Any]:
+def _set_voice(engine, voice_gender: str, language: str):
+    voices = list_voices()
+    selected = choose_voice_metadata(voices, gender=voice_gender, language=language)
+    if not selected:
+        return None
+    try:
+        engine.setProperty("voice", selected.get("id", ""))
+    except Exception:
+        return None
+    return selected
+
+
+def speak_text(text: str, *, blocking: bool = True, preview_only: bool = False) -> Dict[str, Any]:
     if not tts_available():
         return {"success": False, "status": "unavailable", "message": "Local text-to-speech backend is not available."}
 
@@ -65,10 +65,8 @@ def speak_text(text: str, *, blocking: bool = True) -> Dict[str, Any]:
         base_rate = engine.getProperty("rate")
         engine.setProperty("rate", int(base_rate * float(settings.rate)))
         engine.setProperty("volume", max(0.0, min(1.0, float(settings.volume))))
-        selected_voice = _pick_voice(engine, settings.voice_gender)
-        if selected_voice is not None:
-            engine.setProperty("voice", getattr(selected_voice, "id", ""))
-        payload = str(text or "").strip()
+        selected_voice = _set_voice(engine, settings.voice_gender, settings.language)
+        payload = build_spoken_preview(text) if preview_only else format_speech_text(text)
         if not payload:
             return {"success": False, "status": "empty_text", "message": "Speech text is empty."}
         engine.say(payload)
@@ -78,8 +76,9 @@ def speak_text(text: str, *, blocking: bool = True) -> Dict[str, Any]:
             "success": True,
             "status": "spoken",
             "message": "Speech completed.",
-            "persona": settings.persona,
-            "voice_id": getattr(selected_voice, "id", "") if selected_voice is not None else "",
+            "persona": settings.profile_id,
+            "voice_id": selected_voice.get("id", "") if selected_voice is not None else "",
+            "spoken_text": payload,
         }
     except Exception as error:
         return {"success": False, "status": "tts_error", "message": str(error)}
@@ -99,5 +98,4 @@ def stop_speaking() -> Dict[str, Any]:
 
 
 def speak(text: str, read_full: bool = False) -> bool:
-    del read_full
-    return bool(speak_text(text).get("success"))
+    return bool(speak_text(text, preview_only=not read_full).get("success"))

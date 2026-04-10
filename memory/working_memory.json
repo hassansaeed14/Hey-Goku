@@ -1,19 +1,40 @@
 {
   "default": {
-    "active_topic": "task buy milk",
+    "active_topic": "give me explanation",
     "active_file": null,
     "active_url": null,
-    "last_agent": "task",
+    "last_agent": "general",
     "last_task": null,
     "last_translation": null,
     "current_goal": null,
     "current_mode": "smart",
     "unresolved_follow_up": null,
     "recent_references": [
-      "and AI agents",
-      "what time is it",
-      "task buy milk"
+      "what is a",
+      "what is the artificial intelligence",
+      "switch to male voice",
+      "what is cyber security",
+      "male voice",
+      "who developed you",
+      "tell me about your developer",
+      "ok shut down",
+      "fuck off",
+      "why you don't shut down fuck off motherfucker",
+      "ok bye",
+      "what is software engineering and what is the difference between software engineering and AI artificial intelligence",
+      "software engineering",
+      "what is software engineering and differentiate between artificial Intelligence and software",
+      "what roles did Pakistan play for solving the",
+      "what roles did pakistan played for solving the war between america and iran?",
+      "Suppose a large ship is sinking in the middle of the ocean. There is only one lifeboat, and it can only hold ten people, but there are eleven people on the ship",
+      "Ten of the passengers are healthy, productive members of society. The eleventh person is a world-renowned doctor who is currently unconscious and requires immediate medical attention to survive, but they possess the knowledge to cure a disease currently affecting thousands",
+      "**If you are the person in charge of the lifeboat, do you leave the unconscious doctor behind to ensure the safety of the ten healthy passengers, or do you remove one healthy person to room for the doctor? What is the primary ethical principle guiding your choice?**",
+      "If a tree falls in a forest and no one is around to hear it, does it a sound?",
+      "Jarvis",
+      "what is AI",
+      "Facebook",
+      "give me explanation"
     ],
-    "updated_at": "2026-04-10 13:50:25"
+    "updated_at": "2026-04-10 23:10:44"
   }
 }

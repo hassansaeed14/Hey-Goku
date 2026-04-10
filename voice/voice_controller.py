@@ -8,18 +8,35 @@ from voice.noise_filter import analyze_transcript_noise, clean_transcript_text
 from voice.speech_to_text import get_stt_status, transcribe_audio_file, transcribe_microphone
 from voice.text_to_speech import list_voices, speak_text, stop_speaking, tts_available
 from voice.voice_config import list_voice_personas, load_voice_settings, update_voice_settings
+from voice.voice_manager import build_spoken_preview, load_user_profile
 from voice.wake_word import detect_wake_word
 
 
 def get_voice_status() -> Dict[str, Any]:
     settings = load_voice_settings()
+    user_profile = load_user_profile()
+    stt_status = get_stt_status()
+    microphone_status = get_microphone_status()
+    audio_status = get_audio_status()
+    backend_microphone_ready = bool(stt_status.get("supports_microphone") and microphone_status.get("available"))
     return {
         "mode": "hybrid",
         "settings": settings.to_dict(),
+        "user_profile": user_profile,
         "tts": {"available": tts_available(), "voices": list_voices()[:8]},
-        "stt": get_stt_status(),
-        "microphone": get_microphone_status(),
-        "audio": get_audio_status(),
+        "stt": stt_status,
+        "microphone": microphone_status,
+        "audio": audio_status,
+        "web_input": {
+            "backend_route_available": True,
+            "recommended_mode": "backend_host_microphone" if backend_microphone_ready else "browser_only_fallback",
+            "capture_scope": "host_machine",
+            "note": (
+                "Backend STT listens through the host machine microphone."
+                if backend_microphone_ready
+                else "Backend host microphone capture is unavailable."
+            ),
+        },
         "personas": list_voice_personas(),
         "wake_word_preview": detect_wake_word("hey aura status check", settings.wake_words),
     }
@@ -31,7 +48,7 @@ def update_voice_preferences(**updates: object) -> Dict[str, Any]:
 
 
 def speak_response(text: str) -> Dict[str, Any]:
-    return speak_text(text)
+    return speak_text(build_spoken_preview(text))
 
 
 def stop_voice_output() -> Dict[str, Any]:

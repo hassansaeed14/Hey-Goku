@@ -54,5 +54,329 @@
       "channel": "HeyGoku",
       "timestamp": "2026-04-10 13:49:27"
     }
+  },
+  {
+    "id": "mem_20260410173737905209",
+    "text": "there",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 17:37:34"
+    }
+  },
+  {
+    "id": "mem_20260410173737921211",
+    "text": "User asked: there",
+    "metadata": {
+      "intent": "general",
+      "source": "learning_agent",
+      "timestamp": "2026-04-10 17:37:37"
+    }
+  },
+  {
+    "id": "mem_20260410182050015561",
+    "text": "save the key steps.",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:20:50"
+    }
+  },
+  {
+    "id": "mem_20260410182506638806",
+    "text": "Soni",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:25:06"
+    }
+  },
+  {
+    "id": "mem_20260410182522339689",
+    "text": "what is a",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:25:22"
+    }
+  },
+  {
+    "id": "mem_20260410182543893960",
+    "text": "isko sound hi nahin a Raha what is AI",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:25:43"
+    }
+  },
+  {
+    "id": "mem_20260410182602946093",
+    "text": "what is a",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:26:02"
+    }
+  },
+  {
+    "id": "mem_20260410182650570581",
+    "text": "what is the artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:26:50"
+    }
+  },
+  {
+    "id": "mem_20260410182724142002",
+    "text": "switch to male voice",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:27:24"
+    }
+  },
+  {
+    "id": "mem_20260410182753384802",
+    "text": "what is cyber security",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:27:53"
+    }
+  },
+  {
+    "id": "mem_20260410182834188229",
+    "text": "ok bye",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:28:34"
+    }
+  },
+  {
+    "id": "mem_20260410182934017684",
+    "text": "male voice",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:29:34"
+    }
+  },
+  {
+    "id": "mem_20260410183029596242",
+    "text": "tell me about your developer",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:30:29"
+    }
+  },
+  {
+    "id": "mem_20260410183107186365",
+    "text": "ok shut down",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:31:07"
+    }
+  },
+  {
+    "id": "mem_20260410183117015674",
+    "text": "fuck off",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:31:17"
+    }
+  },
+  {
+    "id": "mem_20260410183153046072",
+    "text": "ok bye",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:31:53"
+    }
+  },
+  {
+    "id": "mem_20260410184136679258",
+    "text": "software engineering",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 18:41:36"
+    }
+  },
+  {
+    "id": "mem_20260410230743939849",
+    "text": "Jarvis",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 23:07:43"
+    }
+  },
+  {
+    "id": "mem_20260410230840071722",
+    "text": "what is AI",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 23:08:40"
+    }
+  },
+  {
+    "id": "mem_20260410230903972962",
+    "text": "what is AI",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 23:09:03"
+    }
+  },
+  {
+    "id": "mem_20260410230944901431",
+    "text": "Facebook",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 23:09:44"
+    }
+  },
+  {
+    "id": "mem_20260410231044430979",
+    "text": "give me explanation",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-10 23:10:44"
+    }
   }
 ]

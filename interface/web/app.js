@@ -11,6 +11,7 @@
     autonomyVisible: "aura_autonomy_visible",
     voiceRate: "aura_voice_rate",
     railPinned: "aura_rail_pinned",
+    currentSession: "aura_current_session_id",
   };
 
   const VIEW_META = {
@@ -54,6 +55,7 @@
     executing: { title: "Executing", hint: "Running the selected plan or tools.", color: "#8f63ff" },
     success: { title: "Success", hint: "Latest action completed cleanly.", color: "#59d091" },
     error: { title: "Error", hint: "AURA hit friction and is surfacing it honestly.", color: "#f06a82" },
+    locked: { title: "Locked", hint: "Session secured. Identity confirmation is required.", color: "#7d859a" },
   };
 
   const CAPABILITY_HIGHLIGHTS = [
@@ -108,12 +110,16 @@
       voiceRate: readNumber(STORAGE_KEYS.voiceRate, 1),
       railPinned: readBoolean(STORAGE_KEYS.railPinned, true),
     },
-    user: safeJsonParse(localStorage.getItem("aura_user")) || null,
+    user: null,
+    profile: null,
+    confirmationStatus: null,
     systemState: "idle",
     lastResult: null,
     systemStatus: null,
     agents: [],
     history: [],
+    sessions: [],
+    currentSessionId: null,
     sessionMeta: [],
     tasks: [],
     reminders: [],
@@ -127,6 +133,11 @@
     railOpen: false,
     listening: false,
     speaking: false,
+    voiceStatus: null,
+    voiceProfiles: [],
+    voiceInputMode: "unknown",
+    voiceActiveSource: null,
+    voiceAbortController: null,
     recognition: null,
     speechSupported: "speechSynthesis" in window,
     speechVoice: null,
@@ -136,24 +147,26 @@
 
   document.addEventListener("DOMContentLoaded", init);
 
-  function init() {
+  async function init() {
     cacheDom();
+    state.currentSessionId = ensureCurrentSessionId();
     applySettings();
     bindEvents();
     renderStaticSurfaces();
     setSystemState("idle");
     syncVoiceButtons();
-    syncIdentity();
     switchView(state.currentView);
     initializeSpeechRecognition();
     seedWelcomeMessage();
-    refreshAllData();
+    await bootstrapSession();
+    await refreshAllData();
   }
 
   function cacheDom() {
     const ids = [
       "appOverlay", "sidebar", "sidebarCollapse", "brandHome", "modePill", "identityInitial",
       "identityName", "identitySubtitle", "sidebarRailButton", "logoutButton", "mobileNavToggle",
+      "adminButton", "orbQuickMenu",
       "currentViewLabel", "currentViewTitle", "systemStateChip", "topbarStateDot", "topbarStateText",
       "topbarActiveAgent", "topbarConfidence", "modeSelect", "voiceToggle", "railToggle", "heroOrb",
       "heroStateText", "heroStateHint", "presenceAgent", "presenceConfidence", "presenceMode",
@@ -170,8 +183,13 @@
       "taskDueDate", "taskSubmitButton", "taskCancelEditButton", "taskList", "completedTaskList",
       "refreshRemindersButton", "reminderForm", "reminderText", "reminderDate", "reminderTime",
       "reminderSubmitButton", "reminderCancelEditButton", "reminderList", "completedReminderList",
-      "historySearch", "historyMetaHint", "historyList", "settingsMode", "settingsTheme",
-      "settingsLanguage", "settingsVoiceRate", "toggleReadResponses", "toggleLargeText",
+      "historySearch", "historyMetaHint", "historyList", "historyCurrentSession", "historySessionList",
+      "settingsMode", "settingsTheme",
+      "settingsLanguage", "settingsPreferredName", "settingsTitle", "settingsVoiceProfile",
+      "settingsVoiceRate", "settingsVoicePitch", "settingsVoiceVolume", "voicePreviewButton",
+      "settingsConfirmCode", "settingsConfirmCodeRepeat", "settingsOldConfirmCode", "settingsNewConfirmCode",
+      "settingsNewConfirmCodeRepeat", "setConfirmCodeButton", "changeConfirmCodeButton", "confirmationTriggers",
+      "openAdminPanelButton", "toggleReadResponses", "toggleLargeText",
       "toggleSimplifiedUi", "toggleHighContrast", "toggleDebugDetails", "toggleAutonomyVisibility",
       "settingsModeNotes", "intelRail", "mobileRailClose", "railOrb", "railState", "railStateHint",
       "railActiveAgent", "railConfidence", "railPermission", "railUserInitial", "railUserName",
@@ -208,11 +226,17 @@
     el.sidebarRailButton.addEventListener("click", () => toggleRail(true));
     el.railToggle.addEventListener("click", () => toggleRail());
     el.mobileRailClose.addEventListener("click", () => toggleRail(false));
+    el.adminButton.addEventListener("click", openAdminPanel);
     el.modeSelect.addEventListener("change", (event) => setMode(event.target.value));
     el.settingsMode.addEventListener("change", (event) => setMode(event.target.value));
     el.settingsTheme.addEventListener("change", (event) => updateTheme(event.target.value));
     el.settingsLanguage.addEventListener("change", (event) => updateLanguage(event.target.value));
     el.settingsVoiceRate.addEventListener("input", (event) => updateVoiceRate(Number(event.target.value)));
+    el.settingsVoicePitch.addEventListener("input", (event) => updateVoicePitch(Number(event.target.value)));
+    el.settingsVoiceVolume.addEventListener("input", (event) => updateVoiceVolume(Number(event.target.value)));
+    el.settingsVoiceProfile.addEventListener("change", (event) => updateVoiceProfile(event.target.value));
+    el.settingsPreferredName.addEventListener("change", (event) => updateProfileField("preferred_name", event.target.value));
+    el.settingsTitle.addEventListener("change", (event) => updateProfileField("title", event.target.value));
     el.toggleReadResponses.addEventListener("click", () => toggleSetting("readResponses"));
     el.toggleLargeText.addEventListener("click", () => toggleSetting("largeText"));
     el.toggleSimplifiedUi.addEventListener("click", () => toggleSetting("simplifiedUi"));
@@ -220,10 +244,11 @@
     el.toggleDebugDetails.addEventListener("click", () => toggleSetting("debugDetails"));
     el.toggleAutonomyVisibility.addEventListener("click", () => toggleSetting("autonomyVisible"));
     el.composerForm.addEventListener("submit", handleComposerSubmit);
+    el.composerInput.addEventListener("keydown", handleComposerKeydown);
     el.voiceButton.addEventListener("click", handleVoiceToggle);
     el.voiceToggle.addEventListener("click", handleVoiceToggle);
     el.stopSpeechButton.addEventListener("click", stopSpeaking);
-    el.clearChatButton.addEventListener("click", clearChatSurface);
+    el.clearChatButton.addEventListener("click", handleClearHistoryClick);
     el.historySearch.addEventListener("input", (event) => {
       state.historyFilter = event.target.value.trim().toLowerCase();
       renderHistory();
@@ -235,11 +260,21 @@
     el.taskCancelEditButton.addEventListener("click", resetTaskEditor);
     el.reminderCancelEditButton.addEventListener("click", resetReminderEditor);
     el.chatFeed.addEventListener("click", handleMessageActions);
+    el.historySessionList.addEventListener("click", handleSessionListClick);
     el.taskList.addEventListener("click", handleTaskListClick);
     el.completedTaskList.addEventListener("click", handleTaskListClick);
     el.reminderList.addEventListener("click", handleReminderListClick);
     el.completedReminderList.addEventListener("click", handleReminderListClick);
     el.logoutButton.addEventListener("click", logout);
+    el.voicePreviewButton.addEventListener("click", previewVoice);
+    el.setConfirmCodeButton.addEventListener("click", setConfirmationCode);
+    el.changeConfirmCodeButton.addEventListener("click", changeConfirmationCode);
+    el.openAdminPanelButton.addEventListener("click", openAdminPanel);
+    el.heroOrb.addEventListener("click", handleOrbClick);
+    el.heroOrb.addEventListener("dblclick", handleOrbDoubleClick);
+    el.heroOrb.addEventListener("contextmenu", handleOrbContextMenu);
+    el.orbQuickMenu.addEventListener("click", handleOrbMenuClick);
+    document.addEventListener("click", handleDocumentClick);
     window.addEventListener("resize", applyResponsiveLayout);
   }
 
@@ -256,6 +291,43 @@
   function readNumber(key, fallback) {
     const value = Number(localStorage.getItem(key));
     return Number.isFinite(value) ? value : fallback;
+  }
+
+  function ensureCurrentSessionId() {
+    const existing = sanitizeSessionId(localStorage.getItem(STORAGE_KEYS.currentSession));
+    if (existing) {
+      return existing;
+    }
+
+    const created = `session-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}-${Math.random().toString(36).slice(2, 8)}`;
+    localStorage.setItem(STORAGE_KEYS.currentSession, created);
+    return created;
+  }
+
+  function sanitizeSessionId(value) {
+    const cleaned = String(value || "").trim().replace(/[^A-Za-z0-9._:-]+/g, "-");
+    return cleaned ? cleaned.slice(0, 120) : "";
+  }
+
+  function shortSessionId(sessionId) {
+    const value = sanitizeSessionId(sessionId);
+    if (!value) {
+      return "current";
+    }
+
+    if (value.length <= 20) {
+      return value;
+    }
+
+    return `${value.slice(0, 10)}...${value.slice(-6)}`;
+  }
+
+  function setCurrentSessionId(sessionId) {
+    const nextId = sanitizeSessionId(sessionId) || ensureCurrentSessionId();
+    state.currentSessionId = nextId;
+    localStorage.setItem(STORAGE_KEYS.currentSession, nextId);
+    renderSessionList();
+    renderCurrentSessionBadge();
   }
 
   function safeJsonParse(value) {
@@ -282,6 +354,10 @@
     el.settingsTheme.value = state.theme;
     el.settingsLanguage.value = state.language;
     el.settingsVoiceRate.value = String(state.settings.voiceRate);
+    el.settingsVoicePitch.value = String(state.profile?.voice_pitch || 1);
+    el.settingsVoiceVolume.value = String(state.profile?.voice_volume ?? 1);
+    el.settingsPreferredName.value = state.profile?.preferred_name || "";
+    el.settingsTitle.value = state.profile?.title || "sir";
     el.modePill.textContent = MODE_META[state.mode].name;
     applyToggleState(el.toggleReadResponses, state.settings.readResponses);
     applyToggleState(el.toggleLargeText, state.settings.largeText);
@@ -290,6 +366,7 @@
     applyToggleState(el.toggleDebugDetails, state.settings.debugDetails);
     applyToggleState(el.toggleAutonomyVisibility, state.settings.autonomyVisible);
     syncModeControls();
+    populateVoiceProfiles();
     applyResponsiveLayout();
   }
 
@@ -389,16 +466,74 @@
     if (state.recognition) {
       state.recognition.lang = language === "urdu" ? "ur-PK" : "en-US";
     }
+    updateProfileField("language", language === "auto" ? "en-US" : language === "urdu" ? "ur-PK" : "en-US", { silent: true });
   }
 
   function updateVoiceRate(rate) {
     state.settings.voiceRate = rate;
     localStorage.setItem(STORAGE_KEYS.voiceRate, String(rate));
+    updateProfileField("voice_rate", rate, { silent: true });
+  }
+
+  function updateVoicePitch(pitch) {
+    updateProfileField("voice_pitch", pitch, { silent: true });
+  }
+
+  function updateVoiceVolume(volume) {
+    updateProfileField("voice_volume", volume, { silent: true });
+  }
+
+  function updateVoiceProfile(profileId) {
+    updateProfileField("voice_profile", profileId, { silent: false });
+  }
+
+  async function updateProfileField(key, value, options = {}) {
+    state.profile = { ...(state.profile || {}), [key]: value };
+    if (key === "language") {
+      state.language = value;
+    }
+    if (key === "voice_rate") {
+      state.settings.voiceRate = Number(value);
+    }
+    applySettings();
+
+    try {
+      await fetchJson("/api/settings/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch (error) {
+      if (!options.silent) {
+        showToast("Could not save settings", error.message, true);
+      }
+    }
+  }
+
+  function populateVoiceProfiles() {
+    const profiles = state.voiceStatus?.personas || [];
+    state.voiceProfiles = profiles;
+    if (!el.settingsVoiceProfile) {
+      return;
+    }
+
+    if (!profiles.length) {
+      el.settingsVoiceProfile.innerHTML = `<option value="jarvis">Jarvis</option>`;
+      el.settingsVoiceProfile.value = state.profile?.voice_profile || "jarvis";
+      return;
+    }
+
+    el.settingsVoiceProfile.innerHTML = profiles
+      .map((profile) => `<option value="${escapeAttribute(profile.id)}">${escapeHtml(profile.name)}</option>`)
+      .join("");
+    el.settingsVoiceProfile.value = state.profile?.voice_profile || state.voiceStatus?.settings?.profile_id || profiles[0].id;
   }
 
   function toggleSetting(key) {
     state.settings[key] = !state.settings[key];
     localStorage.setItem(STORAGE_KEYS[key], String(state.settings[key]));
+    if (key === "readResponses") {
+      updateProfileField("auto_speak", state.settings[key], { silent: true });
+    }
     applySettings();
     renderMessages();
     renderHistory();
@@ -458,6 +593,7 @@
 
   function syncIdentity() {
     const rememberedName =
+      state.profile?.preferred_name ||
       state.memoryInsights?.remembered_name ||
       state.user?.name ||
       state.user?.username ||
@@ -470,16 +606,39 @@
     el.identityName.textContent = rememberedName;
     el.memoryName.textContent = rememberedName;
     el.railUserName.textContent = rememberedName;
-    el.identitySubtitle.textContent = state.user ? `Plan: ${(state.user.plan || "free").toUpperCase()}` : "AURA is ready";
+    el.identitySubtitle.textContent = state.user ? `Access: ${(state.user.owner ? "OWNER" : "APPROVED USER")}` : "AURA is ready";
+    el.adminButton.hidden = !Boolean(state.user?.admin);
+    el.openAdminPanelButton.hidden = !Boolean(state.user?.admin);
+  }
+
+  async function bootstrapSession() {
+    try {
+      const payload = await fetchJson("/api/auth/session");
+      if (payload.setup_required) {
+        window.location.href = "/setup";
+        return;
+      }
+      if (!payload.authenticated) {
+        window.location.href = "/login";
+        return;
+      }
+      state.user = payload.user || null;
+    } catch (error) {
+      window.location.href = "/login";
+    }
   }
 
   async function refreshAllData() {
     await Promise.allSettled([
+      loadProfileSettings(),
       loadSystemStatus(),
       loadAgents(),
+      loadSessions(),
       loadHistory(),
       loadMemoryInsights(),
       loadIntelligenceInsights(),
+      loadVoiceRuntimeStatus(),
+      loadConfirmationStatus(),
       loadTasks(),
       loadReminders(),
     ]);
@@ -492,6 +651,38 @@
     renderHistory();
     renderRail();
     updateHeaderMetrics();
+  }
+
+  async function loadProfileSettings(silent = true) {
+    try {
+      const payload = await fetchJson("/api/settings/profile");
+      state.profile = payload.profile || {};
+      state.user = payload.user || state.user;
+      if (typeof state.profile.auto_speak === "boolean") {
+        state.settings.readResponses = state.profile.auto_speak;
+      }
+      if (Number.isFinite(Number(state.profile.voice_rate))) {
+        state.settings.voiceRate = Number(state.profile.voice_rate);
+      }
+      applySettings();
+      syncIdentity();
+    } catch (error) {
+      if (!silent) {
+        showToast("Profile unavailable", error.message, true);
+      }
+    }
+  }
+
+  async function loadConfirmationStatus(silent = true) {
+    try {
+      state.confirmationStatus = await fetchJson("/api/confirmation-code/status");
+      renderConfirmationStatus();
+    } catch (error) {
+      state.confirmationStatus = null;
+      if (!silent) {
+        showToast("Confirmation status unavailable", error.message, true);
+      }
+    }
   }
 
   async function fetchJson(url, options = {}) {
@@ -507,6 +698,9 @@
         message = payload.detail || payload.message || message;
       } catch (error) {
         message = await response.text() || message;
+      }
+      if (response.status === 401) {
+        window.location.href = "/login";
       }
       throw new Error(message);
     }
@@ -538,13 +732,40 @@
     }
   }
 
-  async function loadHistory(silent = true) {
+  async function loadSessions(silent = true) {
     try {
-      state.history = await fetchJson("/history");
+      const payload = await fetchJson("/api/sessions");
+      state.sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+      renderSessionList();
+      renderCurrentSessionBadge();
+    } catch (error) {
+      state.sessions = [];
+      renderSessionList();
+      renderCurrentSessionBadge();
+      if (!silent) {
+        showToast("Sessions unavailable", error.message, true);
+      }
+    }
+  }
+
+  async function loadHistory(silent = true, sessionId = state.currentSessionId) {
+    const targetSessionId = sanitizeSessionId(sessionId) || ensureCurrentSessionId();
+    setCurrentSessionId(targetSessionId);
+
+    try {
+      const payload = await fetchJson(`/api/history?session_id=${encodeURIComponent(targetSessionId)}`);
+      state.history = Array.isArray(payload.messages) ? payload.messages : [];
+      hydrateChatFromHistory();
       renderHistory();
+      renderCurrentSessionBadge();
       el.navHistoryCount.textContent = String(state.history.length);
     } catch (error) {
       state.history = [];
+      if (!state.messages.length) {
+        seedWelcomeMessage();
+      }
+      renderHistory();
+      el.navHistoryCount.textContent = "0";
       if (!silent) {
         showToast("History unavailable", error.message, true);
       }
@@ -576,6 +797,24 @@
         showToast("Intelligence insights unavailable", error.message, true);
       }
     }
+  }
+
+  async function loadVoiceRuntimeStatus(silent = true) {
+    try {
+      state.voiceStatus = await fetchJson("/api/voice/status");
+      if (state.voiceStatus?.user_profile) {
+        state.profile = { ...(state.profile || {}), ...state.voiceStatus.user_profile };
+      }
+    } catch (error) {
+      state.voiceStatus = null;
+      if (!silent) {
+        showToast("Voice status unavailable", error.message, true);
+      }
+    }
+
+    state.voiceInputMode = getPreferredVoiceInputMode();
+    populateVoiceProfiles();
+    syncVoiceButtons();
   }
 
   async function loadTasks(showToastOnSuccess = false) {
@@ -627,6 +866,29 @@
     renderMessages();
   }
 
+  function hydrateChatFromHistory() {
+    if (!state.history.length) {
+      seedWelcomeMessage();
+      return;
+    }
+
+    state.messages = state.history.map((entry) => ({
+      id: `history-${entry.id}`,
+      role: entry.role === "user" ? "user" : "assistant",
+      text: entry.message || "",
+      time: formatTimestamp(entry.timestamp),
+      meta: {
+        intent: entry.role === "user" ? "input" : (entry.intent || "general"),
+        activeAgent: entry.role === "assistant" ? (entry.agent_used || "AURA") : null,
+        executionMode: entry.mode || "history",
+        loading: false,
+        streaming: false,
+      },
+    }));
+
+    renderMessages();
+  }
+
   function updateHeaderMetrics() {
     const lastAgent = getPrimaryAgentLabel();
     const confidenceValue = getConfidenceText(state.lastResult?.confidence);
@@ -641,33 +903,57 @@
 
   function handleComposerSubmit(event) {
     event.preventDefault();
-    const text = el.composerInput.value.trim();
+    sendMessage();
+  }
+
+  function handleComposerKeydown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    sendMessage();
+  }
+
+  async function sendMessage(textOverride = null) {
+    if (el.sendButton.disabled) {
+      return;
+    }
+
+    const text = (typeof textOverride === "string" ? textOverride : el.composerInput.value).trim();
     if (!text) {
       showToast("Nothing to send yet", "Type or speak a request and AURA will handle the rest.", true);
       el.composerInput.focus();
       return;
     }
 
-    sendCommand(text);
-  }
-
-  async function sendCommand(text) {
-    const username = state.user?.username || "guest";
     pushMessage("user", text, { intent: "input" });
     el.composerInput.value = "";
+    const replyId = pushMessage("assistant", "", {
+      intent: "system",
+      activeAgent: "AURA",
+      executionMode: "thinking",
+      loading: true,
+      streaming: false,
+    });
     setSystemState("thinking");
     setComposerBusy(true);
 
     try {
-      const result = await fetchJson("/chat", {
-        method: "POST",
-        body: JSON.stringify({ text, username }),
-      });
+      const result = await requestChatResponse(text, replyId);
 
+      setCurrentSessionId(result.session_id || state.currentSessionId);
       state.lastResult = { ...result, input: text };
       registerSessionMeta(text, result);
       setSystemState(result.plan?.length ? "executing" : "success");
-      pushMessage("assistant", result.response, buildMessageMeta(result));
+      updateMessage(replyId, {
+        text: result.response,
+        meta: {
+          ...buildMessageMeta(result),
+          loading: false,
+          streaming: false,
+        },
+      });
       updateComposerHint(result);
       updateHeaderMetrics();
       renderMemory();
@@ -676,7 +962,11 @@
       renderHistory();
       renderRail();
 
-      await Promise.allSettled([loadHistory(), loadMemoryInsights(), loadIntelligenceInsights()]);
+      if (result.history_status && result.history_status.saved === false) {
+        showToast("History unavailable", result.history_status.error || "Chat history could not be saved locally.", true);
+      }
+
+      await Promise.allSettled([loadSessions(), loadHistory(), loadMemoryInsights(), loadIntelligenceInsights()]);
 
       if (state.settings.readResponses) {
         speakText(result.response);
@@ -685,17 +975,98 @@
       }
     } catch (error) {
       setSystemState("error");
-      pushMessage("assistant", `AURA could not finish that cleanly: ${error.message}`, {
-        intent: "error",
-        activeAgent: "System",
-        permissionStatus: "Unavailable",
-        confidence: null,
-        executionMode: "error",
+      updateMessage(replyId, {
+        text: error.message,
+        meta: {
+          intent: "error",
+          activeAgent: "System",
+          permissionStatus: "Unavailable",
+          confidence: null,
+          executionMode: "error",
+          loading: false,
+          streaming: false,
+        },
       });
       showToast("Command failed", error.message, true);
     } finally {
       setComposerBusy(false);
     }
+  }
+
+  async function requestChatResponse(text, messageId) {
+    return requestChatResponsePost(text, messageId);
+  }
+
+  async function requestChatResponsePost(text, messageId) {
+    updateMessage(messageId, {
+      text: "thinking...",
+      meta: {
+        activeAgent: "AURA",
+        executionMode: "thinking",
+        loading: true,
+        streaming: false,
+      },
+    });
+
+    const apiResponse = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-AURA-Session-Id": state.currentSessionId,
+      },
+      body: JSON.stringify({ message: text, mode: "hybrid" }),
+    });
+
+    if (!apiResponse.ok) {
+      let message = `Request failed with status ${apiResponse.status}.`;
+      try {
+        const payload = await apiResponse.json();
+        message = payload.detail || payload.message || payload.error || message;
+      } catch (error) {
+        message = await apiResponse.text() || message;
+      }
+      throw new Error(message);
+    }
+
+    const payload = await apiResponse.json();
+    return normalizeChatResult(payload, text);
+  }
+
+  function normalizeChatResult(payload, text) {
+    const responseText =
+      payload.response ||
+      payload.reply ||
+      payload.answer ||
+      payload.output ||
+      payload.result;
+
+    if (payload.status === "error") {
+      throw new Error(payload.error || payload.message || "The chat route returned an error.");
+    }
+
+    if (!responseText) {
+      throw new Error("The chat route returned no reply.");
+    }
+
+    return {
+      ...payload,
+      input: payload.input || text,
+      session_id: payload.session_id || state.currentSessionId,
+      response: responseText,
+      intent: payload.intent || payload.detected_intent || "general",
+      detected_intent: payload.detected_intent || payload.intent || "general",
+      confidence: payload.confidence ?? null,
+      plan: Array.isArray(payload.plan) ? payload.plan : [],
+      used_agents: Array.isArray(payload.used_agents)
+        ? payload.used_agents
+        : (payload.agent || payload.agent_used ? [payload.agent || payload.agent_used] : []),
+      execution_mode: payload.execution_mode || payload.mode || "chat",
+      decision: payload.decision || {},
+      orchestration: payload.orchestration || {},
+      permission_action: payload.permission_action || null,
+      permission: payload.permission || {},
+      agent_capabilities: Array.isArray(payload.agent_capabilities) ? payload.agent_capabilities : [],
+    };
   }
 
   function setComposerBusy(isBusy) {
@@ -705,13 +1076,44 @@
   }
 
   function pushMessage(role, text, meta = {}) {
+    const id = crypto.randomUUID();
     state.messages.push({
-      id: crypto.randomUUID(),
+      id,
       role,
       text,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       meta,
     });
+    renderMessages();
+    return id;
+  }
+
+  function updateMessage(messageId, updates = {}) {
+    const index = state.messages.findIndex((message) => message.id === messageId);
+    if (index === -1) {
+      return null;
+    }
+
+    const current = state.messages[index];
+    state.messages[index] = {
+      ...current,
+      ...(Object.prototype.hasOwnProperty.call(updates, "text") ? { text: updates.text } : {}),
+      ...(updates.time ? { time: updates.time } : {}),
+      meta: updates.meta ? { ...(current.meta || {}), ...updates.meta } : current.meta,
+    };
+    renderMessages();
+    return state.messages[index];
+  }
+
+  function closeActiveChatStream() {}
+
+  function removeMessage(messageId) {
+    const nextMessages = state.messages.filter((message) => message.id !== messageId);
+    if (nextMessages.length === state.messages.length) {
+      return;
+    }
+
+    state.messages = nextMessages;
     renderMessages();
   }
 
@@ -747,7 +1149,7 @@
       badges.push(`<span class="message__badge ${permissionClass}">${escapeHtml(meta.permissionStatus)}</span>`);
     }
 
-    const actionButtons = isAssistant
+    const actionButtons = isAssistant && !meta.loading
       ? `
         <div class="message__actions">
           <button class="message__action" type="button" data-message-action="copy" data-message-index="${index}">Copy</button>
@@ -769,7 +1171,8 @@
           </div>
           <div class="message__body">
             ${badges.length ? `<div class="message__badges">${badges.join("")}</div>` : ""}
-            <div class="message__text">${formatMessageText(message.text)}</div>
+            <div class="message__text ${meta.streaming ? "message__text--streaming" : ""}">${formatMessageText(message.text)}</div>
+            ${isAssistant && meta.activeAgent ? `<div class="message__subnote">Agent used: ${escapeHtml(meta.activeAgent)}</div>` : ""}
             ${isAssistant ? buildMessageSections(meta) : ""}
           </div>
           ${actionButtons}
@@ -812,6 +1215,17 @@
       }
     }
 
+    if (meta.reasoningTrace && (state.mode === "developer" || state.settings.debugDetails)) {
+      const traceItems = [
+        `<li><strong>Intent</strong>: ${escapeHtml(meta.reasoningTrace.intent_detected || "general")}</li>`,
+        `<li><strong>Confidence</strong>: ${escapeHtml(String(meta.reasoningTrace.confidence_score ?? "--"))}</li>`,
+        `<li><strong>Agents</strong>: ${escapeHtml((meta.reasoningTrace.agents_involved || []).join(", ") || "general")}</li>`,
+        `<li><strong>Thinking result</strong>: ${escapeHtml(meta.reasoningTrace.critical_thinking_result || "ready")}</li>`,
+        `<li><strong>Time</strong>: ${escapeHtml(String(meta.reasoningTrace.time_taken_ms || 0))} ms</li>`,
+      ].join("");
+      sections.push(buildDetailsSection("AURA's reasoning", "debug", traceItems, "ul"));
+    }
+
     return sections.join("");
   }
 
@@ -848,6 +1262,7 @@
       permissionStatus,
       decision: result.decision || null,
       orchestration: result.orchestration || null,
+      reasoningTrace: result.reasoning_trace || null,
     };
   }
 
@@ -901,12 +1316,13 @@
     if (button.dataset.messageAction === "retry") {
       const priorUser = [...state.messages.slice(0, index)].reverse().find((entry) => entry.role === "user");
       if (priorUser) {
-        sendCommand(priorUser.text);
+        sendMessage(priorUser.text);
       }
     }
   }
 
   function clearChatSurface() {
+    closeActiveChatStream();
     state.lastResult = null;
     seedWelcomeMessage();
     setSystemState("idle");
@@ -916,12 +1332,163 @@
     updateHeaderMetrics();
   }
 
+  async function handleClearHistoryClick() {
+    if (!state.currentSessionId) {
+      return;
+    }
+
+    if (!window.confirm("Clear the stored history for this session from local AURA storage?")) {
+      return;
+    }
+
+    try {
+      await fetchJson(`/api/history?session_id=${encodeURIComponent(state.currentSessionId)}`, {
+        method: "DELETE",
+      });
+      state.history = [];
+      state.sessionMeta = [];
+      clearChatSurface();
+      renderHistory();
+      await loadSessions();
+      showToast("History cleared", "AURA removed this session from local SQLite history.");
+    } catch (error) {
+      showToast("Could not clear history", error.message, true);
+    }
+  }
+
+  async function handleSessionListClick(event) {
+    const button = event.target.closest("[data-session-id]");
+    if (!button) {
+      return;
+    }
+
+    const sessionId = sanitizeSessionId(button.dataset.sessionId);
+    if (!sessionId) {
+      return;
+    }
+
+    try {
+      await loadHistory(true, sessionId);
+      switchView("chat");
+      showToast("Session loaded", "AURA loaded that stored session into the chat window.");
+    } catch (error) {
+      showToast("Could not load session", error.message, true);
+    }
+  }
+
+  function browserSpeechRecognitionSupported() {
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+
+  function isLocalHostConnection() {
+    const hostname = (window.location.hostname || "").toLowerCase();
+    return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+  }
+
+  function microphoneRequiresSecureConnection() {
+    if (window.isSecureContext) {
+      return false;
+    }
+
+    return !isLocalHostConnection();
+  }
+
+  function getPreferredVoiceInputMode() {
+    const backendReady = Boolean(
+      state.voiceStatus?.web_input?.recommended_mode === "backend_host_microphone"
+      || (
+        state.voiceStatus?.stt?.supports_microphone
+        && state.voiceStatus?.microphone?.available
+      ),
+    );
+
+    if (backendReady && isLocalHostConnection()) {
+      return "backend-host";
+    }
+
+    if (browserSpeechRecognitionSupported()) {
+      return "browser-only";
+    }
+
+    return "unavailable";
+  }
+
+  async function ensureMicrophonePermission() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Microphone not available");
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+  }
+
+  function applyListeningVisualState(isListening) {
+    [el.voiceButton, el.voiceToggle].forEach((button) => {
+      if (!button) {
+        return;
+      }
+      button.classList.toggle("is-on", isListening);
+      button.setAttribute("aria-pressed", isListening ? "true" : "false");
+    });
+  }
+
+  function resetVoiceCaptureState({ keepErrorState = false } = {}) {
+    state.listening = false;
+    state.voiceActiveSource = null;
+    state.voiceAbortController = null;
+    syncVoiceButtons();
+    if (!state.speaking) {
+      setSystemState(keepErrorState ? "error" : "idle");
+    }
+  }
+
+  async function startBackendVoiceCapture() {
+    state.voiceActiveSource = "backend";
+    state.listening = true;
+    setSystemState("listening");
+    syncVoiceButtons();
+
+    const controller = new AbortController();
+    state.voiceAbortController = controller;
+
+    try {
+      const payload = await fetchJson("/api/voice/microphone", {
+        method: "POST",
+        body: JSON.stringify({ timeout: 6, phrase_time_limit: 10 }),
+        signal: controller.signal,
+      });
+
+      if (!payload.success) {
+        throw new Error(payload.message || "Microphone input could not be transcribed.");
+      }
+
+      const transcript = (payload.cleaned_text || payload.text || "").trim();
+      if (!transcript) {
+        throw new Error("No speech detected.");
+      }
+
+      el.composerInput.value = transcript;
+      el.composerInput.focus();
+      el.composerInput.setSelectionRange(transcript.length, transcript.length);
+      showToast("Transcript ready", "AURA pasted the microphone transcript into the chat box.");
+      resetVoiceCaptureState();
+    } catch (error) {
+      if (error.name === "AbortError") {
+        resetVoiceCaptureState();
+        return;
+      }
+
+      resetVoiceCaptureState({ keepErrorState: true });
+      showToast("Voice input issue", error.message || "Microphone transcription failed.", true);
+    }
+  }
+
   function initializeSpeechRecognition() {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      el.voiceButton.textContent = "Voice unavailable";
-      el.voiceButton.disabled = true;
-      el.voiceToggle.disabled = true;
+      state.recognition = null;
+      state.voiceInputMode = getPreferredVoiceInputMode();
+      syncVoiceButtons();
       return;
     }
 
@@ -931,17 +1498,14 @@
     state.recognition.maxAlternatives = 1;
 
     state.recognition.addEventListener("start", () => {
+      state.voiceActiveSource = "browser";
       state.listening = true;
       setSystemState("listening");
       syncVoiceButtons();
     });
 
     state.recognition.addEventListener("end", () => {
-      state.listening = false;
-      syncVoiceButtons();
-      if (!state.speaking) {
-        setSystemState("idle");
-      }
+      resetVoiceCaptureState();
     });
 
     state.recognition.addEventListener("result", (event) => {
@@ -950,30 +1514,111 @@
         return;
       }
       el.composerInput.value = transcript;
-      sendCommand(transcript);
+      el.composerInput.focus();
+      el.composerInput.setSelectionRange(transcript.length, transcript.length);
+      showToast("Transcript ready", "AURA pasted the microphone transcript into the chat box.");
     });
 
     state.recognition.addEventListener("error", (event) => {
-      state.listening = false;
-      syncVoiceButtons();
-      setSystemState("error");
+      resetVoiceCaptureState({ keepErrorState: true });
       showToast("Voice input issue", event.error || "Speech recognition failed.", true);
     });
+
+    state.voiceInputMode = getPreferredVoiceInputMode();
+    syncVoiceButtons();
   }
 
-  function handleVoiceToggle() {
-    if (!state.recognition) {
-      showToast("Voice unavailable", "Speech recognition is not available in this browser.", true);
+  async function handleVoiceToggle() {
+    if (state.listening) {
+      if (state.voiceActiveSource === "backend" && state.voiceAbortController) {
+        state.voiceAbortController.abort();
+      } else if (state.voiceActiveSource === "browser" && state.recognition) {
+        state.recognition.stop();
+      } else {
+        resetVoiceCaptureState();
+      }
       return;
     }
 
-    if (state.listening) {
-      state.recognition.stop();
+    if (microphoneRequiresSecureConnection()) {
+      showToast("Secure connection required", "Microphone requires HTTPS or localhost.", true);
+      el.composerHint.textContent = "Microphone requires HTTPS or localhost before AURA can listen.";
+      return;
+    }
+
+    try {
+      await ensureMicrophonePermission();
+    } catch (error) {
+      showToast("Microphone not available", error.message || "Microphone not available", true);
+      state.voiceInputMode = getPreferredVoiceInputMode();
+      syncVoiceButtons();
+      return;
+    }
+
+    const preferredMode = getPreferredVoiceInputMode();
+    state.voiceInputMode = preferredMode;
+    if (preferredMode === "backend-host") {
+      await startBackendVoiceCapture();
+      return;
+    }
+
+    if (!state.recognition) {
+      showToast("Microphone not available", "Microphone not available", true);
+      state.voiceInputMode = "unavailable";
+      syncVoiceButtons();
       return;
     }
 
     state.recognition.lang = state.language === "urdu" ? "ur-PK" : "en-US";
-    state.recognition.start();
+    try {
+      state.recognition.start();
+    } catch (error) {
+      resetVoiceCaptureState({ keepErrorState: true });
+      showToast("Voice input issue", error.message || "Speech recognition could not start.", true);
+    }
+  }
+
+  function selectSpeechVoice(gender, language) {
+    const voices = window.speechSynthesis.getVoices();
+
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => selectSpeechVoice(gender, language);
+      return null;
+    }
+
+    let selectedVoice = null;
+    const normalizedLanguage = String(language || "en-US").toLowerCase();
+    const normalizedGender = String(gender || "female").toLowerCase();
+
+    if (normalizedGender === "male") {
+      selectedVoice = voices.find((voice) => {
+        const name = voice.name.toLowerCase();
+        return (
+          name.includes("male") ||
+          name.includes("david") ||
+          name.includes("mark") ||
+          name.includes("james") ||
+          (voice.lang.toLowerCase().startsWith(normalizedLanguage) && !name.includes("female"))
+        );
+      });
+    } else {
+      selectedVoice = voices.find((voice) => {
+        const name = voice.name.toLowerCase();
+        return (
+          name.includes("female") ||
+          name.includes("zira") ||
+          name.includes("susan") ||
+          name.includes("hazel") ||
+          voice.lang.toLowerCase().startsWith(normalizedLanguage)
+        );
+      });
+    }
+
+    if (!selectedVoice) {
+      selectedVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith(normalizedLanguage)) || voices[0];
+    }
+
+    return selectedVoice || null;
   }
 
   function speakText(text) {
@@ -984,9 +1629,16 @@
 
     stopSpeaking();
 
+    const language = state.profile?.language || (state.language === "urdu" ? "ur-PK" : "en-US");
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = state.settings.voiceRate;
-    utterance.lang = state.language === "urdu" ? "ur-PK" : "en-US";
+    utterance.rate = Number(state.profile?.voice_rate || state.settings.voiceRate || 1);
+    utterance.pitch = Number(state.profile?.voice_pitch || 1);
+    utterance.volume = Number(state.profile?.voice_volume ?? 1);
+    utterance.lang = language;
+    const selectedVoice = selectSpeechVoice(state.profile?.voice_gender || "female", language);
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
 
     utterance.addEventListener("start", () => {
       state.speaking = true;
@@ -1024,13 +1676,174 @@
 
   function syncVoiceButtons() {
     if (state.listening) {
-      el.voiceButton.textContent = "Stop voice";
+      el.voiceButton.disabled = false;
+      el.voiceToggle.disabled = false;
+      el.voiceButton.textContent = state.voiceActiveSource === "backend" ? "Stop host mic" : "Stop mic";
       el.voiceToggle.textContent = "Listening";
+      applyListeningVisualState(true);
       return;
     }
 
-    el.voiceButton.textContent = "Start voice";
-    el.voiceToggle.textContent = state.speaking ? "Speaking" : "Voice";
+    applyListeningVisualState(false);
+
+    if (state.voiceInputMode === "backend-host") {
+      el.voiceButton.disabled = false;
+      el.voiceToggle.disabled = false;
+      el.voiceButton.textContent = "Start host mic";
+      el.voiceButton.title = "Uses backend STT on this machine.";
+      el.voiceToggle.textContent = state.speaking ? "Speaking" : "Host mic";
+      return;
+    }
+
+    if (state.voiceInputMode === "browser-only") {
+      el.voiceButton.disabled = false;
+      el.voiceToggle.disabled = false;
+      el.voiceButton.textContent = "Start mic";
+      el.voiceButton.title = "Browser-only mode.";
+      el.voiceToggle.textContent = state.speaking ? "Speaking" : "Browser-only";
+      return;
+    }
+
+    el.voiceButton.disabled = true;
+    el.voiceToggle.disabled = true;
+    el.voiceButton.textContent = "Microphone not available";
+    el.voiceButton.title = "Microphone not available";
+    el.voiceToggle.textContent = "Mic unavailable";
+  }
+
+  function renderConfirmationStatus() {
+    const items = state.confirmationStatus?.critical_actions || [];
+    el.confirmationTriggers.innerHTML = items.length
+      ? items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+      : renderEmptyState("No confirmation data", "Critical action protection status will appear here.", true);
+  }
+
+  async function previewVoice() {
+    try {
+      await fetchJson("/api/voice/speak", {
+        method: "POST",
+        body: JSON.stringify({ text: "AURA online and ready." }),
+      });
+      speakText("AURA online and ready.");
+    } catch (error) {
+      showToast("Voice preview failed", error.message, true);
+    }
+  }
+
+  async function setConfirmationCode() {
+    const code = el.settingsConfirmCode.value.trim();
+    const confirmCode = el.settingsConfirmCodeRepeat.value.trim();
+    if (!code || !confirmCode) {
+      showToast("Confirmation code missing", "Enter the code twice before saving it.", true);
+      return;
+    }
+    try {
+      await fetchJson("/api/confirmation-code/set", {
+        method: "POST",
+        body: JSON.stringify({ code, confirm_code: confirmCode }),
+      });
+      el.settingsConfirmCode.value = "";
+      el.settingsConfirmCodeRepeat.value = "";
+      await loadConfirmationStatus();
+      showToast("Confirmation code saved", "Critical actions now require your confirmation code.");
+    } catch (error) {
+      showToast("Could not save confirmation code", error.message, true);
+    }
+  }
+
+  async function changeConfirmationCode() {
+    const oldCode = el.settingsOldConfirmCode.value.trim();
+    const newCode = el.settingsNewConfirmCode.value.trim();
+    const confirmCode = el.settingsNewConfirmCodeRepeat.value.trim();
+    if (!oldCode || !newCode || !confirmCode) {
+      showToast("Change code incomplete", "Fill all confirmation code fields before updating.", true);
+      return;
+    }
+    try {
+      await fetchJson("/api/confirmation-code/change", {
+        method: "POST",
+        body: JSON.stringify({ old_code: oldCode, new_code: newCode, confirm_code: confirmCode }),
+      });
+      el.settingsOldConfirmCode.value = "";
+      el.settingsNewConfirmCode.value = "";
+      el.settingsNewConfirmCodeRepeat.value = "";
+      await loadConfirmationStatus();
+      showToast("Confirmation code updated", "AURA will use the new code for critical actions.");
+    } catch (error) {
+      showToast("Could not update confirmation code", error.message, true);
+    }
+  }
+
+  function openAdminPanel() {
+    if (!state.user?.admin) {
+      showToast("Admin only", "Only the owner or an approved admin can open the admin panel.", true);
+      return;
+    }
+    window.location.href = "/admin";
+  }
+
+  function handleOrbClick() {
+    handleVoiceToggle();
+  }
+
+  function handleOrbDoubleClick(event) {
+    event.preventDefault();
+    stopSpeaking();
+  }
+
+  function handleOrbContextMenu(event) {
+    event.preventDefault();
+    el.orbQuickMenu.hidden = !el.orbQuickMenu.hidden;
+  }
+
+  function handleOrbMenuClick(event) {
+    const button = event.target.closest("[data-orb-action]");
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.orbAction;
+    el.orbQuickMenu.hidden = true;
+
+    if (action === "new-chat") {
+      handleClearHistoryClick();
+      return;
+    }
+
+    if (action === "lock") {
+      lockAura();
+      return;
+    }
+
+    if (action === "settings") {
+      switchView("settings");
+      return;
+    }
+
+    if (action === "switch-mode") {
+      const order = ["minimal", "smart", "jarvis", "developer", "autonomous"];
+      const nextMode = order[(order.indexOf(state.mode) + 1) % order.length];
+      setMode(nextMode);
+    }
+  }
+
+  function handleDocumentClick(event) {
+    if (!event.target.closest("#orbQuickMenu") && !event.target.closest("#heroOrb")) {
+      el.orbQuickMenu.hidden = true;
+    }
+  }
+
+  async function lockAura() {
+    try {
+      await fetchJson("/api/security/lock", {
+        method: "POST",
+        body: JSON.stringify({ resource_id: "session", owner: state.user?.username || "owner" }),
+      });
+      setSystemState("locked");
+      showToast("Session secured", "AURA locked the current session surface.");
+    } catch (error) {
+      showToast("Lock failed", error.message, true);
+    }
   }
 
   function renderMemory() {
@@ -1388,13 +2201,12 @@
 
   function renderHistory() {
     const showAdvancedMeta = state.mode === "developer" || state.mode === "autonomous" || state.settings.debugDetails;
-    const records = state.history
-      .map((entry) => ({ ...entry, meta: findHistoryMeta(entry) }))
+    const records = buildHistoryTurns(state.history)
       .filter((entry) => {
         if (!state.historyFilter) {
           return true;
         }
-        const haystack = [entry.user, entry.aura, entry.meta?.intent, entry.meta?.activeAgent].join(" ").toLowerCase();
+        const haystack = [entry.user, entry.aura, entry.intent, entry.agent_used, entry.mode].join(" ").toLowerCase();
         return haystack.includes(state.historyFilter);
       });
 
@@ -1411,12 +2223,12 @@
       .slice()
       .reverse()
       .map((entry) => {
-        const metaChips = showAdvancedMeta && entry.meta
+        const metaChips = showAdvancedMeta
           ? `
             <div class="chip-cloud">
-              <span class="chip chip--mode">${escapeHtml(entry.meta.intent || "general")}</span>
-              <span class="chip chip--agent">${escapeHtml(entry.meta.activeAgent || "General")}</span>
-              ${entry.meta.confidence !== null && entry.meta.confidence !== undefined ? `<span class="chip ${entry.meta.confidence < 0.4 ? "chip--warning" : "chip--success"}">${escapeHtml(getConfidenceText(entry.meta.confidence))}</span>` : ""}
+              <span class="chip chip--mode">${escapeHtml(entry.intent || "general")}</span>
+              <span class="chip chip--agent">${escapeHtml(entry.agent_used || "AURA")}</span>
+              ${entry.mode ? `<span class="chip">${escapeHtml(entry.mode)}</span>` : ""}
             </div>
           `
           : "";
@@ -1425,8 +2237,8 @@
           <article class="history-card">
             <div class="history-card__head">
               <div class="history-card__meta">
-                <span>${escapeHtml(entry.time || "")}</span>
-                <span>Logged interaction</span>
+                <span>${escapeHtml(formatTimestamp(entry.time || ""))}</span>
+                <span>${escapeHtml(shortSessionId(entry.session_id || state.currentSessionId))}</span>
               </div>
             </div>
             <p class="history-card__input"><strong>You:</strong> ${escapeHtml(entry.user || "")}</p>
@@ -1436,6 +2248,101 @@
         `;
       })
       .join("");
+  }
+
+  function renderSessionList() {
+    renderCurrentSessionBadge();
+
+    if (!state.sessions.length) {
+      el.historySessionList.innerHTML = renderEmptyState(
+        "No saved sessions yet",
+        "AURA will list local SQLite sessions here after you chat.",
+        true,
+      );
+      return;
+    }
+
+    el.historySessionList.innerHTML = state.sessions
+      .map((session) => {
+        const isActive = session.session_id === state.currentSessionId;
+        return `
+          <button class="session-card ${isActive ? "is-active" : ""}" type="button" data-session-id="${escapeAttribute(session.session_id)}">
+            <strong>${escapeHtml(shortSessionId(session.session_id))}</strong>
+            <span>${escapeHtml(formatTimestamp(session.last_timestamp || session.started_at || ""))}</span>
+            <small>${escapeHtml(`${session.message_count || 0} stored messages`)}</small>
+          </button>
+        `;
+      })
+      .join("");
+  }
+
+  function renderCurrentSessionBadge() {
+    if (!el.historyCurrentSession) {
+      return;
+    }
+
+    el.historyCurrentSession.textContent = `Current: ${shortSessionId(state.currentSessionId)}`;
+  }
+
+  function buildHistoryTurns(messages) {
+    const turns = [];
+    let pendingUser = null;
+
+    messages.forEach((entry) => {
+      if (entry.role === "user") {
+        if (pendingUser) {
+          turns.push({
+            session_id: pendingUser.session_id,
+            user: pendingUser.message,
+            aura: "",
+            time: pendingUser.timestamp,
+            intent: pendingUser.intent || "input",
+            agent_used: "",
+            mode: pendingUser.mode || "hybrid",
+          });
+        }
+        pendingUser = entry;
+        return;
+      }
+
+      if (pendingUser) {
+        turns.push({
+          session_id: entry.session_id || pendingUser.session_id,
+          user: pendingUser.message,
+          aura: entry.message,
+          time: entry.timestamp || pendingUser.timestamp,
+          intent: entry.intent || pendingUser.intent || "general",
+          agent_used: entry.agent_used || "AURA",
+          mode: entry.mode || pendingUser.mode || "hybrid",
+        });
+        pendingUser = null;
+        return;
+      }
+
+      turns.push({
+        session_id: entry.session_id,
+        user: "",
+        aura: entry.message,
+        time: entry.timestamp,
+        intent: entry.intent || "general",
+        agent_used: entry.agent_used || "AURA",
+        mode: entry.mode || "hybrid",
+      });
+    });
+
+    if (pendingUser) {
+      turns.push({
+        session_id: pendingUser.session_id,
+        user: pendingUser.message,
+        aura: "",
+        time: pendingUser.timestamp,
+        intent: pendingUser.intent || "input",
+        agent_used: "",
+        mode: pendingUser.mode || "hybrid",
+      });
+    }
+
+    return turns;
   }
 
   function renderRail() {
@@ -1492,6 +2399,30 @@
 
     const firstCapability = result.agent_capabilities?.[0]?.name;
     return firstCapability || result.used_agents?.[0] || result.orchestration?.primary_agent || "General";
+  }
+
+  function getStreamAgentLabel(payload, streamMeta) {
+    return payload.agent_used || payload.agent || streamMeta?.agent_used || streamMeta?.agent || "AURA";
+  }
+
+  function formatTimestamp(value) {
+    if (!value) {
+      return "";
+    }
+
+    const normalized = typeof value === "string" ? value.replace(" ", "T") : value;
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return String(value);
+    }
+
+    return parsed.toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   function getConfidenceText(value) {
@@ -1677,8 +2608,14 @@
     window.setTimeout(() => toast.remove(), 3600);
   }
 
-  function logout() {
-    localStorage.removeItem("aura_user");
+  async function logout() {
+    try {
+      await fetchJson("/api/logout", { method: "POST" });
+    } catch (error) {
+      // Redirect anyway to avoid leaving the UI stranded.
+    }
     window.location.href = "/login";
   }
+
+  window.sendMessage = sendMessage;
 })();

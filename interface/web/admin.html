@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA Admin</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060814;
+      --panel: rgba(12, 18, 36, 0.88);
+      --line: rgba(143, 99, 255, 0.2);
+      --text: #f4f0ff;
+      --muted: #b6afd4;
+      --accent: #8f63ff;
+      --cyan: #62d4ff;
+      --green: #59d091;
+      --red: #f06a82;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, rgba(143, 99, 255, 0.16), transparent 24%),
+        radial-gradient(circle at 80% 12%, rgba(98, 212, 255, 0.12), transparent 20%),
+        linear-gradient(180deg, #04050b, var(--bg));
+      color: var(--text);
+      font-family: "Segoe UI", sans-serif;
+      padding: 24px;
+    }
+    .shell { display: grid; gap: 20px; }
+    .hero, .panel {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 42%), var(--panel);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    .hero { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    h1, h2 { margin: 0 0 8px; }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    label { display: grid; gap: 8px; color: var(--muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
+    input, button {
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+    }
+    input {
+      border: 1px solid var(--line);
+      background: rgba(7, 11, 23, 0.8);
+      color: var(--text);
+    }
+    button {
+      border: 0;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), #5c72ff);
+      color: white;
+    }
+    .ghost {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+    .list { display: grid; gap: 12px; margin-top: 14px; }
+    .card {
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,0.03);
+    }
+    .card small { color: var(--muted); display: block; margin-top: 6px; }
+    .success { color: var(--green); }
+    .danger { color: var(--red); }
+    .meta { color: var(--cyan); font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="meta">Owner Control Surface</p>
+        <h1>AURA Admin Panel</h1>
+        <p class="muted">Invite approved users, revoke access, inspect blocked IPs, and review system state.</p>
+      </div>
+      <div class="row">
+        <button class="ghost" type="button" onclick="window.location.href='/'">Back to AURA</button>
+        <button class="ghost" type="button" onclick="logout()">Logout</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <h2>Invite User</h2>
+        <div class="row">
+          <label style="flex:1">Email
+            <input id="inviteEmail" type="email" placeholder="approved.user@example.com">
+          </label>
+          <button type="button" onclick="inviteUser()">Invite</button>
+        </div>
+        <div class="list" id="usersList"></div>
+      </article>
+
+      <article class="panel">
+        <h2>Blocked IPs</h2>
+        <div class="list" id="rateLimitList"></div>
+      </article>
+
+      <article class="panel" style="grid-column: 1 / -1;">
+        <h2>System Status</h2>
+        <pre id="systemStatus" class="muted" style="white-space: pre-wrap;"></pre>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    async function fetchJson(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options,
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || 'Request failed.')
+      }
+      return data
+    }
+
+    async function loadAdminData() {
+      const [users, limits, status] = await Promise.all([
+        fetchJson('/api/admin/users'),
+        fetchJson('/api/admin/rate-limits'),
+        fetchJson('/api/admin/system-status'),
+      ])
+
+      document.getElementById('usersList').innerHTML = users.users.map((user) => `
+        <div class="card">
+          <strong>${user.email}</strong>
+          <small>Status: <span class="${user.status === 'active' ? 'success' : 'danger'}">${user.status}</span></small>
+          <small>Username: ${user.username || 'Pending registration'}</small>
+          <small>Last login: ${user.last_login || 'Never'}</small>
+          <div class="row" style="margin-top:10px;">
+            <button class="ghost" type="button" onclick="revokeUser('${user.email}')">Revoke</button>
+          </div>
+        </div>
+      `).join('') || '<div class="card">No approved users yet.</div>'
+
+      document.getElementById('rateLimitList').innerHTML = limits.items.map((item) => `
+        <div class="card">
+          <strong>${item.ip_address}</strong>
+          <small>Attempts: ${item.attempt_count}</small>
+          <small>Blocked until: ${item.blocked_until || 'Not blocked'}</small>
+          <div class="row" style="margin-top:10px;">
+            <button class="ghost" type="button" onclick="unblockIp('${item.ip_address}')">Unblock</button>
+          </div>
+        </div>
+      `).join('') || '<div class="card">No blocked IPs right now.</div>'
+
+      document.getElementById('systemStatus').textContent = JSON.stringify(status, null, 2)
+    }
+
+    async function inviteUser() {
+      const email = document.getElementById('inviteEmail').value.trim()
+      if (!email) return
+      await fetchJson('/api/admin/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      })
+      document.getElementById('inviteEmail').value = ''
+      await loadAdminData()
+    }
+
+    async function revokeUser(email) {
+      await fetchJson('/api/admin/revoke', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      })
+      await loadAdminData()
+    }
+
+    async function unblockIp(ip_address) {
+      await fetchJson('/api/admin/unblock', {
+        method: 'POST',
+        body: JSON.stringify({ ip_address }),
+      })
+      await loadAdminData()
+    }
+
+    async function logout() {
+      await fetchJson('/api/logout', { method: 'POST' })
+      window.location.href = '/login'
+    }
+
+    loadAdminData().catch((error) => {
+      document.getElementById('systemStatus').textContent = error.message
+    })
+  </script>
+</body>
+</html>

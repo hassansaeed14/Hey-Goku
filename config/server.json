@@ -1,0 +1,8 @@
+{
+  "host": "0.0.0.0",
+  "port": 5000,
+  "debug": false,
+  "workers": 4,
+  "ssl_certfile": "",
+  "ssl_keyfile": ""
+}

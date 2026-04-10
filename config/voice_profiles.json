@@ -1,0 +1,42 @@
+{
+  "jarvis": {
+    "gender": "male",
+    "rate": 0.95,
+    "pitch": 0.85,
+    "volume": 1.0,
+    "language": "en-US",
+    "description": "Deep professional male - JARVIS style"
+  },
+  "friday": {
+    "gender": "female",
+    "rate": 1.0,
+    "pitch": 1.1,
+    "volume": 1.0,
+    "language": "en-US",
+    "description": "Clear professional female - FRIDAY style"
+  },
+  "aura_neutral": {
+    "gender": "female",
+    "rate": 0.9,
+    "pitch": 1.0,
+    "volume": 1.0,
+    "language": "en-US",
+    "description": "Calm neutral voice"
+  },
+  "urdu_male": {
+    "gender": "male",
+    "rate": 0.9,
+    "pitch": 0.9,
+    "volume": 1.0,
+    "language": "ur-PK",
+    "description": "Urdu male voice"
+  },
+  "urdu_female": {
+    "gender": "female",
+    "rate": 0.9,
+    "pitch": 1.0,
+    "volume": 1.0,
+    "language": "ur-PK",
+    "description": "Urdu female voice"
+  }
+}

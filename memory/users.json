@@ -1,9 +1,23 @@
 {
-    "hassan": {
-        "username": "hassan",
-        "password": "$2b$12$9XMguEEb7qmG2Abl3Eh2LOKySH0GrQ0p1l2f51rtggLTD8QwIGG1S",
-        "name": "Hassan Saeed",
-        "created": "2026-04-08 00:34:53",
-        "plan": "free"
-    }
+  "hassan": {
+    "username": "hassan",
+    "password": "$2b$12$9XMguEEb7qmG2Abl3Eh2LOKySH0GrQ0p1l2f51rtggLTD8QwIGG1S",
+    "name": "Hassan Saeed",
+    "created": "2026-04-08 00:34:53",
+    "plan": "free"
+  },
+  "hassansaeed14": {
+    "id": "b7e6ca1cd735f22191c5a6e0",
+    "username": "hassansaeed14",
+    "password": "$2b$12$3TQyHhiJzChUeuPl2YPqAeB43ZDStzpFKCl7QzR0U0cJPpcRXIOji",
+    "name": "Hassan Saeed",
+    "email": "19hsnkhan@gmail.com",
+    "created": "2026-04-10 18:06:56",
+    "last_login": "2026-04-10 18:10:02",
+    "plan": "private",
+    "admin": true,
+    "owner": true,
+    "title": "sir",
+    "preferred_name": "Jerry"
+  }
 }

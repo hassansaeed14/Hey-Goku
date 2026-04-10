@@ -156,6 +156,116 @@
             "time": "2026-04-10 13:50",
             "command": "research and summarize AI agents",
             "confidence": 0.3
+        },
+        {
+            "time": "2026-04-10 17:37",
+            "command": "there",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:20",
+            "command": "Plan a study session for AI agents",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:20",
+            "command": "save the key steps.",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:25",
+            "command": "Soni",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:25",
+            "command": "what is a",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:25",
+            "command": "isko sound hi nahin a Raha what is AI",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-10 18:26",
+            "command": "what is a",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:26",
+            "command": "what is the artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:27",
+            "command": "switch to male voice",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:27",
+            "command": "what is cyber security",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:28",
+            "command": "ok bye",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-10 18:29",
+            "command": "male voice",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:30",
+            "command": "tell me about your developer",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "command": "ok shut down",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "command": "fuck off",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "command": "ok bye",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-10 18:41",
+            "command": "software engineering",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 23:07",
+            "command": "Jarvis",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 23:08",
+            "command": "what is AI",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 23:08",
+            "command": "what is AI",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 23:09",
+            "command": "Facebook",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-10 23:10",
+            "command": "give me explanation",
+            "confidence": 0.0
         }
     ],
     "agent_errors": [],
@@ -482,6 +592,303 @@
             "time": "2026-04-10 13:50",
             "requested_action": "task",
             "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 17:37",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:20",
+            "requested_action": "general",
+            "actual_action": "study",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:20",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:21",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:26",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:26",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:27",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:27",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:28",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:29",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:30",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:30",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:31",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:41",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:42",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:42",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:44",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:47",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:47",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:48",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 18:48",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 23:07",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 23:08",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 23:09",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 23:09",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-10 23:10",
+            "requested_action": "general",
+            "actual_action": "general",
             "success": true,
             "blocked_by_permission": false,
             "retry_possible": false,
