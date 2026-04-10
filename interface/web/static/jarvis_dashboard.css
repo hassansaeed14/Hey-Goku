@@ -1,0 +1,13 @@
+/* Dashboard styling with cyan and purple theme */
+body {
+    background-color: cyan;
+    color: purple;
+    font-family: Arial, sans-serif;
+}
+#dashboard {
+    padding: 20px;
+    border: 1px solid purple;
+}
+#status-monitor {
+    margin-top: 20px;
+}
