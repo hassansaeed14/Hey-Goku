@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from voice.noise_filter import clean_transcript_text
 from voice.voice_pipeline import process_voice_text
@@ -18,6 +19,26 @@ class VoicePipelineTests(unittest.TestCase):
         result = process_voice_text("Hey Aura")
         self.assertFalse(result["success"])
         self.assertEqual(result["status"], "empty_command")
+
+    def test_voice_pipeline_routes_transcript_through_main_assistant_path(self):
+        fake_result = {"response": "Quantum computing uses qubits.", "provider": "groq"}
+        with patch("voice.voice_pipeline.process_command_detailed", return_value=fake_result) as process_mock:
+            result = process_voice_text(
+                "Hey Aura what is quantum computing",
+                session_id="session-42",
+                user_profile={"id": "owner"},
+                current_mode="hybrid",
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["command_text"], "what is quantum computing")
+        self.assertEqual(result["result"]["provider"], "groq")
+        process_mock.assert_called_once_with(
+            "what is quantum computing",
+            session_id="session-42",
+            user_profile={"id": "owner"},
+            current_mode="hybrid",
+        )
 
 
 if __name__ == "__main__":

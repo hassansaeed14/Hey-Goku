@@ -132,7 +132,7 @@
         "preferences": {}
     },
     "topic_frequency": {
-        "general": 70,
+        "general": 74,
         "news": 1,
         "memory": 12,
         "greeting": 7,
@@ -1047,10 +1047,38 @@
             "input": "write me a python function to reverse a string",
             "response": "def reverse_string(input_str: str) -> str:\n \"\"\"\n This function takes a string as input and returns the reversed string.\n Args:\n input_str (str): The input string to be reversed.\n Returns:\n str: The re",
             "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 14:15",
+            "intent": "general",
+            "input": "What is artificial intelligence?",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 14:15",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 14:16",
+            "intent": "general",
+            "input": "What is artificial intelligence?",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 14:16",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
         }
     ],
     "behavior_stats": {
-        "short_queries": 77,
+        "short_queries": 81,
         "medium_queries": 47,
         "long_queries": 5
     },
@@ -1566,10 +1594,26 @@
         [
             "code",
             "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
         ]
     ],
     "intent_weights": {
-        "general": 140,
+        "general": 148,
         "news": 2,
         "memory": 24,
         "greeting": 14,
@@ -1581,5 +1625,5 @@
         "currency": 26,
         "study": 2
     },
-    "last_seen": "2026-04-11 13:50"
+    "last_seen": "2026-04-11 14:16"
 }

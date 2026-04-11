@@ -142,6 +142,7 @@
     voiceInputMode: "unknown",
     voiceActiveSource: null,
     voiceAbortController: null,
+    voiceTranscriptPending: false,
     recognition: null,
     speechSupported: "speechSynthesis" in window,
     speechVoice: null,
@@ -723,7 +724,7 @@
       let message = `Request failed with status ${response.status}.`;
       try {
         const payload = await response.json();
-        message = payload.detail || payload.message || message;
+        message = payload.detail || payload.message || payload.error || message;
       } catch (error) {
         message = await response.text() || message;
       }
@@ -1343,10 +1344,32 @@
       decision: result.decision || null,
       orchestration: result.orchestration || null,
       reasoningTrace: result.reasoning_trace || null,
+      provider: result.provider || null,
+      model: result.model || null,
+      providersTried: Array.isArray(result.providers_tried) ? result.providers_tried : [],
+      degraded: Boolean(result.degraded),
     };
   }
 
   function updateComposerHint(result) {
+    const assistantRuntime = state.providerHealth?.assistant_runtime || state.systemHealth?.assistant_runtime || {};
+    const activeProvider = String(result.provider || assistantRuntime.active_provider || "").trim().toUpperCase();
+    const preferredProvider = String(assistantRuntime.preferred_provider || "").trim().toUpperCase();
+
+    if (result.degraded) {
+      el.composerHint.textContent = "AURA answered in degraded mode because no verified live provider completed the preferred path cleanly.";
+      return;
+    }
+
+    if (activeProvider) {
+      if (preferredProvider && activeProvider !== preferredProvider) {
+        el.composerHint.textContent = `${preferredProvider} is not fully healthy right now, so AURA routed this reply through ${activeProvider}.`;
+        return;
+      }
+      el.composerHint.textContent = `AURA answered through ${activeProvider} on the live assistant path.`;
+      return;
+    }
+
     if ((result.confidence || 0) < 0.4) {
       el.composerHint.textContent = "AURA handled that with low confidence and surfaced the uncertainty instead of pretending certainty.";
       return;
@@ -1518,10 +1541,27 @@
     state.listening = false;
     state.voiceActiveSource = null;
     state.voiceAbortController = null;
+    state.voiceTranscriptPending = false;
     syncVoiceButtons();
     if (!state.speaking) {
       setSystemState(keepErrorState ? "error" : "idle");
     }
+  }
+
+  function handleCapturedVoiceTranscript(transcript, source = "microphone") {
+    const cleaned = String(transcript || "").trim();
+    if (!cleaned) {
+      throw new Error("No speech detected.");
+    }
+
+    el.composerInput.value = cleaned;
+    el.composerInput.focus();
+    el.composerInput.setSelectionRange(cleaned.length, cleaned.length);
+    el.composerHint.textContent = "AURA heard your request and is routing it through the main assistant path.";
+
+    const sourceLabel = source === "backend" ? "host microphone" : "browser microphone";
+    showToast("Transcript captured", `Captured from the ${sourceLabel}. AURA is answering now.`);
+    return sendMessage(cleaned);
   }
 
   async function startBackendVoiceCapture() {
@@ -1549,11 +1589,8 @@
         throw new Error("No speech detected.");
       }
 
-      el.composerInput.value = transcript;
-      el.composerInput.focus();
-      el.composerInput.setSelectionRange(transcript.length, transcript.length);
-      showToast("Transcript ready", "AURA pasted the microphone transcript into the chat box.");
       resetVoiceCaptureState();
+      await handleCapturedVoiceTranscript(transcript, "backend");
     } catch (error) {
       if (error.name === "AbortError") {
         resetVoiceCaptureState();
@@ -1587,6 +1624,14 @@
     });
 
     state.recognition.addEventListener("end", () => {
+      if (state.voiceTranscriptPending) {
+        state.listening = false;
+        state.voiceActiveSource = null;
+        state.voiceAbortController = null;
+        state.voiceTranscriptPending = false;
+        syncVoiceButtons();
+        return;
+      }
       resetVoiceCaptureState();
     });
 
@@ -1595,10 +1640,8 @@
       if (!transcript) {
         return;
       }
-      el.composerInput.value = transcript;
-      el.composerInput.focus();
-      el.composerInput.setSelectionRange(transcript.length, transcript.length);
-      showToast("Transcript ready", "AURA pasted the microphone transcript into the chat box.");
+      state.voiceTranscriptPending = true;
+      void handleCapturedVoiceTranscript(transcript, "browser");
     });
 
     state.recognition.addEventListener("error", (event) => {
@@ -1703,6 +1746,28 @@
     return selectedVoice || null;
   }
 
+  function prepareSpeechText(text) {
+    let spoken = String(text || "").trim();
+    if (!spoken) {
+      return "";
+    }
+
+    if (/```[\s\S]*?```/.test(spoken)) {
+      spoken = spoken.replace(/```[\s\S]*?```/g, " I've prepared the code for you. The full details are visible on screen. ");
+    }
+
+    spoken = spoken.replace(/`([^`]+)`/g, "$1");
+    spoken = spoken.replace(/#{1,6}\s*/g, "");
+    spoken = spoken.replace(/\*\*(.*?)\*\*/g, "$1");
+    spoken = spoken.replace(/\*(.*?)\*/g, "$1");
+    spoken = spoken.replace(/(?m)^\s*[-*]\s+/g, " ");
+    spoken = spoken.replace(/\n{2,}/g, ". ");
+    spoken = spoken.replace(/\n/g, " ");
+    spoken = spoken.replace(/\s{2,}/g, " ");
+    spoken = spoken.replace(/\s+([,.!?;:])/g, "$1");
+    return spoken.trim();
+  }
+
   function speakText(text) {
     if (!state.speechSupported) {
       showToast("Speech unavailable", "This browser cannot read responses aloud.", true);
@@ -1712,7 +1777,8 @@
     stopSpeaking();
 
     const language = state.profile?.language || (state.language === "urdu" ? "ur-PK" : "en-US");
-    const utterance = new SpeechSynthesisUtterance(text);
+    const spokenText = prepareSpeechText(text) || "AURA has a response ready on screen.";
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     utterance.rate = Number(state.profile?.voice_rate || state.settings.voiceRate || 1);
     utterance.pitch = Number(state.profile?.voice_pitch || 1);
     utterance.volume = Number(state.profile?.voice_volume ?? 1);
@@ -1984,14 +2050,18 @@
     const subsystems = state.systemStatus?.subsystems || {};
     const html = Object.entries(subsystems)
       .map(([name, info]) => {
+        const tone = normalizeHealthTone(info.status);
+        const chipClass = tone === "good" ? "chip--success" : tone === "degraded" ? "chip--warning" : "chip--danger";
         const badges = [
-          `<span class="chip ${info.status === "degraded" ? "chip--warning" : "chip--success"}">${escapeHtml(info.status || "available")}</span>`,
+          `<span class="chip ${chipClass}">${escapeHtml(info.status || "available")}</span>`,
           info.mode ? `<span class="chip chip--mode">${escapeHtml(info.mode)}</span>` : "",
         ].join("");
+        const summary = info.summary || info.reason || "";
         return `
           <article class="subsystem-card">
             <strong>${escapeHtml(name)}</strong>
             <div class="subsystem-card__meta">${badges}</div>
+            ${summary ? `<p class="support-copy">${escapeHtml(summary)}</p>` : ""}
           </article>
         `;
       })
@@ -2226,6 +2296,7 @@
 
   function renderProviderHealthCards() {
     const items = state.providerHealth?.items || [];
+    const runtime = state.providerHealth?.assistant_runtime || {};
     if (!items.length) {
       el.processingProviderCards.innerHTML = renderEmptyState(
         "No provider data yet",
@@ -2235,9 +2306,37 @@
       return;
     }
 
-    el.processingProviderCards.innerHTML = items
+    const activeProvider = String(runtime.active_provider || "").trim().toLowerCase();
+    const preferredProvider = String(runtime.preferred_provider || "").trim().toLowerCase();
+    const overviewCard = runtime.message ? `
+      <article class="provider-card">
+        <div class="panel__head panel__head--sub">
+          <div>
+            <p class="eyebrow">ASSISTANT ROUTE</p>
+            <h4>${escapeHtml(runtime.message)}</h4>
+          </div>
+          <span class="provider-status ${escapeHtml(normalizeProviderStatusClass(runtime.status))}">${escapeHtml(formatProviderStatusLabel(runtime.status))}</span>
+        </div>
+        <div class="health-metric">
+          <span>Preferred brain</span>
+          <strong>${escapeHtml((runtime.preferred_provider || "No data yet").toUpperCase())}</strong>
+        </div>
+        <div class="health-metric">
+          <span>Active provider</span>
+          <strong>${escapeHtml((runtime.active_provider || "No healthy route").toUpperCase())}</strong>
+        </div>
+      </article>
+    ` : "";
+
+    el.processingProviderCards.innerHTML = overviewCard + items
       .map((item) => {
         const statusClass = normalizeProviderStatusClass(item.status);
+        const providerId = String(item.provider || "").trim().toLowerCase();
+        const routingRole = providerId === activeProvider
+          ? "Active live route"
+          : providerId === preferredProvider
+            ? "Preferred route"
+            : `Priority ${Number(item.routing_order) + 1 || "n/a"}`;
         return `
           <article class="provider-card">
             <div class="panel__head panel__head--sub">
@@ -2254,6 +2353,10 @@
             <div class="health-metric">
               <span>Status detail</span>
               <strong>${escapeHtml(item.reason || item.error || "No data yet")}</strong>
+            </div>
+            <div class="health-metric">
+              <span>Routing role</span>
+              <strong>${escapeHtml(routingRole)}</strong>
             </div>
           </article>
         `;
@@ -2272,19 +2375,26 @@
       return;
     }
 
+    const runtime = health.assistant_runtime || {};
     const metrics = [
       { key: "Brain", value: health.brain, tone: health.brain },
       { key: "Memory", value: health.memory, tone: health.memory },
       { key: "Vector memory", value: health.vector_memory, tone: health.vector_memory },
       { key: "Voice STT", value: health.voice_stt, tone: health.voice_stt === "working" ? "good" : "down" },
       { key: "Voice TTS", value: health.voice_tts, tone: health.voice_tts === "working" ? "good" : "down" },
+      { key: "Preferred brain", value: runtime.preferred_provider ? String(runtime.preferred_provider).toUpperCase() : "No data yet", tone: runtime.status || "good" },
+      { key: "Active provider", value: runtime.active_provider ? String(runtime.active_provider).toUpperCase() : "No healthy route", tone: runtime.status || "degraded" },
       { key: "Uptime", value: formatUptime(health.uptime_seconds), tone: "good" },
       { key: "Total requests", value: health.total_requests ?? "No data yet", tone: "good" },
       { key: "Failed requests", value: health.failed_requests ?? "No data yet", tone: health.failed_requests ? "degraded" : "good" },
       { key: "Requests today", value: health.requests_today ?? "No data yet", tone: "good" },
     ];
 
-    el.processingSystemHealth.innerHTML = metrics
+    const runtimeSummary = runtime.message
+      ? `<div class="health-metric"><span>Assistant route</span><strong class="health-value ${escapeHtml(normalizeHealthTone(runtime.status))}">${escapeHtml(runtime.message)}</strong></div>`
+      : "";
+
+    el.processingSystemHealth.innerHTML = runtimeSummary + metrics
       .map((metric) => `
         <div class="health-metric">
           <span>${escapeHtml(metric.key)}</span>

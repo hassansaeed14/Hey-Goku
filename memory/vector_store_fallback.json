@@ -1244,5 +1244,65 @@
       ],
       "timestamp": "2026-04-11 13:50:46"
     }
+  },
+  {
+    "id": "mem_20260411141551145613",
+    "text": "What is artificial intelligence?",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 14:15:51"
+    }
+  },
+  {
+    "id": "mem_20260411141553623154",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 14:15:53"
+    }
+  },
+  {
+    "id": "mem_20260411141645254825",
+    "text": "What is artificial intelligence?",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 14:16:45"
+    }
+  },
+  {
+    "id": "mem_20260411141648286321",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 14:16:48"
+    }
   }
 ]

@@ -56,6 +56,7 @@ from brain.provider_hub import (
 from config.master_spec import CAPABILITY_LABELS, HYBRID_IMPLEMENTATION_ORDER
 from config.system_modes import list_system_modes
 from config.settings import MODEL_NAME
+from forge.forge_engine import forge_engine
 from memory import vector_memory
 from memory.chat_history import DB_PATH as CHAT_HISTORY_DB_PATH, clear_history, get_all_sessions, get_history, save_message
 from memory.memory_stats import get_memory_stats
@@ -1619,6 +1620,12 @@ async def get_security_status(request: Request, session_id: str = "default", res
 async def admin_system_status(request: Request):
     _require_admin_user(request)
     return await system_status(request)
+
+
+@app.get("/api/forge/report")
+async def get_forge_report(request: Request):
+    _require_admin_user(request)
+    return forge_engine.run_audit_cycle(fresh=_refresh_requested(request))
 
 
 @app.get("/api/system/modes")

@@ -14,17 +14,17 @@ class ApiProviderStatusTests(unittest.TestCase):
                 "checked_at": 0.0,
                 "items": [],
                 "providers": {},
+                "assistant_runtime": {},
             }
         )
         self.client = TestClient(api_server.app)
 
     def test_provider_endpoint_returns_truthful_status_payload(self):
-        provider_summary = {
-            "default_provider": "gemini",
+        provider_snapshot = {
+            "checked_at": "2026-04-11T10:00:00",
             "routing_order": ["gemini", "openai", "groq"],
             "healthy": ["gemini"],
             "configured": ["gemini", "groq"],
-            "verified": ["gemini"],
             "items": [
                 {
                     "provider": "gemini",
@@ -46,6 +46,13 @@ class ApiProviderStatusTests(unittest.TestCase):
                 },
             ],
             "providers": {"gemini": "healthy", "groq": "configured_unverified"},
+            "assistant_runtime": {
+                "status": "healthy",
+                "preferred_provider": "gemini",
+                "active_provider": "gemini",
+                "active_model": "gemini-2.5-flash",
+                "message": "GEMINI is healthy and serving AURA's active reasoning path.",
+            },
         }
 
         with patch.object(api_server, "_current_user", return_value={"id": "owner", "username": "owner", "admin": True}), patch.object(
@@ -54,8 +61,8 @@ class ApiProviderStatusTests(unittest.TestCase):
             return_value=False,
         ), patch.object(
             api_server,
-            "summarize_provider_statuses",
-            return_value=provider_summary,
+            "_provider_health_snapshot",
+            return_value=provider_snapshot,
         ):
             response = self.client.get("/api/providers")
 
@@ -64,6 +71,7 @@ class ApiProviderStatusTests(unittest.TestCase):
         self.assertEqual(payload["providers"]["gemini"], "healthy")
         self.assertEqual(payload["providers"]["groq"], "configured_unverified")
         self.assertEqual(payload["routing_order"], ["gemini", "openai", "groq"])
+        self.assertEqual(payload["assistant_runtime"]["active_provider"], "gemini")
 
     def test_system_health_uses_provider_truth_model(self):
         provider_snapshot = {
@@ -73,6 +81,13 @@ class ApiProviderStatusTests(unittest.TestCase):
             ],
             "providers": {"gemini": "healthy", "groq": "configured_unverified"},
             "routing_order": ["gemini", "openai", "groq"],
+            "assistant_runtime": {
+                "status": "healthy",
+                "preferred_provider": "gemini",
+                "active_provider": "gemini",
+                "active_model": "gemini-2.5-flash",
+                "message": "GEMINI is healthy and serving AURA's active reasoning path.",
+            },
         }
 
         with patch.object(api_server, "_provider_health_snapshot", return_value=provider_snapshot), patch.object(
@@ -89,6 +104,24 @@ class ApiProviderStatusTests(unittest.TestCase):
         self.assertEqual(payload["brain"], "working")
         self.assertEqual(payload["providers"]["gemini"], "healthy")
         self.assertEqual(payload["routing_order"], ["gemini", "openai", "groq"])
+        self.assertEqual(payload["assistant_runtime"]["active_provider"], "gemini")
+
+    def test_forge_report_endpoint_requires_admin_and_returns_real_report(self):
+        forge_report = {"status": "ok", "audit": {"findings": []}, "repair_plan": []}
+
+        with patch.object(api_server, "_current_user", return_value={"id": "owner", "username": "owner", "admin": True}), patch.object(
+            api_server,
+            "requires_first_run_setup",
+            return_value=False,
+        ), patch.object(
+            api_server.forge_engine,
+            "run_audit_cycle",
+            return_value=forge_report,
+        ):
+            response = self.client.get("/api/forge/report")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
 
 
 if __name__ == "__main__":

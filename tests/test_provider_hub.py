@@ -193,6 +193,21 @@ class ProviderHubTests(unittest.TestCase):
         self.assertEqual(result["attempts"][1]["provider"], "openai")
         self.assertEqual(result["attempts"][1]["status"], provider_hub.STATUS_RATE_LIMITED)
 
+    def test_runtime_provider_summary_explains_fallback_route(self):
+        statuses = {
+            "gemini": provider_hub.ProviderStatus("gemini", "gemini-2.5-flash", "real", True, False, True, "rate limited", status=provider_hub.STATUS_RATE_LIMITED),
+            "openai": provider_hub.ProviderStatus("openai", "gpt-4o-mini", "real", True, False, True, "rate limited", status=provider_hub.STATUS_RATE_LIMITED),
+            "groq": provider_hub.ProviderStatus("groq", "llama-3.3-70b-versatile", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY, last_used_at=10.0),
+        }
+
+        with patch.object(provider_hub, "get_provider_status", side_effect=lambda provider, fresh=False: statuses.get(provider) or provider_hub.ProviderStatus(provider, "x", "hybrid", False, False, True, "missing", status=provider_hub.STATUS_NOT_CONFIGURED)):
+            summary = provider_hub.get_runtime_provider_summary(preferred="gemini", fresh=False)
+
+        self.assertEqual(summary["status"], provider_hub.STATUS_DEGRADED)
+        self.assertEqual(summary["preferred_provider"], "gemini")
+        self.assertEqual(summary["active_provider"], "groq")
+        self.assertIn("routing through GROQ", summary["message"])
+
 
 if __name__ == "__main__":
     unittest.main()

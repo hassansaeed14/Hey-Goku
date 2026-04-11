@@ -381,12 +381,12 @@ def build_degraded_reply(user_input: str, providers_tried: Optional[List[Any]] =
                 provider_names.append(name)
         attempted = ", ".join(name.upper() for name in provider_names[:3]) if provider_names else "the configured providers"
         return (
-            "I can see the request, but I can't answer it reliably right now because my live AI providers "
-            f"aren't completing the request path. I tried {attempted}. Please try again in a moment or check provider health."
+            "The request is clear, but I can't answer it reliably right now because my live AI providers "
+            f"are not completing the response path cleanly. I tried {attempted}. Please try again in a moment or check provider health."
         )
 
     return (
-        "I can see the request, but I can't answer it reliably yet because no live AI provider is healthy enough to use. "
+        "I can see what you asked, but I do not have a healthy live provider I can trust for a dependable answer yet. "
         "Please check provider health and try again."
     )
 
