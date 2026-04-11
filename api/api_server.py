@@ -35,13 +35,21 @@ from brain.core_ai import AGENT_ROUTER, process_command_detailed
 from brain.telemetry_engine import get_last_telemetry
 from brain.response_engine import (
     FALLBACK_USER_MESSAGE,
+    build_degraded_reply,
     clean_response,
-    generate_response,
+    generate_response_payload,
 )
 from brain.provider_hub import (
     SUPPORTED_PROVIDERS,
-    generate_with_provider,
+    STATUS_AUTH_FAILED,
+    STATUS_CONFIGURED_UNVERIFIED,
+    STATUS_DEGRADED,
+    STATUS_HEALTHY,
+    STATUS_NOT_CONFIGURED,
+    STATUS_RATE_LIMITED,
+    STATUS_UNAVAILABLE,
     get_provider_status as get_runtime_provider_status,
+    list_provider_statuses,
     summarize_provider_statuses,
 )
 from config.master_spec import CAPABILITY_LABELS, HYBRID_IMPLEMENTATION_ORDER
@@ -90,6 +98,7 @@ PROVIDER_HEALTH_CACHE: dict[str, Any] = {
     "items": [],
     "providers": {},
 }
+PROVIDER_REFRESH_INTERVAL_SECONDS = 300
 
 app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
@@ -248,78 +257,37 @@ def _cors_headers() -> dict[str, str]:
     }
 
 
-def _provider_probe_messages() -> list[dict[str, str]]:
-    return [
-        {"role": "system", "content": "Reply with exactly OK."},
-        {"role": "user", "content": "OK?"},
-    ]
-
-
-def _probe_provider_health(provider: str) -> dict[str, Any]:
-    provider_status = get_runtime_provider_status(provider)
-    base_payload = {
-        "provider": provider_status.provider,
-        "model": provider_status.model,
-        "response_time_ms": None,
-        "error": None,
-    }
-
-    if not provider_status.configured:
-        return {
-            **base_payload,
-            "status": "not_configured",
-            "error": provider_status.reason,
-        }
-
-    if not provider_status.available:
-        return {
-            **base_payload,
-            "status": "failing",
-            "error": provider_status.reason,
-        }
-
-    started = time.perf_counter()
-    try:
-        result = generate_with_provider(
-            provider_status.provider,
-            _provider_probe_messages(),
-            max_tokens=8,
-            temperature=0.0,
-        )
-        return {
-            **base_payload,
-            "status": "working",
-            "model": result.get("model") or provider_status.model,
-            "response_time_ms": round((time.perf_counter() - started) * 1000, 2),
-            "error": None,
-        }
-    except Exception as error:
-        return {
-            **base_payload,
-            "status": "failing",
-            "response_time_ms": round((time.perf_counter() - started) * 1000, 2),
-            "error": str(error),
-        }
-
-
 def _provider_health_snapshot(*, force: bool = False) -> dict[str, Any]:
     now = time.time()
+    cache_age = now - float(PROVIDER_HEALTH_CACHE["checked_at_ts"] or 0.0)
     if (
         not force
         and PROVIDER_HEALTH_CACHE["items"]
-        and (now - float(PROVIDER_HEALTH_CACHE["checked_at_ts"] or 0.0)) < 55
+        and cache_age < 55
     ):
         return PROVIDER_HEALTH_CACHE
 
-    items = [_probe_provider_health(provider) for provider in SUPPORTED_PROVIDERS]
+    should_probe = force or not PROVIDER_HEALTH_CACHE["items"] or cache_age >= PROVIDER_REFRESH_INTERVAL_SECONDS
+    summary = summarize_provider_statuses(fresh=should_probe)
+    items = summary.get("items", [])
     snapshot = {
         "checked_at_ts": now,
         "checked_at": datetime.now().isoformat(timespec="seconds"),
         "items": items,
-        "providers": {item["provider"]: item["status"] for item in items},
+        "providers": dict(summary.get("providers", {})),
+        "routing_order": list(summary.get("routing_order", [])),
+        "healthy": list(summary.get("healthy", [])),
+        "configured": list(summary.get("configured", [])),
     }
     PROVIDER_HEALTH_CACHE.update(snapshot)
     return PROVIDER_HEALTH_CACHE
+
+
+def _refresh_requested(request: Optional[Request]) -> bool:
+    if request is None:
+        return False
+    raw = str(request.query_params.get("refresh", "") or "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _chat_requests_today() -> Optional[int]:
@@ -372,7 +340,10 @@ def _brain_health_label(provider_snapshot: dict[str, Any]) -> str:
         return "working"
     if status == "failed":
         return "degraded"
-    if any(item.get("status") == "working" for item in provider_snapshot.get("items", [])):
+    provider_states = [str(item.get("status") or "").strip().lower() for item in provider_snapshot.get("items", [])]
+    if STATUS_HEALTHY in provider_states:
+        return "working"
+    if any(state in {STATUS_CONFIGURED_UNVERIFIED, STATUS_DEGRADED, STATUS_RATE_LIMITED, STATUS_AUTH_FAILED, STATUS_UNAVAILABLE} for state in provider_states):
         return "degraded"
     return "down"
 
@@ -389,6 +360,7 @@ def _system_health_payload() -> dict[str, Any]:
         "voice_tts": "working" if voice_status.get("tts", {}).get("available") else "unavailable",
         "providers": dict(provider_snapshot.get("providers", {})),
         "provider_details": provider_snapshot.get("items", []),
+        "routing_order": list(provider_snapshot.get("routing_order", [])),
         "uptime_seconds": round(time.time() - SERVER_STARTED_AT, 2),
         "total_requests": int(REQUEST_METRICS["total_requests"]),
         "failed_requests": int(REQUEST_METRICS["failed_requests"]),
@@ -624,10 +596,21 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
 
     reply_text = clean_response(result.get("response"))
     if _is_unusable_reply_text(reply_text):
-        fallback_reply = clean_response(generate_response(context["cleaned_message"]))
-        if _is_unusable_reply_text(fallback_reply):
-            raise RuntimeError("Response pipeline returned no usable reply.")
-        reply_text = fallback_reply
+        fallback_payload = generate_response_payload(context["cleaned_message"])
+        if fallback_payload.get("success"):
+            reply_text = clean_response(fallback_payload.get("content"))
+            result["provider"] = fallback_payload.get("provider")
+            result["model"] = fallback_payload.get("model")
+            result["providers_tried"] = fallback_payload.get("providers_tried") or []
+        else:
+            reply_text = clean_response(
+                fallback_payload.get("degraded_reply")
+                or build_degraded_reply(context["cleaned_message"], fallback_payload.get("providers_tried"))
+            )
+            result["provider"] = None
+            result["model"] = None
+            result["providers_tried"] = fallback_payload.get("providers_tried") or []
+            result["degraded"] = True
 
     if _is_unusable_reply_text(reply_text):
         raise RuntimeError(reply_text)
@@ -649,6 +632,10 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
     payload["orchestration"] = result.get("orchestration", {})
     payload["confidence"] = result.get("confidence", context["confidence"])
     payload["session_id"] = context["session_id"]
+    payload["provider"] = result.get("provider")
+    payload["model"] = result.get("model")
+    payload["providers_tried"] = result.get("providers_tried", [])
+    payload["degraded"] = bool(result.get("degraded") or result.get("execution_mode") == "degraded_assistant")
     return payload
 
 
@@ -1463,12 +1450,19 @@ async def system_status(request: Request):
     memory_connected = memory_status["vector_store_ready"]
     memory_health = "connected" if memory_connected else "degraded"
     memory_mode = "real" if memory_connected else "fallback"
-    provider_summary = summarize_provider_statuses()
+    provider_summary = summarize_provider_statuses(fresh=False)
+    routing_order = provider_summary.get("routing_order", [])
+    primary_provider = routing_order[0] if routing_order else None
+    primary_model = next(
+        (item.get("model") for item in provider_summary.get("items", []) if item.get("provider") == primary_provider),
+        None,
+    )
     profile = load_user_profile()
     return {
         "status": "online",
         "version": "1.0.0",
-        "model": MODEL_NAME,
+        "model": primary_model or MODEL_NAME,
+        "primary_provider": primary_provider,
         "orchestrator": "rule_based_available",
         "reasoning": "hybrid_available",
         "memory": memory_health,
@@ -1492,9 +1486,10 @@ async def system_status(request: Request):
             "planner": {"status": "available", "mode": "hybrid"},
             "voice": {"status": "available" if get_voice_status()["settings"]["enabled"] else "standby", "mode": "hybrid"},
             "providers": {
-                "status": "available" if provider_summary["available"] else "degraded",
+                "status": "available" if provider_summary["healthy"] else "degraded",
                 "mode": "hybrid",
-                "available": provider_summary["available"],
+                "available": provider_summary["healthy"],
+                "routing_order": provider_summary["routing_order"],
             },
             "memory": {
                 "status": memory_health,
@@ -1517,7 +1512,7 @@ async def get_agents():
     return {
         "agents": list_agents(),
         "generated_agents": list_generated_agent_cards(),
-        "providers": summarize_provider_statuses(),
+        "providers": summarize_provider_statuses(fresh=False),
         "summary": get_agent_summary(),
         "doctrine": {
             "capability_labels": list(CAPABILITY_LABELS),
@@ -1536,8 +1531,19 @@ async def get_capabilities():
 
 
 @app.get("/api/providers")
-async def get_provider_status():
-    return summarize_provider_statuses()
+async def get_provider_status(request: Request):
+    snapshot = _provider_health_snapshot(force=_refresh_requested(request))
+    return {
+        "default_provider": snapshot.get("routing_order", [None])[0],
+        "routing_order": snapshot.get("routing_order", []),
+        "available": snapshot.get("healthy", []),
+        "healthy": snapshot.get("healthy", []),
+        "configured": snapshot.get("configured", []),
+        "verified": [item.get("provider") for item in snapshot.get("items", []) if item.get("verified")],
+        "items": snapshot.get("items", []),
+        "providers": snapshot.get("providers", {}),
+        "checked_at": snapshot.get("checked_at"),
+    }
 
 
 @app.get("/api/telemetry/last")
@@ -1549,13 +1555,16 @@ async def get_last_request_telemetry():
 
 
 @app.get("/api/telemetry/providers")
-async def get_provider_health():
-    snapshot = _provider_health_snapshot(force=True)
+async def get_provider_health(request: Request):
+    snapshot = _provider_health_snapshot(force=_refresh_requested(request))
     return {
         "status": "ok",
         "checked_at": snapshot.get("checked_at"),
         "items": snapshot.get("items", []),
         "providers": snapshot.get("providers", {}),
+        "routing_order": snapshot.get("routing_order", []),
+        "healthy": snapshot.get("healthy", []),
+        "configured": snapshot.get("configured", []),
     }
 
 

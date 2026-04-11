@@ -24,6 +24,41 @@
             "time": "2026-04-11 03:53",
             "command": "aura",
             "reason": "No configured provider produced a response."
+        },
+        {
+            "time": "2026-04-11 13:21",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-11 13:22",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
         }
     ],
     "low_confidence_commands": [
@@ -300,6 +335,291 @@
         {
             "time": "2026-04-11 03:53",
             "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:49",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:49",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 12:51",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:52",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:52",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 13:17",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:22",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-11 13:23",
+            "command": "What is wrong with my setup?",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:23",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 13:42",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:42",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:42",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "command": "what did we talk about before this",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "command": "what is quantum computing",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "command": "what should i do if i am feeling stressed",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:46",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:49",
+            "command": "who is elon musk",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:49",
+            "command": "write me a python function to reverse a string",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-11 13:50",
+            "command": "write me a python function to reverse a string",
             "confidence": 0.0
         }
     ],
@@ -1005,6 +1325,726 @@
             "time": "2026-04-11 03:53",
             "requested_action": "general",
             "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:49",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "requested_action": "general",
+            "actual_action": "permission_blocked",
+            "success": false,
+            "blocked_by_permission": true,
+            "retry_possible": true,
+            "learning_signal": "permission_enforcement_blocked_execution"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "requested_action": "general",
+            "actual_action": "permission_blocked",
+            "success": false,
+            "blocked_by_permission": true,
+            "retry_possible": true,
+            "learning_signal": "permission_enforcement_blocked_execution"
+        },
+        {
+            "time": "2026-04-11 12:51",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:52",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:17",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:21",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:21",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:21",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:22",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:22",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:22",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:22",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:23",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:23",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:42",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "task",
+            "actual_action": "task",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:46",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:49",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:49",
+            "requested_action": "general",
+            "actual_action": "code",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-11 13:50",
+            "requested_action": "general",
+            "actual_action": "code",
             "success": true,
             "blocked_by_permission": false,
             "retry_possible": false,

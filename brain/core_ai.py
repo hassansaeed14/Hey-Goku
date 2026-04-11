@@ -12,15 +12,13 @@ from agents.agent_bus import agent_bus
 from agents.agent_registry import AgentRegistry
 from agents.context import AURAContext
 from brain import runtime_core as runtime_core_module
-from brain.provider_hub import Groq
-from brain.response_engine import clean_response, generate_response
-from config.settings import MODEL_NAME
+from brain.response_engine import clean_response, generate_response, generate_response_payload
+from config.settings import GROQ_API_KEY, MODEL_NAME
+from memory.chat_history import get_history
 from memory.knowledge_base import get_user_age, get_user_city, get_user_name
 from memory.working_memory import load_working_memory
 
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-
 if GROQ_API_KEY:
     print(f"[BRAIN] Groq key loaded: {GROQ_API_KEY[:10]}...")
 else:
@@ -31,25 +29,7 @@ AGENT_ROUTER = runtime_core_module.AGENT_ROUTER
 SESSION_CONTEXT_HISTORY: dict[str, list[dict[str, str]]] = {}
 MAX_SESSION_EXCHANGES = 10
 
-JARVIS_SYSTEM_PROMPT = (
-    "You are AURA - Autonomous Universal Responsive Assistant. "
-    "You are a real AI assistant modeled after JARVIS from Iron Man.\n\n"
-    "Your personality:\n"
-    "- Professional, calm, and highly intelligent\n"
-    "- Respectful but not robotic; you have subtle personality\n"
-    "- You call the user sir or ma'am based on profile, or by preferred name if set\n"
-    "- You are confident but never arrogant\n"
-    "- You are honest about your limitations\n"
-    "- You never say 'As an AI language model...'\n"
-    "- You complete tasks when the connected system supports them\n"
-    "- You never claim a system action succeeded unless it actually ran\n\n"
-    "Your speech style:\n"
-    "- Formal but warm\n"
-    "- Structured and clear\n"
-    "- Efficient and polished\n"
-    "- Begin with action, not disclaimers\n\n"
-    "You are always AURA. You are always online."
-)
+JARVIS_SYSTEM_PROMPT = response_engine_module.JARVIS_SYSTEM_PROMPT
 
 UNUSABLE_RESPONSE_MARKERS = (
     "i couldn't generate a useful response right now.",
@@ -66,10 +46,49 @@ def _get_session_history(session_id: str) -> list[dict[str, str]]:
     return SESSION_CONTEXT_HISTORY.setdefault(session_id, [])
 
 
+def _load_persisted_history(session_id: str) -> list[dict[str, str]]:
+    try:
+        rows = get_history(session_id, limit=10)
+    except Exception:
+        return []
+
+    messages: list[dict[str, str]] = []
+    for row in rows:
+        role = str(row.get("role", "")).strip().lower()
+        content = str(row.get("message", "")).strip()
+        if role in {"user", "assistant"} and content:
+            messages.append({"role": role, "content": content})
+    return messages
+
+
+def build_messages_with_history(user_input: str, session_id: str) -> list[dict[str, str]]:
+    persisted_history = _load_persisted_history(session_id)
+    in_memory_history = list(_get_session_history(session_id))
+    merged: list[dict[str, str]] = []
+
+    for item in persisted_history + in_memory_history:
+        role = str(item.get("role", "")).strip().lower()
+        content = str(item.get("content", "")).strip()
+        normalized = {"role": role, "content": content}
+        if role not in {"user", "assistant"} or not content:
+            continue
+        if merged and merged[-1] == normalized:
+            continue
+        merged.append(normalized)
+
+    return response_engine_module.build_messages(
+        user_input,
+        JARVIS_SYSTEM_PROMPT,
+        history=merged[-MAX_SESSION_EXCHANGES * 2 :],
+    )
+
+
 def _sync_context_into_response_engine(session_id: str) -> None:
     response_engine_module.clear_history()
-    for item in _get_session_history(session_id)[-MAX_SESSION_EXCHANGES * 2 :]:
-        response_engine_module.add_to_history(item.get("role", "user"), item.get("content", ""))
+    merged_messages = build_messages_with_history("", session_id)
+    for item in merged_messages:
+        if item.get("role") in {"user", "assistant"} and str(item.get("content", "")).strip():
+            response_engine_module.add_to_history(item.get("role", "user"), item.get("content", ""))
 
 
 def _record_exchange(session_id: str, user_message: str, assistant_message: str) -> None:
@@ -128,13 +147,11 @@ def _jarvis_prefix(intent: str, execution_mode: str) -> str:
     normalized_mode = str(execution_mode or "").strip().lower()
     if normalized_mode == "permission_blocked":
         return ""
-    if normalized_mode in {"multi_agent", "generated_agent", "single_agent", "special_intent"}:
-        return "Right away. "
-    if normalized_intent in {"research", "reasoning", "compare", "study"}:
-        return "Analysis complete. "
     if normalized_intent in {"task", "reminder"}:
-        return "Certainly. "
-    return "Certainly. "
+        return "Done. "
+    if normalized_mode in {"generated_agent", "multi_agent"} and normalized_intent in {"research", "reasoning", "compare", "study"}:
+        return "Here is the answer. "
+    return ""
 
 
 def _jarvisize_response(
@@ -146,7 +163,9 @@ def _jarvisize_response(
     session_id: str,
     command: str,
 ) -> str:
-    text = clean_response(response)
+    text = response_engine_module.polish_assistant_reply(response, user_input=command)
+    if not text:
+        text = clean_response(response)
     if not text:
         return text
 
@@ -200,25 +219,12 @@ def _is_unusable_response(text: Optional[str]) -> bool:
     return any(marker in normalized for marker in UNUSABLE_RESPONSE_MARKERS)
 
 
-def _call_groq_direct(command: str) -> str:
-    if Groq is None:
-        raise RuntimeError("Groq SDK is not installed.")
-    if not GROQ_API_KEY:
-        raise RuntimeError("GROQ_API_KEY not found in .env")
-
-    messages = response_engine_module.build_messages(command, JARVIS_SYSTEM_PROMPT)
-
-    try:
-        groq_client = Groq(api_key=GROQ_API_KEY)
-        response = groq_client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=messages,
-        )
-        content = response.choices[0].message.content or ""
-        return clean_response(content)
-    except Exception as error:
-        print(f"[BRAIN ERROR] Groq call failed: {error}")
-        raise
+def _call_live_brain_direct(command: str, session_id: str) -> dict[str, Any]:
+    messages = build_messages_with_history(command, session_id)
+    payload = generate_response_payload(messages, system_override=JARVIS_SYSTEM_PROMPT)
+    if not payload.get("success"):
+        print(f"[BRAIN ERROR] Live provider fallback failed: {payload.get('error')}")
+    return payload
 
 
 def _knowledge_base_result(command: str, session_id: str, user_profile: Optional[dict[str, Any]], current_mode: str) -> Optional[dict[str, Any]]:
@@ -239,6 +245,8 @@ def _knowledge_base_result(command: str, session_id: str, user_profile: Optional
         "detected_intent": "memory",
         "confidence": 1.0,
         "response": reply,
+        "provider": "local_memory",
+        "model": "local",
         "plan": [],
         "used_agents": ["memory"],
         "agent_capabilities": runtime_core_module.build_runtime_agent_cards(["memory"]),
@@ -282,6 +290,9 @@ def _enrich_result(
     orchestration["agent_bus_connected"] = True
     orchestration["active_agents"] = list(enriched.get("used_agents") or [])
     enriched["orchestration"] = orchestration
+    enriched["provider"] = enriched.get("provider") or None
+    enriched["model"] = enriched.get("model") or None
+    enriched["providers_tried"] = list(enriched.get("providers_tried") or [])
     enriched["context_window"] = list(_get_session_history(session_id))
     agent_bus.publish(
         "brain.response.completed",
@@ -324,8 +335,19 @@ def process_single_command_detailed(
         elapsed_ms=elapsed_ms,
     )
     if _is_unusable_response(enriched.get("response")):
-        print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting direct Groq fallback.")
-        enriched["response"] = _call_groq_direct(command)
+        print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting live provider fallback.")
+        fallback = _call_live_brain_direct(command, normalized_session)
+        if fallback.get("success"):
+            enriched["response"] = clean_response(fallback.get("content"))
+            enriched["provider"] = fallback.get("provider")
+            enriched["model"] = fallback.get("model")
+            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
+        else:
+            enriched["response"] = clean_response(fallback.get("degraded_reply"))
+            enriched["provider"] = None
+            enriched["model"] = None
+            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
+            enriched["execution_mode"] = "degraded_assistant"
     _record_exchange(normalized_session, command, enriched["response"])
     return enriched
 
@@ -360,15 +382,20 @@ def process_command_detailed(
         elapsed_ms=elapsed_ms,
     )
     if _is_unusable_response(enriched.get("response")):
-        print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting direct Groq fallback.")
-        fallback = _call_groq_direct(command)
-        if not _is_unusable_response(fallback):
-            enriched["response"] = fallback
+        print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting live provider fallback.")
+        fallback = _call_live_brain_direct(command, normalized_session)
+        fallback_text = clean_response(fallback.get("content"))
+        if fallback.get("success") and not _is_unusable_response(fallback_text):
+            enriched["response"] = fallback_text
+            enriched["provider"] = fallback.get("provider")
+            enriched["model"] = fallback.get("model")
+            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
         else:
-            fallback = clean_response(generate_response(command, system_override=JARVIS_SYSTEM_PROMPT))
-            if _is_unusable_response(fallback):
-                raise RuntimeError("Groq fallback returned no usable reply.")
-            enriched["response"] = fallback
+            enriched["response"] = clean_response(fallback.get("degraded_reply"))
+            enriched["provider"] = None
+            enriched["model"] = None
+            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
+            enriched["execution_mode"] = "degraded_assistant"
     _record_exchange(normalized_session, command, enriched["response"])
     return enriched
 

@@ -17,18 +17,16 @@ from brain.decision_engine import (
 )
 from brain.entity_parser import parse_entities
 from brain.planner import summarize_execution_plan
-from brain.provider_hub import generate_with_best_provider
 from brain.reflection_engine import record_reflection
 from brain.orchestrator import orchestrator as master_orchestrator
 from brain.response_engine import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
-    FALLBACK_USER_MESSAGE,
-    add_to_history,
     build_messages,
     build_system_prompt,
+    build_degraded_reply,
     clean_response,
-    generate_response,
+    generate_response_payload,
     is_meaningful_text,
 )
 from brain.telemetry_engine import ProcessingTelemetry, set_last_telemetry
@@ -120,45 +118,45 @@ def _llm_response_with_provider(user_input: str, language: str) -> Dict[str, Any
     system_prompt = build_system_prompt(language)
     messages = build_messages(user_input, system_prompt)
     started = time.perf_counter()
-    provider_response = generate_with_best_provider(
+    provider_response = generate_response_payload(
         messages,
-        preferred=DEFAULT_REASONING_PROVIDER,
+        system_override=system_prompt,
         max_tokens=DEFAULT_MAX_TOKENS,
         temperature=DEFAULT_TEMPERATURE,
     )
     elapsed_ms = (time.perf_counter() - started) * 1000
 
     if not provider_response.get("success"):
-        reason = provider_response.get("reason") or "No configured provider produced a response."
-        attempts = provider_response.get("attempts") or []
-        failed_attempt = next((item for item in reversed(attempts) if item.get("status") == "failed"), None)
-        last_attempt = failed_attempt or next((item for item in reversed(attempts) if item.get("provider")), None)
-        provider_name = str((last_attempt or {}).get("provider") or "unavailable")
+        attempts = provider_response.get("providers_tried") or []
+        last_attempt = str(attempts[-1]).strip() if attempts else ""
+        provider_name = last_attempt.split(":", 1)[0].strip() if ":" in last_attempt else "unavailable"
         return {
             "success": False,
-            "text": "",
+            "text": provider_response.get("degraded_reply") or build_degraded_reply(user_input, attempts),
             "provider_name": provider_name,
-            "model": "unknown",
+            "model": provider_response.get("model") or "unknown",
             "tokens_used": None,
             "time_ms": elapsed_ms,
-            "error": str(reason),
+            "error": str(provider_response.get("error") or "No configured provider produced a response."),
+            "providers_tried": attempts,
+            "degraded": True,
         }
 
-    raw_result = str(provider_response.get("text", "")).strip()
+    raw_result = str(provider_response.get("content", "")).strip()
     cleaned = clean_response(raw_result)
     if not is_meaningful_text(cleaned):
         return {
             "success": False,
-            "text": "",
+            "text": provider_response.get("degraded_reply") or build_degraded_reply(user_input, provider_response.get("providers_tried") or []),
             "provider_name": provider_response.get("provider") or "unknown",
             "model": provider_response.get("model") or "unknown",
             "tokens_used": provider_response.get("tokens_used"),
             "time_ms": elapsed_ms,
-            "error": FALLBACK_USER_MESSAGE,
+            "error": provider_response.get("error") or "Provider returned empty content.",
+            "providers_tried": provider_response.get("providers_tried") or [],
+            "degraded": True,
         }
 
-    add_to_history("user", user_input)
-    add_to_history("assistant", cleaned)
     return {
         "success": True,
         "text": cleaned,
@@ -166,6 +164,7 @@ def _llm_response_with_provider(user_input: str, language: str) -> Dict[str, Any
         "model": provider_response.get("model") or "unknown",
         "tokens_used": provider_response.get("tokens_used"),
         "time_ms": elapsed_ms,
+        "providers_tried": provider_response.get("providers_tried") or [],
     }
 
 
@@ -315,6 +314,12 @@ def resolve_permission_action(
 ) -> str:
     command_lower = command.lower()
     primary_agent = (orchestration.get("primary_agent") or detected_intent or "general").strip().lower()
+    safe_aliases = {
+        "code": "coding",
+        "content": "general",
+        "email": "general",
+        "fitness": "general",
+    }
 
     if primary_agent == "task":
         if contains_phrase(command_lower, TASK_READ_PHRASES):
@@ -347,7 +352,7 @@ def resolve_permission_action(
     if primary_agent in {"insights", "memory"}:
         return "memory_read" if primary_agent == "memory" else "insights"
 
-    return primary_agent
+    return safe_aliases.get(primary_agent, primary_agent)
 
 
 def build_agent_capability_cards(
@@ -579,6 +584,9 @@ def build_result(
     plan_steps: Optional[List[str]] = None,
     permission_action: Optional[str] = None,
     permission: Optional[Dict[str, Any]] = None,
+    provider_name: Optional[str] = None,
+    provider_model: Optional[str] = None,
+    providers_tried: Optional[List[str]] = None,
     telemetry: Optional[ProcessingTelemetry] = None,
     publish_telemetry: bool = True,
 ) -> Dict[str, Any]:
@@ -629,6 +637,10 @@ def build_result(
         "confidence_detail": confidence_detail,
         "permission_action": permission_action,
         "permission": permission,
+        "provider": provider_name,
+        "model": provider_model,
+        "providers_tried": list(providers_tried or []),
+        "degraded": execution_mode == "degraded_assistant",
     }, telemetry, publish=publish_telemetry)
 
 
@@ -822,6 +834,9 @@ def process_single_command_detailed(
     response = ""
     used_agents: List[str] = []
     execution_mode = "fallback_llm"
+    provider_name: Optional[str] = None
+    provider_model: Optional[str] = None
+    providers_tried: List[str] = []
     execution_started = time.perf_counter()
 
     try:
@@ -851,6 +866,9 @@ def process_single_command_detailed(
                 provider_result = _llm_response_with_provider(enhanced_input, language)
                 if provider_result.get("success"):
                     response = str(provider_result.get("text") or "")
+                    provider_name = str(provider_result.get("provider_name") or "").strip() or None
+                    provider_model = str(provider_result.get("model") or "").strip() or None
+                    providers_tried = list(provider_result.get("providers_tried") or [])
                     active_telemetry.record_provider(
                         provider_result.get("provider_name") or "unknown",
                         provider_result.get("model") or "unknown",
@@ -858,6 +876,9 @@ def process_single_command_detailed(
                         provider_result.get("time_ms") or 0.0,
                     )
                 else:
+                    response = str(provider_result.get("text") or "").strip()
+                    providers_tried = list(provider_result.get("providers_tried") or [])
+                    execution_mode = "degraded_assistant"
                     active_telemetry.record_provider(
                         provider_result.get("provider_name") or "unavailable",
                         provider_result.get("model") or "unknown",
@@ -867,13 +888,8 @@ def process_single_command_detailed(
                         error=provider_result.get("error"),
                     )
                     log_failure(raw_command, str(provider_result.get("error") or "Provider response failed"))
-                    try:
-                        response = generate_response(enhanced_input)
-                    except Exception as error:
-                        log_failure(raw_command, str(error))
-                        response = "I ran into a problem while processing that request."
         normalized_response = clean_response(response).lower()
-        success = bool(normalized_response) and "i ran into a problem" not in normalized_response
+        success = bool(normalized_response) and execution_mode != "degraded_assistant" and "i ran into a problem" not in normalized_response
     except Exception as error:
         execution_time_ms = (time.perf_counter() - execution_started) * 1000
         active_telemetry.record_execution(
@@ -906,6 +922,9 @@ def process_single_command_detailed(
         plan_steps=plan_steps,
         permission_action=permission_action,
         permission=permission,
+        provider_name=provider_name,
+        provider_model=provider_model,
+        providers_tried=providers_tried,
         telemetry=active_telemetry,
         publish_telemetry=publish_telemetry,
     )

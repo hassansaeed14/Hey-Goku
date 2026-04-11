@@ -1,31 +1,84 @@
 import os
+import re
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+def _read_api_bundle() -> dict[str, str]:
+    bundle_path = Path(os.getenv("AURA_API_BUNDLE_PATH", r"C:\Users\beast\Downloads\API NAME OpenAI.txt"))
+    if not bundle_path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    current_section = ""
+    try:
+        for raw_line in bundle_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            section_match = re.match(r"^\[([A-Z0-9_ -]+)\]$", line)
+            if section_match:
+                current_section = section_match.group(1).strip().upper()
+                continue
+            if line.startswith("API NAME:"):
+                current_section = line.split(":", 1)[1].strip().upper()
+                continue
+            if not current_section:
+                continue
+            separator = "=" if "=" in line else ":" if ":" in line else None
+            if separator is None:
+                continue
+            key, value = [part.strip() for part in line.split(separator, 1)]
+            if not value:
+                continue
+            values[f"{current_section}_{key.upper()}"] = value
+    except Exception:
+        return {}
+    return values
+
+
+_API_BUNDLE = _read_api_bundle()
+
+
+def _env_or_bundle(name: str, section: str | None = None, bundle_key: str = "API_KEY", default: str = "") -> str:
+    bundle_value = ""
+    if section:
+        bundle_value = _API_BUNDLE.get(f"{section.upper()}_{bundle_key.upper()}", "").strip()
+    direct = os.getenv(name, "").strip()
+    if bundle_value:
+        return bundle_value
+    if direct:
+        return direct
+    return default
+
+
+GROQ_API_KEY = _env_or_bundle("GROQ_API_KEY", section="GROQ")
+OPENAI_API_KEY = _env_or_bundle("OPENAI_API_KEY", section="OPENAI")
+ANTHROPIC_API_KEY = _env_or_bundle("ANTHROPIC_API_KEY", section="CLAUDE")
+GEMINI_API_KEY = _env_or_bundle("GEMINI_API_KEY", section="GEMINI")
+OPENROUTER_API_KEY = _env_or_bundle("OPENROUTER_API_KEY", section="OPENROUTER")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL_NAME = "llama-3.3-70b-versatile"
 APP_NAME = "AURA"
 VERSION = "1.0.0"
-DEFAULT_REASONING_PROVIDER = os.getenv("DEFAULT_REASONING_PROVIDER", "router").strip().lower()
+DEFAULT_REASONING_PROVIDER = os.getenv("DEFAULT_REASONING_PROVIDER", "gemini").strip().lower()
 
 PROVIDER_MODEL_MAP = {
     "groq": os.getenv("GROQ_MODEL", MODEL_NAME),
-    "openai": os.getenv("OPENAI_MODEL", "gpt-4.1"),
+    "openai": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     "claude": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-0"),
-    "gemini": os.getenv("GEMINI_MODEL", "gemini-2.5-pro"),
+    "gemini": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+    "openrouter": os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324:free"),
     "ollama": os.getenv("OLLAMA_MODEL", "llama3.1"),
 }
 
 PROVIDER_PRIORITY = tuple(
     item.strip().lower()
-    for item in os.getenv("AURA_PROVIDER_PRIORITY", "openai,groq,claude,gemini,ollama").split(",")
+    for item in os.getenv("AURA_PROVIDER_PRIORITY", "gemini,openai,groq,openrouter,claude,ollama").split(",")
     if item.strip()
 )
 

@@ -132,7 +132,7 @@
         "preferences": {}
     },
     "topic_frequency": {
-        "general": 32,
+        "general": 70,
         "news": 1,
         "memory": 12,
         "greeting": 7,
@@ -140,7 +140,7 @@
         "joke": 4,
         "dictionary": 2,
         "screenshot": 1,
-        "code": 1,
+        "code": 13,
         "currency": 13,
         "study": 1
     },
@@ -697,11 +697,361 @@
             "input": "aura",
             "response": "I couldn't generate a useful response right now.",
             "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 12:49",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "Quantum computing is a new paradigm of computation that harnesses the principles of quantum mechanics, such as superposition, entanglement, and quantum interference, to perform calculations. Unlike cl",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 12:49",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "Elon Musk, sir, is a prominent entrepreneur, investor, and business magnate. He is the founder, CEO, and CTO of SpaceX; CEO and product architect of Tesla, Inc.; and founder of The Boring Company and ",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "Understood, sir. If you are feeling stressed, several approaches can be effective:\n1. Deep Breathing: Take slow, deep breaths, focusing on expanding your diaphragm. This can activate your body's relax",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 12:50",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "Certainly, sir. Before this, we discussed a range of topics. We began with an explanation of quantum computing, followed by a brief overview of Elon Musk's ventures. You then inquired about strategies",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 12:51",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "Certainly, sir. Here is a Python function that reverses a string using slicing, which is a very concise and Pythonic approach.\ndef reverse_string(input_string: str) -str:\n \"\"\"\n Reverses a given string",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 12:52",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "Certainly, sir. Here is a Python function to reverse a string:\ndef reverse_string(s):\n \"\"\"\n Reverses a given string.\n Args:\n s: The input string to be reversed.\n Returns:\n The reversed string.\n \"\"\"\n r",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 12:52",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "Quantum computing, sir, is a novel paradigm of computation that leverages the principles of quantum mechanics to process information.\nUnlike classical computers which store information as bits, repres",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "Elon Musk, sir, is a prominent entrepreneur and business magnate. He is the founder, CEO, and CTO of SpaceX; CEO and product architect of Tesla, Inc.; owner and CTO of X (formerly Twitter); and founde",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "Understood, sir. Managing stress effectively is crucial for well-being. Here are a few immediate and longer-term strategies you might consider:\n1. Deep Breathing Exercises: Even a few minutes of contr",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "Certainly. Here is a Python function to reverse a string, sir:\ndef reverse_string(s):\n \"\"\"\n Reverses a given string.\n Args:\n s: The input string.\n Returns:\n The reversed string.\n \"\"\"\n return s[::-1]\nE",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 12:53",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "Before this, sir, we discussed the following topics:\n* Quantum computing\n* Elon Musk\n* Strategies for managing stress\n* And a Python function to reverse a string",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:17",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial Intelligence (AI) is a broad field of computer science that aims to create machines capable of performing tasks that typically require human intelligence.\nThis includes abilities like:\n Lea",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:23",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) is a broad field of computer science that gives computers the ability to perform tasks that typically require human intelligence. This includes things like learning, probl",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:23",
+            "intent": "general",
+            "input": "What is wrong with my setup?",
+            "response": "The \"what do I use\" memory suggests you're currently facing a choice or conflict regarding a specific tool, setting, or component in your setup, and you're unsure which one is the correct or intended ",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "We've discussed this before. Quantum computing is a type of computing that uses the principles of quantum mechanics to perform calculations and operations on data. It's different from classical comput",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as:\n1. Learning: AI systems can learn from data ",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "We've had this conversation before. Elon Musk is a South African-born entrepreneur, inventor, and business magnate. He's the CEO of SpaceX and Tesla, Inc., and has played a crucial role in revolutioni",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "We've discussed this before. When you're feeling stressed, there are several things you can try to help manage your emotions and calm down.\n1. Take a few deep breaths: Breathe in slowly through your n",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "We've been here before. You've asked me to write a Python function to reverse a string three times already. I'll provide the answer again, but I'll also give you a few alternatives to make it more int",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:25",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "We didn't have a previous conversation, so there's nothing to recall. This is the start of our conversation, and I'm happy to chat with you. What would you like to talk about?",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "I've answered this question for you multiple times before. Quantum computing is a type of computing that uses the principles of quantum mechanics to perform calculations and operations on data. It's a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "I've answered this question for you multiple times before. Elon Musk is a business magnate, entrepreneur, and investor. He is the CEO and lead designer of SpaceX, as well as the CEO and product archit",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "I've noticed that you've asked this question multiple times before. It seems like you're struggling with stress and are looking for some guidance.\nAs I've mentioned before, when you're feeling stresse",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "I've noticed that you've asked this question multiple times before. It seems like you're looking for a Python function to reverse a string, and I'm happy to provide it again.\nHere is a simple Python f",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:36",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "I've noticed that you've asked this question multiple times before. It seems like you're trying to recall our previous conversations, but I don't have any information to suggest that we've had any con",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "Quantum computing is a type of computing that uses the principles of quantum mechanics to perform calculations and operations on data. It's a new and rapidly evolving field that has the potential to r",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "I've noticed that you've asked about Elon Musk multiple times before. To recap, Elon Musk is a business magnate, entrepreneur, and investor. He's the CEO of SpaceX and Tesla, Inc., and has played a cr",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "I've noticed that you've asked about stress multiple times before. It seems like you're looking for some advice on managing stress.\nTo recap, some common strategies for managing stress include:\n1. Dee",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "I've noticed that you've asked me to write a Python function to reverse a string multiple times before. To avoid repeating myself, I'll provide the same answer I've given you in the past:\ndef reverse_",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:39",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "We've had this conversation before. To recap, we've discussed the following topics:\n1. Quantum Computing: We talked about the basics of quantum computing, its benefits, and some of the challenges it f",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "I've answered this question for you multiple times before. Quantum computing is a type of computing that uses the principles of quantum mechanics to perform calculations and operations on data. It's a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "I've answered this question for you multiple times before. Elon Musk is a business magnate, entrepreneur, and investor. He is the CEO and lead designer of SpaceX, as well as the CEO and product archit",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "I've answered this question for you three times before. It seems like you're experiencing stress again. To recap, I previously suggested that you try relaxation techniques such as deep breathing, medi",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "I've answered this question for you three times already. Here is the function again:\ndef reverse_string(s):\n return s[::-1]\nThis function uses Python's slice notation to create a new string that is th",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:41",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "We didn't have any previous conversations. This is the start of our conversation, and I don't have any prior knowledge or context to draw from. Let's start fresh. How can I assist you today?",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "You've asked this question before, multiple times. I'd be happy to explain it again, but I want to make sure you're getting the information you need.\nQuantum computing is a type of computing that uses",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as:\n* Learning\n* Problem-solving\n* Reasoning\n* P",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "You've asked about Elon Musk multiple times before. To recap, Elon Musk is a business magnate and entrepreneur who has founded or co-founded several companies, including PayPal, SpaceX, Tesla, Neurali",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "I see you've asked about feeling stressed multiple times before. It seems like you might be experiencing some recurring stress.\nTo recap, I've suggested various strategies to help manage stress, such ",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "I see you've asked this question multiple times before. To provide a more helpful response, I'll not only give you the function but also explain it and offer some additional information.\nHere is a Pyt",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:43",
+            "intent": "general",
+            "input": "what did we talk about before this",
+            "response": "We've had this conversation multiple times before. To recap, we discussed the following topics:\n1. Quantum Computing: You asked about the basics of quantum computing, and I explained how it uses quant",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "intent": "general",
+            "input": "what is quantum computing",
+            "response": "I've noticed you've asked this question multiple times before. Quantum computing is a type of computing that uses the principles of quantum mechanics to perform calculations and operations on data. It",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "You've asked about Elon Musk multiple times before. To recap, Elon Musk is a South African-born entrepreneur, inventor, and business magnate. He's the CEO of SpaceX and Tesla, Inc., and has played a c",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "intent": "general",
+            "input": "what should i do if i am feeling stressed",
+            "response": "It seems like you've asked this question before, and I'm happy to help you again. Since you've asked this question multiple times, I'll provide a more detailed and personalized response.\nFeeling stres",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:45",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "It seems like you've asked this question before. I'll provide the answer again for your convenience. Here's a simple Python function to reverse a string:\ndef reverse_string(s):\n return s[::-1]\nYou can",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:46",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "def reverse_string(input_string: str) -> str:\n \"\"\"\n Reverses the input string.\n Args:\n input_string (str): The string to be reversed.\n Returns:\n str: The reversed string.\n \"\"\"\n return input_string[::-",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:49",
+            "intent": "general",
+            "input": "who is elon musk",
+            "response": "You've asked this question multiple times before. Elon Musk is a business magnate and entrepreneur. He is the CEO of SpaceX and Tesla, Inc., and is known for his ambitious goals in revolutionizing tra",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 13:49",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "It seems like you've asked this before. I'll provide the answer again. Here's a simple Python function to reverse a string:\ndef reverse_string(s):\n return s[::-1]\nYou can use it like this:\nprint(rever",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 13:50",
+            "intent": "code",
+            "input": "write me a python function to reverse a string",
+            "response": "def reverse_string(input_str: str) -> str:\n \"\"\"\n This function takes a string as input and returns the reversed string.\n Args:\n input_str (str): The input string to be reversed.\n Returns:\n str: The re",
+            "length_type": "medium"
         }
     ],
     "behavior_stats": {
-        "short_queries": 55,
-        "medium_queries": 19,
+        "short_queries": 77,
+        "medium_queries": 47,
         "long_queries": 5
     },
     "intent_sequences": [
@@ -1016,10 +1366,210 @@
         [
             "general",
             "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "code"
+        ],
+        [
+            "code",
+            "general"
+        ],
+        [
+            "general",
+            "code"
+        ],
+        [
+            "code",
+            "code"
         ]
     ],
     "intent_weights": {
-        "general": 64,
+        "general": 140,
         "news": 2,
         "memory": 24,
         "greeting": 14,
@@ -1027,9 +1577,9 @@
         "joke": 8,
         "dictionary": 4,
         "screenshot": 2,
-        "code": 2,
+        "code": 26,
         "currency": 26,
         "study": 2
     },
-    "last_seen": "2026-04-11 03:53"
+    "last_seen": "2026-04-11 13:50"
 }

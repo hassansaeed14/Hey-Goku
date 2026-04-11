@@ -479,5 +479,770 @@
       ],
       "timestamp": "2026-04-11 03:53:52"
     }
+  },
+  {
+    "id": "mem_20260411124954177451",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:49:54"
+    }
+  },
+  {
+    "id": "mem_20260411124959525824",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:49:59"
+    }
+  },
+  {
+    "id": "mem_20260411125005649834",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:50:05"
+    }
+  },
+  {
+    "id": "mem_20260411125010401302",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:50:10"
+    }
+  },
+  {
+    "id": "mem_20260411125138333001",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:51:38"
+    }
+  },
+  {
+    "id": "mem_20260411125226870327",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:52:26"
+    }
+  },
+  {
+    "id": "mem_20260411125259827561",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:52:59"
+    }
+  },
+  {
+    "id": "mem_20260411125304615614",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:53:04"
+    }
+  },
+  {
+    "id": "mem_20260411125311097364",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:53:11"
+    }
+  },
+  {
+    "id": "mem_20260411125316195282",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:53:16"
+    }
+  },
+  {
+    "id": "mem_20260411125321928889",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 12:53:21"
+    }
+  },
+  {
+    "id": "mem_20260411131731846254",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:17:31"
+    }
+  },
+  {
+    "id": "mem_20260411132304734172",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:23:04"
+    }
+  },
+  {
+    "id": "mem_20260411132309559688",
+    "text": "What is wrong with my setup?",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:23:09"
+    }
+  },
+  {
+    "id": "mem_20260411132541755878",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:25:41"
+    }
+  },
+  {
+    "id": "mem_20260411132542798106",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:25:42"
+    }
+  },
+  {
+    "id": "mem_20260411132544872119",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:25:44"
+    }
+  },
+  {
+    "id": "mem_20260411132548071434",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:25:48"
+    }
+  },
+  {
+    "id": "mem_20260411132550859309",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:25:50"
+    }
+  },
+  {
+    "id": "mem_20260411132553016274",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:25:53"
+    }
+  },
+  {
+    "id": "mem_20260411133641913132",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:36:41"
+    }
+  },
+  {
+    "id": "mem_20260411133642949252",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:36:42"
+    }
+  },
+  {
+    "id": "mem_20260411133645292330",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:36:45"
+    }
+  },
+  {
+    "id": "mem_20260411133647365814",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:36:47"
+    }
+  },
+  {
+    "id": "mem_20260411133650175056",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:36:50"
+    }
+  },
+  {
+    "id": "mem_20260411133653339742",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:36:53"
+    }
+  },
+  {
+    "id": "mem_20260411133936359547",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:39:36"
+    }
+  },
+  {
+    "id": "mem_20260411133936822672",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:39:36"
+    }
+  },
+  {
+    "id": "mem_20260411133940781280",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:39:40"
+    }
+  },
+  {
+    "id": "mem_20260411133943278485",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:39:43"
+    }
+  },
+  {
+    "id": "mem_20260411133945796006",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:39:45"
+    }
+  },
+  {
+    "id": "mem_20260411133948561258",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:39:48"
+    }
+  },
+  {
+    "id": "mem_20260411134115019674",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:41:15"
+    }
+  },
+  {
+    "id": "mem_20260411134117899345",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:41:17"
+    }
+  },
+  {
+    "id": "mem_20260411134121140554",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:41:21"
+    }
+  },
+  {
+    "id": "mem_20260411134124120133",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:41:24"
+    }
+  },
+  {
+    "id": "mem_20260411134126915079",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:41:26"
+    }
+  },
+  {
+    "id": "mem_20260411134306969993",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:43:06"
+    }
+  },
+  {
+    "id": "mem_20260411134309126838",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:43:09"
+    }
+  },
+  {
+    "id": "mem_20260411134310430498",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:43:10"
+    }
+  },
+  {
+    "id": "mem_20260411134313719816",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:43:13"
+    }
+  },
+  {
+    "id": "mem_20260411134316840468",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:43:16"
+    }
+  },
+  {
+    "id": "mem_20260411134320650987",
+    "text": "what did we talk about before this",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:43:20"
+    }
+  },
+  {
+    "id": "mem_20260411134523038393",
+    "text": "what is quantum computing",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:45:23"
+    }
+  },
+  {
+    "id": "mem_20260411134526231007",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:45:26"
+    }
+  },
+  {
+    "id": "mem_20260411134530173076",
+    "text": "what should i do if i am feeling stressed",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:45:30"
+    }
+  },
+  {
+    "id": "mem_20260411134533053300",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:45:33"
+    }
+  },
+  {
+    "id": "mem_20260411134635147259",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:46:35"
+    }
+  },
+  {
+    "id": "mem_20260411134915536192",
+    "text": "who is elon musk",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:49:15"
+    }
+  },
+  {
+    "id": "mem_20260411134918202920",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:49:18"
+    }
+  },
+  {
+    "id": "mem_20260411135046840304",
+    "text": "write me a python function to reverse a string",
+    "metadata": {
+      "type": "user_input",
+      "intent": "code",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 13:50:46"
+    }
   }
 ]

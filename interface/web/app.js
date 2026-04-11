@@ -2237,7 +2237,7 @@
 
     el.processingProviderCards.innerHTML = items
       .map((item) => {
-        const statusClass = item.status === "not_configured" ? "unconfigured" : item.status;
+        const statusClass = normalizeProviderStatusClass(item.status);
         return `
           <article class="provider-card">
             <div class="panel__head panel__head--sub">
@@ -2245,15 +2245,15 @@
                 <p class="eyebrow">${escapeHtml(item.provider?.toUpperCase() || "PROVIDER")}</p>
                 <h4>${escapeHtml(item.model || "Unknown model")}</h4>
               </div>
-              <span class="provider-status ${escapeHtml(statusClass)}">${escapeHtml((item.status || "unknown").replaceAll("_", " "))}</span>
+              <span class="provider-status ${escapeHtml(statusClass)}">${escapeHtml(formatProviderStatusLabel(item.status))}</span>
             </div>
             <div class="health-metric">
               <span>Last response time</span>
-              <strong>${escapeHtml(formatMilliseconds(item.response_time_ms))}</strong>
+              <strong>${escapeHtml(formatMilliseconds(item.response_time_ms ?? item.latency_ms))}</strong>
             </div>
             <div class="health-metric">
-              <span>Error</span>
-              <strong>${escapeHtml(item.error || "None")}</strong>
+              <span>Status detail</span>
+              <strong>${escapeHtml(item.reason || item.error || "No data yet")}</strong>
             </div>
           </article>
         `;
@@ -2326,16 +2326,47 @@
 
   function normalizeHealthTone(value) {
     const normalized = String(value || "").trim().toLowerCase();
-    if (normalized === "working" || normalized === "good") {
+    if (normalized === "working" || normalized === "good" || normalized === "healthy") {
       return "good";
     }
-    if (normalized === "fallback" || normalized === "degraded") {
+    if (
+      normalized === "fallback" ||
+      normalized === "degraded" ||
+      normalized === "configured_unverified" ||
+      normalized === "rate_limited"
+    ) {
       return "degraded";
     }
-    if (normalized === "down" || normalized === "unavailable" || normalized === "failing") {
+    if (
+      normalized === "down" ||
+      normalized === "unavailable" ||
+      normalized === "failing" ||
+      normalized === "auth_failed" ||
+      normalized === "not_configured"
+    ) {
       return "down";
     }
     return "good";
+  }
+
+  function normalizeProviderStatusClass(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "healthy") return "working";
+    if (normalized === "configured_unverified") return "degraded";
+    if (normalized === "degraded") return "degraded";
+    if (normalized === "rate_limited") return "rate-limited";
+    if (normalized === "auth_failed") return "auth-failed";
+    if (normalized === "unavailable") return "unavailable";
+    if (normalized === "not_configured") return "unconfigured";
+    if (normalized === "working") return "working";
+    if (normalized === "failing") return "auth-failed";
+    return "unconfigured";
+  }
+
+  function formatProviderStatusLabel(value) {
+    const normalized = String(value || "unknown").trim().toLowerCase();
+    if (normalized === "configured_unverified") return "configured, unverified";
+    return normalized.replaceAll("_", " ");
   }
 
   function formatStructuredValue(value) {

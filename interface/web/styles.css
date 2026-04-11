@@ -1500,12 +1500,22 @@ a:focus-visible {
   color: #59d091;
 }
 
-.provider-status.failing {
+.provider-status.failing,
+.provider-status.auth-failed {
   color: #f06a82;
 }
 
 .provider-status.unconfigured {
   color: #7d859a;
+}
+
+.provider-status.degraded,
+.provider-status.rate-limited {
+  color: #f2b261;
+}
+
+.provider-status.unavailable {
+  color: #ff9f6a;
 }
 
 .health-grid {

@@ -79,7 +79,7 @@ class RuntimeCoreTests(unittest.TestCase):
             return_value="Summary result",
         ), patch.object(
             runtime_core,
-            "generate_response",
+            "generate_response_payload",
             side_effect=AssertionError("LLM fallback should not run for orchestrated research workflow."),
         ), patch.object(
             runtime_core,
@@ -138,6 +138,53 @@ class RuntimeCoreTests(unittest.TestCase):
         self.assertEqual(result["used_agents"], ["task"])
         self.assertEqual(result["agent_capabilities"][0]["id"], "task")
         self.assertEqual(result["execution_mode"], "single_agent")
+
+    def test_provider_failure_returns_degraded_assistant_reply(self):
+        orchestration = {
+            "primary_agent": "general",
+            "secondary_agents": [],
+            "execution_order": [],
+            "requires_multiple": False,
+            "primary_selection_source": "intent",
+            "top_score": 0,
+            "mode": "real",
+        }
+
+        with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
+            runtime_core,
+            "detect_intent_with_confidence",
+            return_value=("general", 0.88),
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "analyze_task",
+            return_value=orchestration,
+        ), patch.object(
+            runtime_core,
+            "build_permission_response",
+            return_value={"success": True, "permission": {"reason": ""}},
+        ), patch.object(
+            runtime_core,
+            "generate_response_payload",
+            return_value={
+                "success": False,
+                "error": "No healthy AI provider completed the request.",
+                "providers_tried": [
+                    {"provider": "gemini", "status": "unavailable", "reason": "Gemini unavailable"},
+                    {"provider": "openai", "status": "rate_limited", "reason": "OpenAI rate limited"},
+                ],
+                "degraded_reply": "I can see the request, but I can't answer it reliably right now because my live AI providers aren't completing the request path.",
+            },
+        ), patch.object(
+            runtime_core,
+            "respond_in_language",
+            side_effect=lambda response, language: response,
+        ), patch.object(runtime_core, "store_and_learn"):
+            result = runtime_core.process_single_command_detailed("what is quantum computing")
+
+        self.assertEqual(result["execution_mode"], "degraded_assistant")
+        self.assertTrue(result["degraded"])
+        self.assertIsNone(result["provider"])
+        self.assertIn("can't answer it reliably", result["response"].lower())
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from brain.runtime_core import process_command_detailed
+from brain.core_ai import process_command_detailed
 from voice.noise_filter import analyze_transcript_noise, clean_transcript_text
 from voice.voice_controller import get_voice_status
 from voice.wake_word import detect_wake_word

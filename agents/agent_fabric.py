@@ -842,10 +842,10 @@ def _run_provider_agent(blueprint: AgentBlueprint, request: str) -> Dict[str, An
         return {"success": False, "message": "Unknown provider workflow.", "data": {}}
 
     status = get_provider_status(provider_id).to_dict()
-    if not status["available"]:
+    if not status["configured"] or not status["installed"]:
         return {
             "success": False,
-            "message": f"{blueprint.name} is not fully configured yet.",
+            "message": f"{blueprint.name} is not available on this machine yet.",
             "data": {
                 "provider": provider_id,
                 "status": status,
@@ -868,7 +868,7 @@ def _run_provider_agent(blueprint: AgentBlueprint, request: str) -> Dict[str, An
             "message": f"{blueprint.name} could not complete the request.",
             "data": {
                 "provider": provider_id,
-                "status": status,
+                "status": get_provider_status(provider_id, fresh=False).to_dict(),
                 "attempts": provider_result.get("attempts", []),
             },
         }
@@ -879,7 +879,7 @@ def _run_provider_agent(blueprint: AgentBlueprint, request: str) -> Dict[str, An
         "data": {
             "provider": provider_result.get("provider"),
             "model": provider_result.get("model"),
-            "status": status,
+            "status": get_provider_status(provider_id, fresh=False).to_dict(),
             "attempts": provider_result.get("attempts", []),
         },
     }
