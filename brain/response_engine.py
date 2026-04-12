@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from config.settings import (
     AURA_PERSONALITY,
+    DEFAULT_REASONING_PROVIDER,
     GROQ_API_KEY,
 )
 from brain.provider_hub import (
@@ -428,9 +429,12 @@ def generate_with_fallback(
     temperature: float = DEFAULT_TEMPERATURE,
 ) -> Dict[str, Any]:
     normalized_messages = [dict(item) for item in messages if str(item.get("content", "")).strip()]
+    if not any(str(item.get("role", "")).strip().lower() == "system" for item in normalized_messages):
+        normalized_messages = [{"role": "system", "content": str(system_prompt).strip()}] + normalized_messages
+
     provider_result = generate_with_best_provider(
         normalized_messages,
-        preferred="gemini",
+        preferred=DEFAULT_REASONING_PROVIDER,
         max_tokens=max_tokens,
         temperature=temperature,
     )

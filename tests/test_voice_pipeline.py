@@ -15,10 +15,12 @@ class VoicePipelineTests(unittest.TestCase):
         cleaned = clean_transcript_text("Um Please open Chrome, plz")
         self.assertEqual(cleaned, "Please open Chrome, please")
 
-    def test_voice_pipeline_handles_empty_command_after_wake_word(self):
+    def test_voice_pipeline_acknowledges_wake_word_without_command(self):
         result = process_voice_text("Hey Aura")
-        self.assertFalse(result["success"])
-        self.assertEqual(result["status"], "empty_command")
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "wake_only")
+        self.assertTrue(result["requires_followup_command"])
+        self.assertIn(result["assistant_reply"], {"Yes?", "I'm here.", "Go ahead."})
 
     def test_voice_pipeline_routes_transcript_through_main_assistant_path(self):
         fake_result = {"response": "Quantum computing uses qubits.", "provider": "groq"}

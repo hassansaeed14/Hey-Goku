@@ -7,6 +7,19 @@ from voice.noise_filter import analyze_transcript_noise, clean_transcript_text
 from voice.voice_controller import get_voice_status
 from voice.wake_word import detect_wake_word
 
+WAKE_ACKNOWLEDGEMENTS = (
+    "Yes?",
+    "I'm here.",
+    "Go ahead.",
+)
+
+
+def _wake_acknowledgement(cleaned_text: str) -> str:
+    normalized = str(cleaned_text or "").strip()
+    if not normalized:
+        return WAKE_ACKNOWLEDGEMENTS[0]
+    return WAKE_ACKNOWLEDGEMENTS[len(normalized) % len(WAKE_ACKNOWLEDGEMENTS)]
+
 
 def process_voice_text(
     text: str,
@@ -21,6 +34,21 @@ def process_voice_text(
     command_text = str(wake["remaining_text"] if wake.get("detected") else cleaned).strip()
 
     if not command_text:
+        if wake.get("detected"):
+            acknowledgement = _wake_acknowledgement(cleaned)
+            return {
+                "success": True,
+                "status": "wake_only",
+                "message": "Wake word detected. Waiting for the command.",
+                "assistant_reply": acknowledgement,
+                "transcript": text,
+                "cleaned_transcript": cleaned,
+                "wake_word": wake,
+                "command_text": "",
+                "noise": analyze_transcript_noise(text),
+                "voice": get_voice_status(),
+                "requires_followup_command": True,
+            }
         return {
             "success": False,
             "status": "empty_command",

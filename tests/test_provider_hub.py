@@ -91,11 +91,11 @@ class ProviderHubTests(unittest.TestCase):
 
         self.assertEqual(chosen, "groq")
 
-    def test_generate_with_best_provider_uses_gemini_primary(self):
+    def test_generate_with_best_provider_uses_groq_primary(self):
         statuses = {
+            "groq": provider_hub.ProviderStatus("groq", "llama-3.3-70b-versatile", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
             "gemini": provider_hub.ProviderStatus("gemini", "gemini-2.5-flash", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
             "openai": provider_hub.ProviderStatus("openai", "gpt-4o-mini", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
-            "groq": provider_hub.ProviderStatus("groq", "llama-3.3-70b-versatile", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
         }
 
         with patch.object(provider_hub, "get_provider_status", side_effect=lambda provider, fresh=False: statuses[provider]), patch.object(
@@ -117,19 +117,19 @@ class ProviderHubTests(unittest.TestCase):
             )
 
         self.assertTrue(result["success"])
-        self.assertEqual(result["provider"], "gemini")
-        self.assertEqual(generate_mock.call_args.args[0], "gemini")
+        self.assertEqual(result["provider"], "groq")
+        self.assertEqual(generate_mock.call_args.args[0], "groq")
 
-    def test_generate_with_best_provider_falls_back_to_openai(self):
+    def test_generate_with_best_provider_falls_back_to_gemini_when_groq_is_unavailable(self):
         statuses = {
-            "gemini": provider_hub.ProviderStatus("gemini", "gemini-2.5-flash", "real", True, False, True, "degraded", status=provider_hub.STATUS_DEGRADED),
+            "groq": provider_hub.ProviderStatus("groq", "llama-3.3-70b-versatile", "real", True, False, True, "degraded", status=provider_hub.STATUS_DEGRADED),
+            "gemini": provider_hub.ProviderStatus("gemini", "gemini-2.5-flash", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
             "openai": provider_hub.ProviderStatus("openai", "gpt-4o-mini", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
-            "groq": provider_hub.ProviderStatus("groq", "llama-3.3-70b-versatile", "real", True, True, True, "healthy", status=provider_hub.STATUS_HEALTHY),
         }
 
         def fake_generate(provider, messages, max_tokens, temperature):
-            if provider == "gemini":
-                raise provider_hub.ProviderExecutionError("gemini", status=provider_hub.STATUS_UNAVAILABLE, error="Gemini unavailable")
+            if provider == "groq":
+                raise provider_hub.ProviderExecutionError("groq", status=provider_hub.STATUS_UNAVAILABLE, error="Groq unavailable")
             return {
                 "success": True,
                 "provider": provider,
@@ -151,11 +151,11 @@ class ProviderHubTests(unittest.TestCase):
             )
 
         self.assertTrue(result["success"])
-        self.assertEqual(result["provider"], "openai")
-        self.assertEqual(result["attempts"][0]["provider"], "gemini")
+        self.assertEqual(result["provider"], "gemini")
+        self.assertEqual(result["attempts"][0]["provider"], "groq")
         self.assertEqual(result["attempts"][0]["status"], provider_hub.STATUS_UNAVAILABLE)
 
-    def test_generate_with_best_provider_falls_back_to_groq(self):
+    def test_generate_with_best_provider_skips_rate_limited_primary_and_uses_groq(self):
         statuses = {
             "gemini": provider_hub.ProviderStatus("gemini", "gemini-2.5-flash", "real", True, False, True, "degraded", status=provider_hub.STATUS_DEGRADED),
             "openai": provider_hub.ProviderStatus("openai", "gpt-4o-mini", "real", True, False, True, "rate limited", status=provider_hub.STATUS_RATE_LIMITED),
@@ -183,6 +183,7 @@ class ProviderHubTests(unittest.TestCase):
         ):
             result = provider_hub.provider_hub.generate_with_best_provider(
                 [{"role": "user", "content": "ping"}],
+                preferred="gemini",
                 max_tokens=10,
                 temperature=0.0,
             )
@@ -190,8 +191,7 @@ class ProviderHubTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["provider"], "groq")
         self.assertEqual(result["attempts"][0]["provider"], "gemini")
-        self.assertEqual(result["attempts"][1]["provider"], "openai")
-        self.assertEqual(result["attempts"][1]["status"], provider_hub.STATUS_RATE_LIMITED)
+        self.assertEqual(result["attempts"][0]["status"], provider_hub.STATUS_DEGRADED)
 
     def test_runtime_provider_summary_explains_fallback_route(self):
         statuses = {
@@ -201,12 +201,12 @@ class ProviderHubTests(unittest.TestCase):
         }
 
         with patch.object(provider_hub, "get_provider_status", side_effect=lambda provider, fresh=False: statuses.get(provider) or provider_hub.ProviderStatus(provider, "x", "hybrid", False, False, True, "missing", status=provider_hub.STATUS_NOT_CONFIGURED)):
-            summary = provider_hub.get_runtime_provider_summary(preferred="gemini", fresh=False)
+            summary = provider_hub.get_runtime_provider_summary(preferred="groq", fresh=False)
 
-        self.assertEqual(summary["status"], provider_hub.STATUS_DEGRADED)
-        self.assertEqual(summary["preferred_provider"], "gemini")
+        self.assertEqual(summary["status"], provider_hub.STATUS_HEALTHY)
+        self.assertEqual(summary["preferred_provider"], "groq")
         self.assertEqual(summary["active_provider"], "groq")
-        self.assertIn("routing through GROQ", summary["message"])
+        self.assertIn("serving AURA's active reasoning path", summary["message"])
 
 
 if __name__ == "__main__":

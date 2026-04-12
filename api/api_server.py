@@ -441,19 +441,35 @@ def _permission_reply(permission: dict[str, Any]) -> str:
 def _confirmation_reply(context: dict[str, Any]) -> str:
     user = context.get("user") or {}
     user_id = str(user.get("id", "")).strip()
-    if not user_id or not confirmation_system.code_exists(user_id):
+    if not user_id:
+        return "That action is protected. Sign in before using critical or personal actions."
+    if not confirmation_system.code_exists(user_id):
         return "Please set a confirmation code in Settings first."
     return "AURA requires your confirmation to proceed."
 
 
-def _build_chat_success_payload(*, reply: str, intent: str, agent_used: str, mode: str) -> dict[str, Any]:
+def _build_chat_success_payload(
+    *,
+    reply: str,
+    intent: str,
+    agent_used: str,
+    mode: str,
+    success: bool = True,
+    provider: Optional[str] = None,
+    error: Optional[str] = None,
+) -> dict[str, Any]:
+    content = clean_response(reply) or "Something went wrong on my side. Try again."
     return {
-        "reply": reply,
+        "success": bool(success),
+        "content": content,
+        "reply": content,
         "intent": intent,
         "agent_used": agent_used,
         "agent": agent_used,
         "mode": mode,
-        "status": "ok",
+        "provider": provider,
+        "error": error,
+        "status": "ok" if success else "degraded",
     }
 
 
@@ -484,6 +500,33 @@ def _attempt_persist_chat_turn(context: dict[str, Any], reply: str, intent: str,
         return {"saved": False, "backend": "sqlite", "error": str(error)}
 
 
+def _public_access_override(
+    permission: dict[str, Any],
+    *,
+    user: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    if user:
+        return permission
+
+    permission_info = dict(permission.get("permission") or {})
+    trust_level = str(permission_info.get("trust_level") or "").strip().lower()
+    if trust_level not in {"private", "sensitive", "critical"}:
+        return permission
+
+    approval_type = permission_info.get("approval_type") or "none"
+    reason = "Sign in to use protected, personal, or system-level actions. Basic assistant chat stays available without an account."
+    return {
+        "success": False,
+        "status": "login_required",
+        "mode": "real",
+        "permission": {
+            **permission_info,
+            "approval_type": approval_type,
+            "reason": reason,
+        },
+    }
+
+
 def _prepare_chat_context(
     raw_message: str,
     requested_mode: Optional[str],
@@ -510,6 +553,7 @@ def _prepare_chat_context(
         session_approved=is_action_approved(normalized_session_id, detected_intent),
         pin_verified=False,
     )
+    permission = _public_access_override(permission, user=user)
     confirmation_required = permission.get("permission", {}).get("approval_type") == "pin"
     confirmation_ok = False
     if confirmation_required and user:
@@ -566,6 +610,7 @@ def _build_blocked_chat_payload(context: dict[str, Any], permission: Optional[di
         intent=context["detected_intent"] or "permission",
         agent_used=agent_used,
         mode=_normalize_chat_mode(context["requested_mode"], "permission_blocked", active_permission),
+        provider="policy",
     )
     payload["permission"] = active_permission
     payload["decision"] = context["decision"]
@@ -618,18 +663,25 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
             result["model"] = None
             result["providers_tried"] = fallback_payload.get("providers_tried") or []
             result["degraded"] = True
+            result["error"] = fallback_payload.get("error") or "All configured providers failed."
 
     if _is_unusable_reply_text(reply_text):
         raise RuntimeError(reply_text)
 
     agent_used = _derive_agent_used(result, context["detected_intent"], context["decision"])
     response_mode = _normalize_chat_mode(context["requested_mode"], execution_mode, runtime_permission)
+    degraded = bool(result.get("degraded") or result.get("execution_mode") == "degraded_assistant")
+    provider_name = result.get("provider") or ("local" if not degraded else None)
+    error_message = str(result.get("error") or "").strip() or None
 
     payload = _build_chat_success_payload(
         reply=reply_text,
         intent=str(result.get("detected_intent") or result.get("intent") or context["detected_intent"] or "general"),
         agent_used=agent_used,
         mode=response_mode,
+        success=not degraded,
+        provider=provider_name,
+        error=error_message,
     )
     payload["decision"] = result.get("decision") or context["decision"]
     payload["permission"] = runtime_permission or context["permission"]
@@ -639,10 +691,10 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
     payload["orchestration"] = result.get("orchestration", {})
     payload["confidence"] = result.get("confidence", context["confidence"])
     payload["session_id"] = context["session_id"]
-    payload["provider"] = result.get("provider")
+    payload["provider"] = provider_name
     payload["model"] = result.get("model")
     payload["providers_tried"] = result.get("providers_tried", [])
-    payload["degraded"] = bool(result.get("degraded") or result.get("execution_mode") == "degraded_assistant")
+    payload["degraded"] = degraded
     return payload
 
 
@@ -750,12 +802,19 @@ def _require_admin_user(request: Request) -> dict[str, Any]:
 
 
 PUBLIC_PATHS = {
+    "/",
     "/login",
     "/setup",
     "/api/login",
     "/api/register",
     "/api/setup",
     "/api/auth/session",
+    "/api/chat",
+    "/api/providers",
+    "/api/telemetry/providers",
+    "/api/system/health",
+    "/api/voice/status",
+    "/api/voice/text",
 }
 
 
@@ -780,17 +839,22 @@ async def aura_request_metrics_middleware(request: Request, call_next):
 @app.middleware("http")
 async def aura_private_access_middleware(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/static") or path in PUBLIC_PATHS:
+    if path.startswith("/static"):
         return await call_next(request)
 
     setup_required = requires_first_run_setup()
     user = _current_user(request)
 
     if setup_required:
+        if path in {"/setup", "/api/setup", "/api/auth/session"}:
+            return await call_next(request)
         if path.startswith("/api/"):
             return JSONResponse(status_code=503, content={"error": "AURA setup is required.", "status": "setup_required"})
         if path != "/setup":
             return RedirectResponse("/setup", status_code=302)
+        return await call_next(request)
+
+    if path in PUBLIC_PATHS:
         return await call_next(request)
 
     if user:
@@ -808,8 +872,6 @@ async def aura_private_access_middleware(request: Request, call_next):
 async def home(request: Request):
     if requires_first_run_setup():
         return RedirectResponse("/setup", status_code=302)
-    if not _current_user(request):
-        return RedirectResponse("/login", status_code=302)
     return HTMLResponse(_read_html(APP_HTML))
 
 
@@ -908,6 +970,7 @@ async def auth_session_status(request: Request):
     user = _current_user(request)
     return {
         "authenticated": bool(user),
+        "access_mode": "authenticated" if user else "public",
         "setup_required": requires_first_run_setup(),
         "user": user,
         "status": "ok",
@@ -975,12 +1038,16 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             return JSONResponse(
                 status_code=400,
                 content={
+                    "success": False,
+                    "content": "",
+                    "provider": None,
+                    "reply": "",
                     "status": "error",
                     "error": "No message provided",
                 },
                 headers=_cors_headers(),
             )
-        user = _require_authenticated_user(request)
+        user = _current_user(request)
         session_id = _resolve_session_id(request)
         context = _prepare_chat_context(
             payload.message,
@@ -1014,18 +1081,28 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             headers=_cors_headers(),
         )
     except ValueError as error:
+        print(f"[API CHAT VALIDATION] {error}")
         return JSONResponse(
             status_code=400,
             content={
+                "success": False,
+                "content": "",
+                "provider": None,
+                "reply": "",
                 "error": str(error),
                 "status": "error",
             },
             headers=_cors_headers(),
         )
     except Exception as error:
+        print(f"[API CHAT ERROR] {error}")
         return JSONResponse(
             status_code=500,
             content={
+                "success": False,
+                "content": "Something went wrong on my side. Try again.",
+                "provider": None,
+                "reply": "Something went wrong on my side. Try again.",
                 "error": str(error),
                 "status": "error",
             },
@@ -1555,6 +1632,8 @@ async def get_capabilities():
 async def get_provider_status(request: Request):
     snapshot = _provider_health_snapshot(force=_refresh_requested(request))
     return {
+        "success": True,
+        "status": "ok",
         "default_provider": snapshot.get("routing_order", [None])[0],
         "routing_order": snapshot.get("routing_order", []),
         "available": snapshot.get("healthy", []),
@@ -1714,7 +1793,7 @@ async def update_voice_settings_endpoint(settings: VoiceSettingsUpdate):
 
 @app.post("/api/voice/text")
 async def process_voice_text_endpoint(payload: VoiceTextRequest, request: Request):
-    user = _require_authenticated_user(request)
+    user = _current_user(request)
     session_id = _resolve_session_id(request)
     return process_voice_text(
         payload.text,

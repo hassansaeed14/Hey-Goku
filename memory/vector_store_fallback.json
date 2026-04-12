@@ -1304,5 +1304,80 @@
       ],
       "timestamp": "2026-04-11 14:16:48"
     }
+  },
+  {
+    "id": "mem_20260411170328390086",
+    "text": "what is new at the world",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 17:03:28"
+    }
+  },
+  {
+    "id": "mem_20260411181001500230",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 18:10:01"
+    }
+  },
+  {
+    "id": "mem_20260411181003621329",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 18:10:03"
+    }
+  },
+  {
+    "id": "mem_20260411181202241469",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 18:12:02"
+    }
+  },
+  {
+    "id": "mem_20260411181204347713",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-11 18:12:04"
+    }
   }
 ]

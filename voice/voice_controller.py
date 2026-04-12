@@ -39,6 +39,12 @@ def get_voice_status() -> Dict[str, Any]:
         },
         "personas": list_voice_personas(),
         "wake_word_preview": detect_wake_word("hey aura status check", settings.wake_words),
+        "wake_word": {
+            "phrases": list(settings.wake_words),
+            "default_phrase": settings.wake_words[0] if settings.wake_words else "hey aura",
+            "mode": "browser_assisted",
+            "continuous_listening_note": "Wake mode works while this page is open and the browser keeps microphone access active.",
+        },
     }
 
 

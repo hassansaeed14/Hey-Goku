@@ -1,1007 +1,174 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA | Autonomous Operating Interface</title>
+  <title>AURA | Live Assistant Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body data-mode="smart" data-theme="dark">
-  <div class="app-background" aria-hidden="true">
-    <div class="app-background__gradient"></div>
-    <div class="app-background__grid"></div>
-    <div class="app-background__vignette"></div>
-  </div>
+<body data-assistant-state="idle">
+  <div class="console-shell">
+    <header class="console-header">
+      <div class="identity-block">
+        <p class="eyebrow">Autonomous Universal Responsive Assistant</p>
+        <h1>AURA</h1>
+        <p class="identity-summary" id="presenceSummary">Private voice-first assistant console.</p>
+      </div>
 
-  <div class="app-overlay" id="appOverlay" hidden></div>
-
-  <div class="app-shell">
-    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
-      <div class="sidebar__brand">
-        <button class="sidebar__collapse" id="sidebarCollapse" type="button" aria-label="Collapse navigation">NAV</button>
-        <button class="brand-mark" id="brandHome" type="button" aria-label="Return to chat view">
-          <span class="brand-mark__ring brand-mark__ring--outer"></span>
-          <span class="brand-mark__ring brand-mark__ring--mid"></span>
-          <span class="brand-mark__core"></span>
-          <span class="brand-mark__shine"></span>
+      <div class="header-actions">
+        <div class="state-pill" id="statePill" role="status" aria-live="polite">
+          <span class="state-pill__dot"></span>
+          <span id="statePillLabel">Idle</span>
+        </div>
+        <button class="detail-button" id="detailsToggle" type="button" aria-expanded="false" aria-controls="detailsDrawer">
+          Details
         </button>
-        <div class="brand-copy">
-          <p class="eyebrow">Autonomous Universal Responsive Assistant</p>
-          <h1>AURA</h1>
-          <p class="brand-copy__sub">Operating Interface</p>
-        </div>
       </div>
+    </header>
 
-      <section class="sidebar__section">
-        <p class="section-label">Views</p>
-        <nav class="nav-list">
-          <button class="nav-item is-active" type="button" data-view-target="chat">
-            <span class="nav-item__icon">CH</span>
-            <span class="nav-item__copy">
-              <strong>Chat</strong>
-              <small>Conversation and command flow</small>
-            </span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="memory">
-            <span class="nav-item__icon">ME</span>
-            <span class="nav-item__copy">
-              <strong>Memory</strong>
-              <small>Learned context and signals</small>
-            </span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="intelligence">
-            <span class="nav-item__icon">IN</span>
-            <span class="nav-item__copy">
-              <strong>Intelligence</strong>
-              <small>Intent, reasoning, routing</small>
-            </span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="processing">
-            <span class="nav-item__icon">PR</span>
-            <span class="nav-item__copy">
-              <strong>Processing</strong>
-              <small>Real pipeline telemetry</small>
-            </span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="autonomy">
-            <span class="nav-item__icon">AU</span>
-            <span class="nav-item__copy">
-              <strong>Autonomy</strong>
-              <small>Plans, tools, execution</small>
-            </span>
-            <span class="nav-item__badge" id="navAutonomyCount">0</span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="tasks">
-            <span class="nav-item__icon">TS</span>
-            <span class="nav-item__copy">
-              <strong>Tasks and Reminders</strong>
-              <small>Structured personal flow</small>
-            </span>
-            <span class="nav-item__badge" id="navTaskCount">0</span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="history">
-            <span class="nav-item__icon">HI</span>
-            <span class="nav-item__copy">
-              <strong>History</strong>
-              <small>Conversation records</small>
-            </span>
-            <span class="nav-item__badge" id="navHistoryCount">0</span>
-          </button>
-          <button class="nav-item" type="button" data-view-target="settings">
-            <span class="nav-item__icon">SE</span>
-            <span class="nav-item__copy">
-              <strong>Settings</strong>
-              <small>Modes, voice, accessibility</small>
-            </span>
-          </button>
-        </nav>
-      </section>
+    <div class="mobile-backdrop" id="mobileBackdrop" hidden></div>
 
-      <section class="sidebar__section">
-        <div class="section-label-row">
-          <p class="section-label">Operating mode</p>
-          <span class="mode-pill" id="modePill">Smart Mode</span>
-        </div>
-        <div class="mode-stack" id="sidebarModes">
-          <button class="mode-card" type="button" data-mode-choice="minimal">
-            <strong>Minimal</strong>
-            <small>Focused, quiet, low clutter</small>
+    <div class="console-body">
+      <main class="presence-stage">
+        <section class="assistant-core">
+          <button class="core-orb" id="assistantCoreButton" type="button" aria-label="Toggle wake mode or start listening">
+            <span class="core-orb__ring core-orb__ring--outer"></span>
+            <span class="core-orb__ring core-orb__ring--mid"></span>
+            <span class="core-orb__ring core-orb__ring--inner"></span>
+            <span class="core-orb__pulse"></span>
+            <span class="core-orb__center"></span>
           </button>
-          <button class="mode-card is-selected" type="button" data-mode-choice="smart">
-            <strong>Smart</strong>
-            <small>Balanced operating default</small>
-          </button>
-          <button class="mode-card" type="button" data-mode-choice="jarvis">
-            <strong>Jarvis</strong>
-            <small>Cinematic and voice-forward</small>
-          </button>
-          <button class="mode-card" type="button" data-mode-choice="developer">
-            <strong>Developer</strong>
-            <small>Shows routing and debug context</small>
-          </button>
-          <button class="mode-card" type="button" data-mode-choice="autonomous">
-            <strong>Autonomous</strong>
-            <small>Highlights planning and execution</small>
-          </button>
-        </div>
-      </section>
 
-      <div class="sidebar__footer">
-        <div class="identity-card">
-          <div class="identity-card__badge" id="identityInitial">A</div>
-          <div class="identity-card__copy">
-            <strong id="identityName">Guest</strong>
-            <small id="identitySubtitle">AURA is ready</small>
+          <div class="core-status">
+            <p class="core-status__kicker" id="stateKicker">Standby</p>
+            <h2 id="stateHeadline">Ready when you are.</h2>
+            <p id="stateDescription">Wake mode works while this page stays open. Say "Hey AURA" after microphone access is granted, or use the controls below.</p>
           </div>
-        </div>
-        <div class="sidebar__footer-actions">
-          <button class="ghost-button ghost-button--quiet" type="button" id="adminButton">Admin</button>
-          <button class="ghost-button" type="button" id="sidebarRailButton">Open intelligence rail</button>
-          <button class="ghost-button ghost-button--quiet" type="button" id="logoutButton">Logout</button>
-        </div>
-      </div>
-    </aside>
+        </section>
 
-    <div class="workspace">
-      <header class="topbar">
-        <div class="topbar__left">
-          <button class="icon-button" id="mobileNavToggle" type="button" aria-label="Open navigation">NAV</button>
-          <div class="topbar__title">
-            <p class="eyebrow" id="currentViewLabel">AURA Operating Interface</p>
-            <h2 id="currentViewTitle">Chat</h2>
-          </div>
-        </div>
+        <section class="live-panels">
+          <article class="live-card">
+            <p class="eyebrow">Heard</p>
+            <div class="live-copy" id="liveTranscript" aria-live="polite">Waiting for your voice or text command.</div>
+          </article>
 
-        <div class="topbar__center">
-          <div class="status-pulse" id="systemStateChip">
-            <span class="status-pulse__dot" id="topbarStateDot"></span>
-            <span id="topbarStateText">Idle</span>
-          </div>
-          <div class="metric-pill">
-            <span>Agent</span>
-            <strong id="topbarActiveAgent">General</strong>
-          </div>
-          <div class="metric-pill">
-            <span>Confidence</span>
-            <strong id="topbarConfidence">--</strong>
-          </div>
-        </div>
-
-        <div class="topbar__right">
-          <label class="select-shell">
-            <span>Mode</span>
-            <select id="modeSelect" aria-label="Choose interface mode">
-              <option value="minimal">Minimal</option>
-              <option value="smart">Smart</option>
-              <option value="jarvis">Jarvis</option>
-              <option value="developer">Developer</option>
-              <option value="autonomous">Autonomous</option>
-            </select>
-          </label>
-          <button class="ghost-button" type="button" id="voiceToggle">Voice</button>
-          <button class="ghost-button" type="button" id="railToggle">Rail</button>
-        </div>
-      </header>
-
-      <div class="workspace__body">
-        <main class="stage">
-          <section class="view-section is-active" data-view="chat">
-            <div class="hero-grid">
-              <article class="panel panel--hero">
-                <div class="hero-copy">
-                  <p class="eyebrow">Hybrid AI operating assistant</p>
-                  <h3>AURA feels like a system because it understands, routes, remembers, plans, and acts.</h3>
-                  <p class="hero-copy__body">
-                    Write naturally. Mix requests. Use shorthand. AURA will normalize messy input,
-                    detect intent, route to the right agent, and show you what happened without blaming you for unclear wording.
-                  </p>
-                  <div class="support-banner">
-                    <span class="support-banner__title">Forgiving input</span>
-                    <span class="support-banner__body">Typos, short forms, and multi-command requests are expected here.</span>
-                  </div>
-                  <div class="capability-ribbon" id="capabilityHighlights"></div>
-                </div>
-
-                <div class="hero-presence">
-                  <div class="orb-hero" id="heroOrb" data-state="idle" aria-label="AURA orb state">
-                    <span class="orb-hero__ring orb-hero__ring--a"></span>
-                    <span class="orb-hero__ring orb-hero__ring--b"></span>
-                    <span class="orb-hero__ring orb-hero__ring--c"></span>
-                    <span class="orb-hero__core"></span>
-                    <span class="orb-hero__glow"></span>
-                  </div>
-                  <div class="orb-menu" id="orbQuickMenu" hidden>
-                    <button class="ghost-button" type="button" data-orb-action="new-chat">New Chat</button>
-                    <button class="ghost-button" type="button" data-orb-action="lock">Lock AURA</button>
-                    <button class="ghost-button" type="button" data-orb-action="settings">Settings</button>
-                    <button class="ghost-button" type="button" data-orb-action="switch-mode">Switch Mode</button>
-                  </div>
-                  <div class="orb-state">
-                    <strong id="heroStateText">Idle</strong>
-                    <p id="heroStateHint">Standing by for text or voice.</p>
-                  </div>
-                  <div class="presence-metrics">
-                    <div class="presence-metric">
-                      <span>Active agent</span>
-                      <strong id="presenceAgent">General</strong>
-                    </div>
-                    <div class="presence-metric">
-                      <span>Confidence</span>
-                      <strong id="presenceConfidence">--</strong>
-                    </div>
-                    <div class="presence-metric">
-                      <span>Mode</span>
-                      <strong id="presenceMode">Smart</strong>
-                    </div>
-                    <div class="presence-metric">
-                      <span>Memory</span>
-                      <strong id="presenceMemory">Adaptive</strong>
-                    </div>
-                  </div>
-                </div>
-              </article>
-
-              <article class="panel panel--side hero-insight-card">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Operating signals</p>
-                    <h4>Current behavior</h4>
-                  </div>
-                </div>
-                <ul class="signal-list" id="heroSignals">
-                  <li><span class="signal-list__label">Understanding</span><strong>Ready</strong></li>
-                  <li><span class="signal-list__label">Routing</span><strong>Hybrid</strong></li>
-                  <li><span class="signal-list__label">Planning</span><strong>Available</strong></li>
-                  <li><span class="signal-list__label">Execution</span><strong>Bounded</strong></li>
-                </ul>
-              </article>
+          <article class="live-card live-card--response">
+            <p class="eyebrow">Response</p>
+            <div class="live-copy live-copy--response" id="liveResponse" aria-live="polite">AURA is standing by.</div>
+            <div class="response-meta">
+              <span id="responseMetaProvider">Provider: checking...</span>
+              <span id="responseMetaMode">Mode: public</span>
             </div>
+          </article>
+        </section>
+      </main>
 
-            <div class="chat-shell">
-              <article class="panel chat-feed" id="chatFeed" aria-live="polite"></article>
-
-              <article class="panel suggestion-panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Prompt starters</p>
-                    <h4>Use AURA like a system</h4>
-                  </div>
-                </div>
-                <div class="suggestion-strip" id="suggestionStrip"></div>
-              </article>
-
-              <form class="panel composer" id="composerForm">
-                <div class="composer__head">
-                  <div>
-                    <p class="eyebrow">Command interface</p>
-                    <h4>Text and voice input</h4>
-                  </div>
-                  <div class="composer__tools">
-                    <button class="ghost-button" type="button" id="clearChatButton">Clear history</button>
-                    <button class="ghost-button" type="button" id="stopSpeechButton">Stop speaking</button>
-                  </div>
-                </div>
-                <label class="composer__label" for="composerInput">What would you like AURA to handle?</label>
-                <textarea id="composerInput" rows="3" placeholder="Try: research hybrid agents and summarize them, then add a reminder to review the notes tomorrow."></textarea>
-                <div class="composer__footer">
-                  <div class="composer__hint" id="composerHint">AURA supports messy input, split requests, memory-aware routing, and confidence-aware recovery.</div>
-                  <div class="composer__actions">
-                    <button class="ghost-button" type="button" id="voiceButton">Start voice</button>
-                    <button class="primary-button" type="submit" id="sendButton">Send to AURA</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="memory">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Memory view</p>
-                <h3>What AURA has learned about this relationship</h3>
-              </div>
-              <span class="surface-badge">Hybrid memory surface</span>
-            </div>
-
-            <div class="view-grid view-grid--memory">
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Identity</p>
-                    <h4>Remembered profile</h4>
-                  </div>
-                </div>
-                <div class="profile-spotlight">
-                  <div class="profile-spotlight__badge" id="memoryInitial">A</div>
-                  <div class="profile-spotlight__copy">
-                    <strong id="memoryName">Guest</strong>
-                    <span id="memoryGreetingPreview">Hello. AURA is ready.</span>
-                  </div>
-                </div>
-                <p class="support-copy" id="memoryStatusNote">This view blends local session analysis with backend-aware interaction history.</p>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Preferences</p>
-                    <h4>Operating choices</h4>
-                  </div>
-                </div>
-                <div class="chip-cloud" id="memoryPreferenceList"></div>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Learned facts</p>
-                    <h4>Explicit memory signals</h4>
-                  </div>
-                </div>
-                <ul class="stack-list" id="memoryFactList"></ul>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Interests</p>
-                    <h4>Topics you return to</h4>
-                  </div>
-                </div>
-                <div class="chip-cloud" id="memoryInterestList"></div>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Intent profile</p>
-                    <h4>Most used intents</h4>
-                  </div>
-                </div>
-                <div class="bar-list" id="memoryTopIntents"></div>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Insights</p>
-                    <h4>Adaptive observations</h4>
-                  </div>
-                </div>
-                <ul class="stack-list" id="memoryInsights"></ul>
-              </article>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="intelligence">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Intelligence view</p>
-                <h3>Inside AURA's understanding and routing layer</h3>
-              </div>
-              <span class="surface-badge surface-badge--holo">Brain telemetry</span>
-            </div>
-
-            <div class="view-grid view-grid--intelligence">
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Last intent</span>
-                <strong class="stat-panel__value" id="intelIntent">general</strong>
-              </article>
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Confidence</span>
-                <strong class="stat-panel__value" id="intelConfidence">--</strong>
-              </article>
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Active agent</span>
-                <strong class="stat-panel__value" id="intelAgent">General</strong>
-              </article>
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Execution mode</span>
-                <strong class="stat-panel__value" id="intelExecutionMode">idle</strong>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Routing intelligence</p>
-                    <h4>Reasoning and recovery</h4>
-                  </div>
-                </div>
-                <div class="diagnostic-grid">
-                  <div class="diagnostic-card">
-                    <span>Reasoning status</span>
-                    <strong id="intelReasoningStatus">Ready</strong>
-                  </div>
-                  <div class="diagnostic-card">
-                    <span>Permission state</span>
-                    <strong id="intelPermissionStatus">Approved</strong>
-                  </div>
-                  <div class="diagnostic-card">
-                    <span>Low-confidence recovery</span>
-                    <strong id="intelRecoveryNote">Not needed yet</strong>
-                  </div>
-                  <div class="diagnostic-card">
-                    <span>Self-improvement snapshot</span>
-                    <strong id="intelImprovementSummary">No recent friction</strong>
-                  </div>
-                </div>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Subsystem status</p>
-                    <h4>Operational state</h4>
-                  </div>
-                </div>
-                <div class="subsystem-list" id="statusSubsystems"></div>
-              </article>
-
-              <article class="panel panel--full">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Capability matrix</p>
-                    <h4>Registered AURA agents</h4>
-                  </div>
-                </div>
-                <div class="capability-grid" id="capabilityGrid"></div>
-              </article>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="autonomy">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Autonomy view</p>
-                <h3>Plans, execution signals, and tool selection</h3>
-              </div>
-              <span class="surface-badge surface-badge--holo">Advanced operating surface</span>
-            </div>
-
-            <div class="view-grid view-grid--autonomy">
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Current autonomy state</p>
-                    <h4 id="autonomyHeadline">No active plan yet</h4>
-                  </div>
-                </div>
-                <div class="progress-track">
-                  <div class="progress-track__bar" id="autonomyProgressBar"></div>
-                </div>
-                <div class="progress-caption" id="autonomyProgressLabel">Progress will appear when AURA generates or executes a plan.</div>
-                <p class="support-copy" id="autonomyTelemetryNote">Telemetry is honest: this view only shows executor data that the backend currently exposes.</p>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Tool selection</p>
-                    <h4>Observed tools and agents</h4>
-                  </div>
-                </div>
-                <div class="chip-cloud" id="autonomyTools"></div>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Runtime counts</p>
-                    <h4>Execution summary</h4>
-                  </div>
-                </div>
-                <div class="summary-stack">
-                  <div class="summary-stack__item"><span>Completed</span><strong id="autonomyCompleted">0</strong></div>
-                  <div class="summary-stack__item"><span>Failed</span><strong id="autonomyFailed">0</strong></div>
-                  <div class="summary-stack__item"><span>Retries</span><strong id="autonomyRetries">0</strong></div>
-                </div>
-              </article>
-
-              <article class="panel panel--full">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Execution timeline</p>
-                    <h4>Latest observed plan</h4>
-                  </div>
-                </div>
-                <div class="timeline" id="autonomyTimeline"></div>
-              </article>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="processing">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Processing view</p>
-                <h3>Real backend telemetry and health signals</h3>
-              </div>
-              <span class="surface-badge surface-badge--holo">Backend visibility</span>
-            </div>
-
-            <div class="view-grid view-grid--processing">
-              <article class="panel panel--full">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Live pipeline</p>
-                    <h4>Understanding to response</h4>
-                  </div>
-                </div>
-                <div class="pipeline-container" id="processingPipeline"></div>
-                <div id="processingEmptyState"></div>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Last request details</p>
-                    <h4>Understanding and intent</h4>
-                  </div>
-                </div>
-                <details class="stage-detail" open>
-                  <summary>Understanding</summary>
-                  <div id="processingUnderstandingDetails"></div>
-                </details>
-                <details class="stage-detail">
-                  <summary>Intent detection</summary>
-                  <div id="processingIntentDetails"></div>
-                </details>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Routing and execution</p>
-                    <h4>Selected path and result</h4>
-                  </div>
-                </div>
-                <details class="stage-detail" open>
-                  <summary>Routing decision</summary>
-                  <div id="processingRoutingDetails"></div>
-                </details>
-                <details class="stage-detail">
-                  <summary>Execution</summary>
-                  <div id="processingExecutionDetails"></div>
-                </details>
-                <details class="stage-detail">
-                  <summary>AI provider</summary>
-                  <div id="processingProviderDetails"></div>
-                </details>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Provider health</p>
-                    <h4>Live provider probes</h4>
-                  </div>
-                </div>
-                <div class="provider-grid" id="processingProviderCards"></div>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">System health</p>
-                    <h4>Observed backend status</h4>
-                  </div>
-                </div>
-                <div class="health-grid" id="processingSystemHealth"></div>
-              </article>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="tasks">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Tasks and reminders</p>
-                <h3>Structured work and follow-through</h3>
-              </div>
-              <span class="surface-badge">Real local storage</span>
-            </div>
-
-            <div class="summary-row">
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Pending tasks</span>
-                <strong class="stat-panel__value" id="taskSummaryPending">0</strong>
-              </article>
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Completed tasks</span>
-                <strong class="stat-panel__value" id="taskSummaryCompleted">0</strong>
-              </article>
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Active reminders</span>
-                <strong class="stat-panel__value" id="reminderSummaryActive">0</strong>
-              </article>
-              <article class="panel stat-panel">
-                <span class="stat-panel__label">Completed reminders</span>
-                <strong class="stat-panel__value" id="reminderSummaryCompleted">0</strong>
-              </article>
-            </div>
-
-            <div class="view-grid view-grid--tasks">
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Tasks</p>
-                    <h4>Execution-ready work queue</h4>
-                  </div>
-                  <button class="ghost-button" type="button" id="refreshTasksButton">Refresh</button>
-                </div>
-                <form class="inline-form" id="taskForm">
-                  <input type="text" id="taskText" placeholder="Add a task for AURA to track" aria-label="Task text">
-                  <select id="taskPriority" aria-label="Task priority">
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="low">Low</option>
-                  </select>
-                  <input type="date" id="taskDueDate" aria-label="Task due date">
-                  <button class="primary-button" type="submit" id="taskSubmitButton">Add task</button>
-                  <button class="ghost-button" type="button" id="taskCancelEditButton" hidden>Cancel</button>
-                </form>
-                <div class="list-stack" id="taskList"></div>
-                <div class="subsection">
-                  <div class="panel__head panel__head--sub">
-                    <div>
-                      <p class="eyebrow">Completed</p>
-                      <h4>Finished tasks</h4>
-                    </div>
-                  </div>
-                  <div class="list-stack" id="completedTaskList"></div>
-                </div>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Reminders</p>
-                    <h4>Timed memory prompts</h4>
-                  </div>
-                  <button class="ghost-button" type="button" id="refreshRemindersButton">Refresh</button>
-                </div>
-                <form class="inline-form" id="reminderForm">
-                  <input type="text" id="reminderText" placeholder="Create a reminder" aria-label="Reminder text">
-                  <input type="date" id="reminderDate" aria-label="Reminder date">
-                  <input type="time" id="reminderTime" aria-label="Reminder time">
-                  <button class="primary-button" type="submit" id="reminderSubmitButton">Add reminder</button>
-                  <button class="ghost-button" type="button" id="reminderCancelEditButton" hidden>Cancel</button>
-                </form>
-                <div class="list-stack" id="reminderList"></div>
-                <div class="subsection">
-                  <div class="panel__head panel__head--sub">
-                    <div>
-                      <p class="eyebrow">Completed</p>
-                      <h4>Resolved reminders</h4>
-                    </div>
-                  </div>
-                  <div class="list-stack" id="completedReminderList"></div>
-                </div>
-              </article>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="history">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">History view</p>
-                <h3>Conversation records and operating context</h3>
-              </div>
-              <span class="surface-badge" id="historyCurrentSession">Current session</span>
-            </div>
-
-            <div class="view-grid view-grid--history">
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Past sessions</p>
-                    <h4>SQLite-backed local sessions</h4>
-                  </div>
-                </div>
-                <p class="support-copy">Select a stored session to load its real local history into the chat window.</p>
-                <div class="history-session-list" id="historySessionList"></div>
-              </article>
-
-              <article class="panel panel--wide">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Conversation archive</p>
-                    <h4>Search, inspect, revisit</h4>
-                  </div>
-                  <input class="search-input" id="historySearch" type="search" placeholder="Search messages, intent, or agent">
-                </div>
-                <p class="support-copy" id="historyMetaHint">Advanced modes reveal more routing metadata directly on each history card.</p>
-                <div class="history-list" id="historyList"></div>
-              </article>
-            </div>
-          </section>
-
-          <section class="view-section" data-view="settings">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Settings view</p>
-                <h3>Modes, accessibility, voice, and operating preferences</h3>
-              </div>
-              <span class="surface-badge">Locally persisted</span>
-            </div>
-
-            <div class="view-grid view-grid--settings">
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Interface mode</p>
-                    <h4>Operating personality</h4>
-                  </div>
-                </div>
-                <label class="form-field">
-                  <span>Mode</span>
-                  <select id="settingsMode">
-                    <option value="minimal">Minimal</option>
-                    <option value="smart">Smart</option>
-                    <option value="jarvis">Jarvis</option>
-                    <option value="developer">Developer</option>
-                    <option value="autonomous">Autonomous</option>
-                  </select>
-                </label>
-                <div class="chip-cloud" id="settingsModeNotes"></div>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Identity and language</p>
-                    <h4>User profile behavior</h4>
-                  </div>
-                </div>
-                <label class="form-field">
-                  <span>Preferred name</span>
-                  <input id="settingsPreferredName" type="text" placeholder="Optional preferred name">
-                </label>
-                <label class="form-field">
-                  <span>Title</span>
-                  <select id="settingsTitle">
-                    <option value="sir">Sir</option>
-                    <option value="ma'am">Ma'am</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Theme</span>
-                  <select id="settingsTheme">
-                    <option value="dark">Dark</option>
-                    <option value="eclipse">Eclipse</option>
-                    <option value="system">System</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Language</span>
-                  <select id="settingsLanguage">
-                    <option value="auto">Auto</option>
-                    <option value="english">English</option>
-                    <option value="urdu">Urdu</option>
-                  </select>
-                </label>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Voice and reading</p>
-                    <h4>Speech output behavior</h4>
-                  </div>
-                </div>
-                <label class="form-field">
-                  <span>Voice profile</span>
-                  <select id="settingsVoiceProfile"></select>
-                </label>
-                <label class="form-field">
-                  <span>Speech speed</span>
-                  <input type="range" id="settingsVoiceRate" min="0.7" max="1.3" step="0.05" value="1">
-                </label>
-                <label class="form-field">
-                  <span>Pitch</span>
-                  <input type="range" id="settingsVoicePitch" min="0.5" max="2" step="0.05" value="1">
-                </label>
-                <label class="form-field">
-                  <span>Volume</span>
-                  <input type="range" id="settingsVoiceVolume" min="0" max="1" step="0.05" value="1">
-                </label>
-                <div class="composer__actions">
-                  <button class="ghost-button" type="button" id="voicePreviewButton">Preview voice</button>
-                </div>
-                <button class="toggle-row" type="button" id="toggleReadResponses">
-                  <span>Read responses automatically</span>
-                  <span class="toggle-indicator"></span>
-                </button>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Accessibility</p>
-                    <h4>Supportive presentation controls</h4>
-                  </div>
-                </div>
-                <button class="toggle-row" type="button" id="toggleLargeText">
-                  <span>Larger text mode</span>
-                  <span class="toggle-indicator"></span>
-                </button>
-                <button class="toggle-row" type="button" id="toggleSimplifiedUi">
-                  <span>Simplified UI</span>
-                  <span class="toggle-indicator"></span>
-                </button>
-                <button class="toggle-row" type="button" id="toggleHighContrast">
-                  <span>High contrast mode</span>
-                  <span class="toggle-indicator"></span>
-                </button>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Advanced visibility</p>
-                    <h4>Intelligence and autonomy detail</h4>
-                  </div>
-                </div>
-                <button class="toggle-row" type="button" id="toggleDebugDetails">
-                  <span>Show debug details</span>
-                  <span class="toggle-indicator"></span>
-                </button>
-                <button class="toggle-row" type="button" id="toggleAutonomyVisibility">
-                  <span>Keep autonomy surfaces visible</span>
-                  <span class="toggle-indicator"></span>
-                </button>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Confirmation code</p>
-                    <h4>Critical action protection</h4>
-                  </div>
-                </div>
-                <label class="form-field">
-                  <span>Set confirmation code</span>
-                  <input id="settingsConfirmCode" type="password" placeholder="Enter a memorable code">
-                </label>
-                <label class="form-field">
-                  <span>Repeat confirmation code</span>
-                  <input id="settingsConfirmCodeRepeat" type="password" placeholder="Repeat the code">
-                </label>
-                <div class="composer__actions">
-                  <button class="ghost-button" type="button" id="setConfirmCodeButton">Set Confirmation Code</button>
-                </div>
-                <label class="form-field">
-                  <span>Current code</span>
-                  <input id="settingsOldConfirmCode" type="password" placeholder="Current code">
-                </label>
-                <label class="form-field">
-                  <span>New code</span>
-                  <input id="settingsNewConfirmCode" type="password" placeholder="New code">
-                </label>
-                <label class="form-field">
-                  <span>Repeat new code</span>
-                  <input id="settingsNewConfirmCodeRepeat" type="password" placeholder="Repeat new code">
-                </label>
-                <div class="composer__actions">
-                  <button class="ghost-button" type="button" id="changeConfirmCodeButton">Change Code</button>
-                </div>
-                <ul class="stack-list" id="confirmationTriggers"></ul>
-              </article>
-
-              <article class="panel">
-                <div class="panel__head">
-                  <div>
-                    <p class="eyebrow">Owner controls</p>
-                    <h4>Private access system</h4>
-                  </div>
-                </div>
-                <p class="support-copy">Admin tools are owner-only. Use them to manage invited users, blocked IPs, and system status.</p>
-                <div class="composer__actions">
-                  <button class="ghost-button" type="button" id="openAdminPanelButton">Open Admin Panel</button>
-                </div>
-              </article>
-            </div>
-          </section>
-        </main>
-        <aside class="intel-rail" id="intelRail" aria-label="Intelligence rail">
-          <div class="intel-rail__head">
+      <aside class="details-drawer" id="detailsDrawer" aria-label="Assistant details">
+        <section class="drawer-card">
+          <div class="drawer-card__head">
             <div>
-              <p class="eyebrow">Intelligence rail</p>
-              <h3>AURA status</h3>
+              <p class="eyebrow">Assistant route</p>
+              <h2>State</h2>
             </div>
-            <button class="icon-button" id="mobileRailClose" type="button" aria-label="Close intelligence rail">CLS</button>
+            <button class="detail-button detail-button--quiet" id="refreshStatusButton" type="button">Refresh</button>
           </div>
+          <div class="detail-list">
+            <div class="detail-row">
+              <span>Access</span>
+              <strong id="accessMode">Checking</strong>
+            </div>
+            <div class="detail-row">
+              <span>Brain</span>
+              <strong id="brainState">Checking</strong>
+            </div>
+            <div class="detail-row">
+              <span>Active provider</span>
+              <strong id="activeProvider">Checking</strong>
+            </div>
+            <div class="detail-row">
+              <span>Wake mode</span>
+              <strong id="wakeModeStatus">Checking</strong>
+            </div>
+          </div>
+          <p class="drawer-note" id="routeSummary">Checking runtime...</p>
+        </section>
 
-          <article class="panel panel--rail panel--orb">
-            <div class="rail-orb" id="railOrb" data-state="idle">
-              <span class="rail-orb__ring rail-orb__ring--a"></span>
-              <span class="rail-orb__ring rail-orb__ring--b"></span>
-              <span class="rail-orb__core"></span>
-              <span class="rail-orb__glow"></span>
+        <section class="drawer-card">
+          <div class="drawer-card__head">
+            <div>
+              <p class="eyebrow">Providers</p>
+              <h2>Live truth</h2>
             </div>
-            <div class="rail-orb__copy">
-              <strong id="railState">Idle</strong>
-              <p id="railStateHint">AURA is ready for the next command.</p>
-            </div>
-          </article>
+          </div>
+          <div class="provider-list" id="providersList"></div>
+        </section>
 
-          <article class="panel panel--rail">
-            <div class="panel__head panel__head--rail">
-              <div>
-                <p class="eyebrow">Live route</p>
-                <h4>Current working state</h4>
-              </div>
+        <section class="drawer-card">
+          <div class="drawer-card__head">
+            <div>
+              <p class="eyebrow">Voice diagnostics</p>
+              <h2>Browser microphone</h2>
             </div>
-            <div class="summary-stack">
-              <div class="summary-stack__item"><span>Active agent</span><strong id="railActiveAgent">General</strong></div>
-              <div class="summary-stack__item"><span>Confidence</span><strong id="railConfidence">--</strong></div>
-              <div class="summary-stack__item"><span>Permission</span><strong id="railPermission">Approved</strong></div>
+          </div>
+          <div class="detail-list">
+            <div class="detail-row">
+              <span>Wake mode</span>
+              <strong id="browserVoiceMode">Checking</strong>
             </div>
-          </article>
+            <div class="detail-row">
+              <span>Microphone permission</span>
+              <strong id="micPermissionState">Checking</strong>
+            </div>
+            <div class="detail-row">
+              <span>Input device</span>
+              <strong id="inputDeviceSummary">Checking</strong>
+            </div>
+            <div class="detail-row">
+              <span>Last transcript</span>
+              <strong id="lastTranscriptSummary">No data yet</strong>
+            </div>
+            <div class="detail-row">
+              <span>Last voice issue</span>
+              <strong id="lastVoiceIssue">No issues yet</strong>
+            </div>
+          </div>
+        </section>
 
-          <article class="panel panel--rail">
-            <div class="panel__head panel__head--rail">
-              <div>
-                <p class="eyebrow">User context</p>
-                <h4>Current relationship state</h4>
-              </div>
+        <section class="drawer-card">
+          <div class="drawer-card__head">
+            <div>
+              <p class="eyebrow">Session</p>
+              <h2>Account and activity</h2>
             </div>
-            <div class="identity-card identity-card--rail">
-              <div class="identity-card__badge" id="railUserInitial">A</div>
-              <div class="identity-card__copy">
-                <strong id="railUserName">Guest</strong>
-                <small id="railGreeting">Waiting for your next request</small>
-              </div>
-            </div>
-            <ul class="stack-list" id="railMemoryFacts"></ul>
-          </article>
-
-          <article class="panel panel--rail">
-            <div class="panel__head panel__head--rail">
-              <div>
-                <p class="eyebrow">Plan snapshot</p>
-                <h4>Latest planned steps</h4>
-              </div>
-            </div>
-            <div class="mini-timeline" id="railPlanList"></div>
-          </article>
-
-          <article class="panel panel--rail">
-            <div class="panel__head panel__head--rail">
-              <div>
-                <p class="eyebrow">Execution signal</p>
-                <h4>Observed runtime markers</h4>
-              </div>
-            </div>
-            <div class="mini-timeline" id="railExecutionList"></div>
-          </article>
-
-          <article class="panel panel--rail">
-            <div class="panel__head panel__head--rail">
-              <div>
-                <p class="eyebrow">Improvement</p>
-                <h4>Recent friction and recovery</h4>
-              </div>
-            </div>
-            <ul class="stack-list" id="railImprovementList"></ul>
-          </article>
-
-          <article class="panel panel--rail">
-            <div class="panel__head panel__head--rail">
-              <div>
-                <p class="eyebrow">System summary</p>
-                <h4>Connected surfaces</h4>
-              </div>
-            </div>
-            <div class="subsystem-list" id="railSystemSummary"></div>
-          </article>
-        </aside>
-      </div>
+          </div>
+          <p class="drawer-note" id="accountSummary">Checking session state.</p>
+          <div class="drawer-actions">
+            <a class="detail-link" id="authActionLink" href="/login">Sign in</a>
+            <a class="detail-link" id="adminLink" href="/admin" hidden>Admin</a>
+          </div>
+          <div class="activity-list" id="activityList"></div>
+        </section>
+      </aside>
     </div>
-  </div>
 
-  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+    <footer class="control-dock">
+      <div class="wake-banner" id="wakeBanner">Wake mode is loading.</div>
+      <div class="control-row">
+        <button class="dock-button dock-button--primary" id="wakeModeButton" type="button">Wake mode</button>
+        <button class="dock-button" id="talkButton" type="button">Talk</button>
+        <button class="dock-button dock-button--quiet" id="interruptButton" type="button">Interrupt</button>
+
+        <div class="text-command-shell">
+          <input id="textCommandInput" type="text" placeholder="Text command (secondary)" autocomplete="off" aria-label="Type a text command">
+        </div>
+
+        <button class="dock-button dock-button--secondary" id="sendButton" type="button">Send</button>
+      </div>
+    </footer>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

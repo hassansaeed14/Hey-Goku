@@ -132,16 +132,16 @@
         "preferences": {}
     },
     "topic_frequency": {
-        "general": 74,
+        "general": 79,
         "news": 1,
         "memory": 12,
-        "greeting": 7,
+        "greeting": 10,
         "translation": 5,
         "joke": 4,
         "dictionary": 2,
         "screenshot": 1,
         "code": 13,
-        "currency": 13,
+        "currency": 14,
         "study": 1
     },
     "interaction_history": [
@@ -1075,11 +1075,74 @@
             "input": "what is artificial intelligence",
             "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
             "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 17:02",
+            "intent": "greeting",
+            "input": "hello",
+            "response": "Welcome back! Want to continue with general?",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 17:03",
+            "intent": "general",
+            "input": "what is new at the world",
+            "response": "There are many exciting developments happening around the world. Since we were discussing AI earlier, I'll highlight a few recent advancements in the field:\n1. Chatbots and Virtual Assistants: AI-powe",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-11 17:49",
+            "intent": "greeting",
+            "input": "hi",
+            "response": "Welcome back! Want to continue with general?",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 18:10",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 18:10",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 18:12",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 18:12",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "We've discussed this before. Artificial intelligence (AI) refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, proble",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 19:40",
+            "intent": "greeting",
+            "input": "hi",
+            "response": "Welcome back! Want to continue with general?",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-11 19:41",
+            "intent": "currency",
+            "input": "how are you?",
+            "response": "I am not aware of the current exchange rate for HOW to ARE. Could you please provide more information about these currencies, such as their full names or the countries that use them. I will do my best",
+            "length_type": "short"
         }
     ],
     "behavior_stats": {
-        "short_queries": 81,
-        "medium_queries": 47,
+        "short_queries": 89,
+        "medium_queries": 48,
         "long_queries": 5
     },
     "intent_sequences": [
@@ -1610,20 +1673,56 @@
         [
             "general",
             "general"
+        ],
+        [
+            "general",
+            "greeting"
+        ],
+        [
+            "greeting",
+            "general"
+        ],
+        [
+            "general",
+            "greeting"
+        ],
+        [
+            "greeting",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "greeting"
+        ],
+        [
+            "greeting",
+            "currency"
         ]
     ],
     "intent_weights": {
-        "general": 148,
+        "general": 158,
         "news": 2,
         "memory": 24,
-        "greeting": 14,
+        "greeting": 20,
         "translation": 10,
         "joke": 8,
         "dictionary": 4,
         "screenshot": 2,
         "code": 26,
-        "currency": 26,
+        "currency": 28,
         "study": 2
     },
-    "last_seen": "2026-04-11 14:16"
+    "last_seen": "2026-04-11 19:41"
 }

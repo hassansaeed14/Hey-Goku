@@ -65,7 +65,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL_NAME = "llama-3.3-70b-versatile"
 APP_NAME = "AURA"
 VERSION = "1.0.0"
-DEFAULT_REASONING_PROVIDER = os.getenv("DEFAULT_REASONING_PROVIDER", "gemini").strip().lower()
+DEFAULT_REASONING_PROVIDER = os.getenv("DEFAULT_REASONING_PROVIDER", "groq").strip().lower()
 
 PROVIDER_MODEL_MAP = {
     "groq": os.getenv("GROQ_MODEL", MODEL_NAME),
@@ -78,7 +78,7 @@ PROVIDER_MODEL_MAP = {
 
 PROVIDER_PRIORITY = tuple(
     item.strip().lower()
-    for item in os.getenv("AURA_PROVIDER_PRIORITY", "gemini,openai,groq,openrouter,claude,ollama").split(",")
+    for item in os.getenv("AURA_PROVIDER_PRIORITY", "groq,gemini,openai,openrouter,claude,ollama").split(",")
     if item.strip()
 )
 
