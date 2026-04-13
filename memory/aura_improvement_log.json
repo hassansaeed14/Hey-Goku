@@ -686,6 +686,11 @@
             "time": "2026-04-11 18:12",
             "command": "what is artificial intelligence",
             "confidence": 0.0
+        },
+        {
+            "time": "2026-04-12 18:07",
+            "command": "what is AI",
+            "confidence": 0.0
         }
     ],
     "agent_errors": [],
@@ -2270,6 +2275,24 @@
         },
         {
             "time": "2026-04-11 19:41",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-12 18:07",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-12 18:12",
             "requested_action": "currency",
             "actual_action": "currency",
             "success": true,

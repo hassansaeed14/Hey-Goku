@@ -1,5 +1,43 @@
 import re
 
+COMMON_CURRENCY_CODES = {
+    "AED", "AUD", "BDT", "CAD", "CHF", "CNY", "EUR", "GBP", "HKD", "INR",
+    "JPY", "KRW", "NOK", "NZD", "PKR", "SAR", "SEK", "SGD", "TRY", "USD",
+}
+
+CASUAL_CONVERSATION_PHRASES = (
+    "how are you",
+    "how are you doing",
+    "what is up",
+    "whats up",
+    "what's up",
+    "are you there",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "nice to meet you",
+    "good to see you",
+)
+
+TOOL_HINT_PHRASES = (
+    "convert",
+    "exchange",
+    "rate",
+    "calculate",
+    "solve",
+    "search",
+    "google",
+    "translate",
+    "remind me",
+    "task",
+    "todo",
+    "weather",
+    "news",
+    "youtube",
+    "open file",
+    "read file",
+)
+
 
 # -----------------------------
 # Normalization (NEW - IMPORTANT)
@@ -49,10 +87,27 @@ def _has_number(text):
 
 
 def _has_currency_code(text):
-    blocked = {"BYE", "HEY", "THE"}
     codes = re.findall(r"\b[A-Z]{3}\b", text.upper())
-    codes = [c for c in codes if c not in blocked]
-    return len(codes) >= 2
+    codes = [code for code in codes if code in COMMON_CURRENCY_CODES]
+    if len(set(codes)) < 2:
+        return False
+
+    lowered = text.lower()
+    return (
+        any(keyword in lowered for keyword in ("convert", "exchange", "rate", "currency"))
+        or " to " in lowered
+        or " from " in lowered
+        or _has_number(text)
+    )
+
+
+def _is_casual_conversation(text: str) -> bool:
+    lowered = normalize_text(text)
+    if lowered in {"hi", "hello", "hey", "hello aura", "hi aura", "hey aura"}:
+        return True
+    if any(phrase in lowered for phrase in CASUAL_CONVERSATION_PHRASES):
+        return not any(hint in lowered for hint in TOOL_HINT_PHRASES)
+    return False
 
 
 # -----------------------------
@@ -68,6 +123,12 @@ def detect_intent_with_confidence(command: str):
 
     if len(text) < 2:
         return "general", 0.0
+
+    if text in {"hi", "hello", "hey", "hello aura", "hi aura", "hey aura"}:
+        return "greeting", 0.95
+
+    if _is_casual_conversation(text):
+        return "general", 0.82
 
     scores = {}
 

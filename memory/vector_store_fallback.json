@@ -1379,5 +1379,20 @@
       ],
       "timestamp": "2026-04-11 18:12:04"
     }
+  },
+  {
+    "id": "mem_20260412180729618333",
+    "text": "what is AI",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-12 18:07:29"
+    }
   }
 ]

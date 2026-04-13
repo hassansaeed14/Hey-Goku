@@ -3,10 +3,15 @@
     sessionId: "aura_live_session_id",
     detailsOpen: "aura_details_open",
   };
+  const SESSION_GREETING_PREFIX = "aura_session_greeted:";
 
   const FALLBACK_REPLY = "Something went wrong on my side. Try again.";
   const WAKE_FALLBACK = "Hey AURA";
   const COMMAND_NO_SPEECH_RETRY_LIMIT = 1;
+  const REFRESH_INTERVAL_MS = 120000;
+  const PROVIDER_REFRESH_INTERVAL_MS = 300000;
+  const WAKE_RESUME_DELAY_MS = 900;
+  const NO_SPEECH_RECOVERY_DELAY_MS = 1400;
 
   const state = {
     sessionId: "default",
@@ -28,6 +33,10 @@
     partialTranscript: "",
     commandRetryCount: 0,
     currentRequestController: null,
+    refreshInFlight: false,
+    refreshQueuedForce: false,
+    lastProviderRefreshAt: 0,
+    recognitionStartTimer: null,
     activity: [],
     browserVoice: {
       mode: "Checking",
@@ -148,6 +157,8 @@
     }
 
     renderStatusSurfaces();
+    state.lastProviderRefreshAt = state.providerSnapshot ? Date.now() : state.lastProviderRefreshAt;
+    await maybeTriggerSessionGreeting("bootstrap");
 
     if (state.auth?.authenticated) {
       await attemptAutomaticWakeStandby();
@@ -157,30 +168,54 @@
   }
 
   async function refreshStatus({ force = false, quiet = false } = {}) {
+    if (state.refreshInFlight) {
+      state.refreshQueuedForce = state.refreshQueuedForce || force;
+      return;
+    }
+
+    state.refreshInFlight = true;
     const refreshSuffix = force ? "?refresh=1" : "";
-    const [authResult, providersResult, healthResult, voiceResult] = await Promise.allSettled([
-      fetchJson("/api/auth/session"),
-      fetchJson(`/api/providers${refreshSuffix}`),
-      fetchJson("/api/system/health"),
-      fetchJson("/api/voice/status"),
-    ]);
+    const providerRefreshDue =
+      force || !state.providerSnapshot || (Date.now() - state.lastProviderRefreshAt) >= PROVIDER_REFRESH_INTERVAL_MS;
 
-    if (authResult.status === "fulfilled") {
-      state.auth = authResult.value;
-    }
-    if (providersResult.status === "fulfilled") {
-      state.providerSnapshot = providersResult.value;
-    }
-    if (healthResult.status === "fulfilled") {
-      state.systemHealth = healthResult.value;
-    }
-    if (voiceResult.status === "fulfilled") {
-      state.voiceStatus = voiceResult.value;
-    }
+    try {
+      const [authResult, providersResult, healthResult, voiceResult] = await Promise.allSettled([
+        fetchJson("/api/auth/session"),
+        providerRefreshDue ? fetchJson(`/api/providers${refreshSuffix}`) : Promise.resolve(state.providerSnapshot),
+        fetchJson("/api/system/health"),
+        fetchJson("/api/voice/status"),
+      ]);
 
-    renderStatusSurfaces();
-    if (!quiet && !state.busy && !state.speaking && !state.listening) {
-      updateWakeBanner(currentWakeBanner());
+      if (authResult.status === "fulfilled") {
+        state.auth = authResult.value;
+      }
+      if (providersResult.status === "fulfilled" && providersResult.value) {
+        state.providerSnapshot = providersResult.value;
+        state.lastProviderRefreshAt = Date.now();
+      }
+      if (healthResult.status === "fulfilled") {
+        state.systemHealth = healthResult.value;
+      }
+      if (voiceResult.status === "fulfilled") {
+        state.voiceStatus = voiceResult.value;
+      }
+
+      renderStatusSurfaces();
+      const greeted = await maybeTriggerSessionGreeting(force ? "manual_refresh" : "refresh");
+      if (greeted && state.auth?.authenticated && !state.wakeModeEnabled) {
+        await attemptAutomaticWakeStandby();
+      }
+      if (!quiet && !state.busy && !state.speaking && !state.listening) {
+        updateWakeBanner(currentWakeBanner());
+      }
+    } finally {
+      state.refreshInFlight = false;
+      if (state.refreshQueuedForce) {
+        state.refreshQueuedForce = false;
+        window.setTimeout(() => {
+          void refreshStatus({ force: true, quiet: true });
+        }, 150);
+      }
     }
   }
 
@@ -341,6 +376,203 @@
       ...patch,
     };
     renderVoiceDiagnostics();
+  }
+
+  function browserPermissionLabel(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    const labels = {
+      granted: "Granted",
+      prompt: "Needs permission",
+      denied: "Denied",
+      unsupported: "Unsupported",
+      unknown: "Unknown",
+      "not-allowed": "Denied",
+      "service-not-allowed": "Blocked",
+    };
+    return labels[normalized] || humanizeStatus(normalized) || "Unknown";
+  }
+
+  function logVoiceEvent(eventName, details = {}) {
+    const payload = {
+      event: eventName,
+      ...details,
+      mode: details.mode || state.recognitionMode,
+      at: new Date().toISOString(),
+    };
+    setBrowserVoiceDiagnostics({
+      lastEvent: eventName,
+    });
+    try {
+      console.info("[AURA voice]", payload);
+    } catch (_error) {
+      // ignore console failures
+    }
+  }
+
+  function clearRecognitionStartTimer() {
+    if (state.recognitionStartTimer) {
+      window.clearTimeout(state.recognitionStartTimer);
+      state.recognitionStartTimer = null;
+    }
+  }
+
+  function scheduleRecognitionStart(
+    mode,
+    {
+      delayMs = WAKE_RESUME_DELAY_MS,
+      automatic = true,
+      resetCommandRetryCount = false,
+      reason = "scheduled_restart",
+    } = {},
+  ) {
+    clearRecognitionStartTimer();
+    state.recognitionStartTimer = window.setTimeout(() => {
+      state.recognitionStartTimer = null;
+      if (mode === "wake") {
+        if (!state.wakeModeEnabled || state.recognitionActive || state.busy || state.speaking) {
+          return;
+        }
+      } else if (state.recognitionActive || state.busy || state.speaking) {
+        return;
+      }
+      logVoiceEvent("speech_restart", { mode, reason, automatic });
+      startRecognitionSession(mode, { automatic, resetCommandRetryCount });
+    }, delayMs);
+  }
+
+  function sessionGreetingKey() {
+    const user = state.auth?.user;
+    if (!state.auth?.authenticated || !user) {
+      return null;
+    }
+    const identity = user.id || user.username || "user";
+    const loginStamp = user.last_login || user.created || "session";
+    return `${SESSION_GREETING_PREFIX}${identity}:${loginStamp}:${state.sessionId}`;
+  }
+
+  function buildSessionGreeting() {
+    const user = state.auth?.user || {};
+    const preferredName = user.preferred_name || user.name || user.username || "";
+    const options = preferredName
+      ? [
+          `Welcome back, ${preferredName}.`,
+          `Good to see you again, ${preferredName}.`,
+          `${preferredName}, I'm ready when you are.`,
+        ]
+      : [
+          "Welcome back.",
+          "Good to see you again.",
+          "You're back. Ready when you are.",
+        ];
+    const seed = `${preferredName}:${user.last_login || user.created || ""}:${state.sessionId}`;
+    return options[seed.length % options.length];
+  }
+
+  function shouldSpeakGreeting() {
+    return Boolean(
+      state.auth?.authenticated
+      && state.voiceStatus?.settings?.auto_speak_responses
+      && window.speechSynthesis,
+    );
+  }
+
+  async function maybeTriggerSessionGreeting(source = "session") {
+    const greetingKey = sessionGreetingKey();
+    if (!greetingKey || window.sessionStorage.getItem(greetingKey) === "1") {
+      return false;
+    }
+
+    window.sessionStorage.setItem(greetingKey, "1");
+    const greeting = buildSessionGreeting();
+    updateLiveTranscript("Authenticated session active.");
+    updateLiveResponse(greeting, { provider: "local", mode: "greeting" });
+    addActivity("Greeting", `Session greeting triggered from ${source}.`, "good");
+    updateWakeBanner(greeting);
+
+    if (shouldSpeakGreeting()) {
+      await speakAssistant(greeting, { resumeWakeAfter: false });
+    }
+
+    setIdleState();
+    return true;
+  }
+
+  function handleNoSpeechDetected(partialTranscript) {
+    const captured = String(partialTranscript || "").trim();
+    const mode = state.recognitionMode;
+
+    if (captured.length >= 2) {
+      state.recognitionHandoffPending = true;
+      setBrowserVoiceDiagnostics({
+        lastTranscript: captured,
+        heardSpeech: true,
+        lastEvent: "partial_speech_recovered",
+        lastIssue: "AURA recovered the partial transcript it heard.",
+      });
+      addActivity("Speech recovered", captured, "neutral");
+      if (mode === "wake") {
+        void handleWakeTranscript(captured);
+      } else {
+        void handleCommandTranscript(captured);
+      }
+      return;
+    }
+
+    if (mode === "command") {
+      const canRetry = state.commandRetryCount < COMMAND_NO_SPEECH_RETRY_LIMIT;
+      const message = canRetry
+        ? "I didn't catch that. Please say the command again."
+        : "I did not hear enough to continue. Returning to standby.";
+      state.commandRetryCount += canRetry ? 1 : 0;
+      setBrowserVoiceDiagnostics({
+        heardSpeech: false,
+        lastEvent: "command_no_speech",
+        lastIssue: message,
+      });
+      setAssistantState("no_speech", {
+        pill: "No speech",
+        kicker: "Listening",
+        headline: canRetry ? "I didn't catch that." : "No speech heard.",
+        description: canRetry
+          ? "Try the command once more."
+          : "I'll return to standby and keep wake mode ready.",
+      });
+      updateWakeBanner(message);
+      addActivity("No speech", message, "warn");
+      if (canRetry) {
+        state.recognitionHandoffPending = true;
+        scheduleRecognitionStart("command", {
+          delayMs: NO_SPEECH_RECOVERY_DELAY_MS,
+          automatic: false,
+          resetCommandRetryCount: false,
+          reason: "command_no_speech_retry",
+        });
+        return;
+      }
+      state.commandRetryCount = 0;
+      state.recognitionHandoffPending = true;
+      setIdleState();
+      resumeWakeStandby({ delayMs: NO_SPEECH_RECOVERY_DELAY_MS, reason: "command_no_speech" });
+      return;
+    }
+
+    const wakeMessage = `Standby is still on. Say "${preferredWakePhrase()}" when you're ready.`;
+    setBrowserVoiceDiagnostics({
+      heardSpeech: false,
+      lastEvent: "wake_no_speech",
+      lastIssue: wakeMessage,
+    });
+    setAssistantState("no_speech", {
+      pill: "Standby",
+      kicker: "No speech",
+      headline: "I didn't catch the wake phrase.",
+      description: `I'm still standing by for "${preferredWakePhrase()}".`,
+    });
+    updateWakeBanner(wakeMessage);
+    addActivity("Standby", "No wake phrase was heard clearly enough.", "neutral");
+    state.recognitionHandoffPending = true;
+    setIdleState();
+    resumeWakeStandby({ delayMs: NO_SPEECH_RECOVERY_DELAY_MS, reason: "wake_no_speech" });
   }
 
   async function refreshBrowserVoiceDiagnostics({ requestPermission = false } = {}) {
@@ -513,7 +745,7 @@
       return false;
     }
 
-    addActivity("Wake mode", `Standby listening is active for “${preferredWakePhrase()}”.`, "good");
+    addActivity("Wake mode", `Standby listening is active for "${preferredWakePhrase()}".`, "good");
     renderWakeControls();
     updateWakeBanner(currentWakeBanner());
     return true;
@@ -522,6 +754,7 @@
   function disableWakeMode() {
     state.wakeModeEnabled = false;
     state.wakeModeGestureNeeded = false;
+    clearRecognitionStartTimer();
     if (state.recognitionMode === "wake" || (!state.busy && !state.speaking)) {
       stopRecognition();
     }
@@ -550,7 +783,7 @@
       return;
     }
 
-    startRecognitionSession("command", { automatic: false });
+    startRecognitionSession("command", { automatic: false, resetCommandRetryCount: true });
   }
 
   function setupRecognition() {
@@ -674,6 +907,19 @@
         return;
       }
 
+      if (code === "aborted") {
+        setBrowserVoiceDiagnostics({
+          lastEvent: "speech_aborted",
+          lastIssue: "Listening was stopped.",
+        });
+        if (state.wakeModeEnabled && !state.busy && !state.speaking) {
+          state.recognitionHandoffPending = true;
+          setIdleState();
+          resumeWakeStandby({ reason: "speech_aborted" });
+        }
+        return;
+      }
+
       const message = humanizeSpeechError(code);
       setBrowserVoiceDiagnostics({
         lastEvent: "voice_error",
@@ -698,7 +944,7 @@
         return;
       }
       if (state.wakeModeEnabled && !state.busy && !state.speaking) {
-        resumeWakeStandby();
+        resumeWakeStandby({ reason: "recognition_end" });
         setIdleState();
         return;
       }
@@ -711,7 +957,7 @@
     renderWakeControls();
   }
 
-  function startRecognitionSession(mode, { automatic = false } = {}) {
+  function startRecognitionSession(mode, { automatic = false, resetCommandRetryCount = false } = {}) {
     if (!state.recognition) {
       return false;
     }
@@ -723,9 +969,10 @@
       return false;
     }
 
+    clearRecognitionStartTimer();
     state.recognitionMode = mode;
     state.partialTranscript = "";
-    if (mode === "command") {
+    if (mode === "command" && resetCommandRetryCount) {
       state.commandRetryCount = 0;
     }
     state.recognition.lang = preferredRecognitionLanguage();
@@ -763,11 +1010,23 @@
   async function handleWakeTranscript(transcript) {
     updateLiveTranscript(transcript);
     const wakeMatch = detectWakePhrase(transcript);
+    logVoiceEvent("wake_transcript", {
+      transcript,
+      detected: wakeMatch.detected,
+      remainingText: wakeMatch.remainingText,
+    });
 
     if (!wakeMatch.detected) {
       addActivity("Standby", "Heard audio, but the wake phrase was not detected.", "neutral");
+      setBrowserVoiceDiagnostics({
+        lastTranscript: transcript,
+        heardSpeech: true,
+        lastEvent: "wake_not_matched",
+        lastIssue: `Standby is active. Say "${preferredWakePhrase()}" to wake AURA.`,
+      });
       updateWakeBanner(`Standby is active. Say “${preferredWakePhrase()}” to wake AURA.`);
       setIdleState();
+      resumeWakeStandby({ delayMs: NO_SPEECH_RECOVERY_DELAY_MS, reason: "wake_not_matched" });
       return;
     }
 
@@ -778,6 +1037,19 @@
       description: "Preparing the command flow now.",
     });
 
+    setBrowserVoiceDiagnostics({
+      lastTranscript: transcript,
+      heardSpeech: true,
+      lastEvent: "wake_detected",
+      lastIssue: `Wake phrase matched. ${wakeMatch.remainingText ? "Continuing with the command." : "Waiting for the command."}`,
+    });
+    setAssistantState("understanding", {
+      pill: "Awake",
+      kicker: "Wake detected",
+      headline: "I'm here.",
+      description: "Preparing the command flow now.",
+    });
+
     if (!wakeMatch.remainingText) {
       const wakePayload = await submitVoiceTranscript(transcript);
       const acknowledgement = wakePayload.assistant_reply || "Yes?";
@@ -785,7 +1057,7 @@
       addActivity("Wake detected", `AURA heard ${preferredWakePhrase()}.`, "good");
       await speakAssistant(acknowledgement, { resumeWakeAfter: false });
       if (!state.busy) {
-        startRecognitionSession("command", { automatic: false });
+        startRecognitionSession("command", { automatic: false, resetCommandRetryCount: true });
       }
       return;
     }
@@ -806,6 +1078,13 @@
       description: "I’m working through that now.",
     });
 
+    setAssistantState("thinking", {
+      pill: "Thinking",
+      kicker: "Working",
+      headline: "One second.",
+      description: "I'm working through that now.",
+    });
+
     try {
       const payload = await submitVoiceTranscript(transcript);
       await consumeVoicePayload(payload, transcript);
@@ -823,7 +1102,7 @@
       const acknowledgement = payload.assistant_reply || "Yes?";
       updateLiveResponse(acknowledgement, { provider: "local_wake", mode: "wake" });
       await speakAssistant(acknowledgement, { resumeWakeAfter: false });
-      startRecognitionSession("command", { automatic: false });
+      startRecognitionSession("command", { automatic: false, resetCommandRetryCount: true });
       return;
     }
 
@@ -871,6 +1150,13 @@
       kicker: "Text command",
       headline: "One second.",
       description: "I’m working through that now.",
+    });
+
+    setAssistantState("thinking", {
+      pill: "Thinking",
+      kicker: "Text command",
+      headline: "One second.",
+      description: "I'm working through that now.",
     });
 
     try {
@@ -973,16 +1259,13 @@
       state.currentRequestController.abort();
       state.currentRequestController = null;
     }
+    clearRecognitionStartTimer();
     stopRecognition();
     stopSpeech();
     addActivity("Interrupted", "The current assistant action was stopped.", "warn");
     if (state.wakeModeEnabled) {
       setIdleState();
-      window.setTimeout(() => {
-        if (state.wakeModeEnabled && !state.recognitionActive && !state.busy && !state.speaking) {
-          startRecognitionSession("wake", { automatic: true });
-        }
-      }, 250);
+      resumeWakeStandby({ reason: "interrupt" });
       return;
     }
     setIdleState();
@@ -1049,7 +1332,7 @@
 
     if (resumeWakeAfter) {
       setIdleState();
-      resumeWakeStandby();
+      resumeWakeStandby({ reason: "speech_complete" });
     }
   }
 
@@ -1064,7 +1347,7 @@
       description: safeMessage,
     });
     updateWakeBanner(safeMessage);
-    resumeWakeStandby();
+    resumeWakeStandby({ reason: "assistant_failure" });
   }
 
   function setIdleState() {
@@ -1081,15 +1364,16 @@
     updateWakeBanner(currentWakeBanner());
   }
 
-  function resumeWakeStandby() {
+  function resumeWakeStandby({ delayMs = WAKE_RESUME_DELAY_MS, reason = "resume_wake" } = {}) {
     if (!state.wakeModeEnabled || state.recognitionActive || state.busy || state.speaking) {
       return;
     }
-    window.setTimeout(() => {
-      if (state.wakeModeEnabled && !state.recognitionActive && !state.busy && !state.speaking) {
-        startRecognitionSession("wake", { automatic: true });
-      }
-    }, 250);
+    scheduleRecognitionStart("wake", {
+      delayMs,
+      automatic: true,
+      resetCommandRetryCount: false,
+      reason,
+    });
   }
 
   function setAssistantState(stateName, copy) {
@@ -1302,6 +1586,132 @@
     }
 
     return cleaned;
+  }
+
+  function setIdleState() {
+    const wakePhrase = preferredWakePhrase();
+    const wakeEnabled = state.wakeModeEnabled;
+    setAssistantState("idle", {
+      pill: wakeEnabled ? "Standby" : "Idle",
+      kicker: wakeEnabled ? "Standby" : "Idle",
+      headline: wakeEnabled ? "Wake mode is on." : "Ready when you are.",
+      description: wakeEnabled
+        ? `Say "${wakePhrase}" while this page stays open.`
+        : "Use Wake mode, Talk, or the text command field when you want me.",
+    });
+    updateWakeBanner(currentWakeBanner());
+  }
+
+  function currentWakeBanner() {
+    if (!state.recognition) {
+      return "Browser wake mode is not available here. Text commands still work.";
+    }
+    if (!isVoiceAllowedHere()) {
+      return "Wake mode needs localhost or HTTPS in this browser.";
+    }
+    if (state.wakeModeEnabled) {
+      return `Wake mode is on. Say "${preferredWakePhrase()}" while this page stays open.`;
+    }
+    if (state.auth?.authenticated) {
+      return `Wake mode is available. Tap Wake mode once if the browser still needs microphone permission, then say "${preferredWakePhrase()}".`;
+    }
+    return publicWakeBanner();
+  }
+
+  function publicWakeBanner() {
+    return `Public mode keeps text and one-tap Talk available now. Sign in if you want always-ready wake mode around "${preferredWakePhrase()}".`;
+  }
+
+  function normalizeWakeText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^\w\s]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function buildWakeVariants(phrase) {
+    const normalized = normalizeWakeText(phrase);
+    if (!normalized) {
+      return [];
+    }
+
+    const variants = new Set([normalized]);
+    const [first, second] = normalized.split(" ");
+    if (first && second) {
+      const firstOptions = first === "hey" ? ["hey", "hi", "heya"] : [first];
+      const secondOptions = second === "aura" ? ["aura", "ora"] : [second];
+      firstOptions.forEach((firstVariant) => {
+        secondOptions.forEach((secondVariant) => {
+          variants.add(`${firstVariant} ${secondVariant}`.trim());
+        });
+      });
+    }
+
+    return Array.from(variants);
+  }
+
+  function buildWakePattern(phrase) {
+    const tokens = normalizeWakeText(phrase)
+      .split(" ")
+      .filter(Boolean)
+      .map((token) => escapeRegex(token));
+    if (!tokens.length) {
+      return null;
+    }
+    return new RegExp(`^\\s*(?:[\\s,.;:!?-])*${tokens.join("[\\s,.;:!?-]+")}(?:[\\s,.;:!?-]+|$)`, "i");
+  }
+
+  function detectWakePhrase(transcript) {
+    const original = String(transcript || "").trim();
+    const wakeWords = state.voiceStatus?.settings?.wake_words || [WAKE_FALLBACK];
+
+    for (const wakeWord of wakeWords) {
+      for (const variant of buildWakeVariants(wakeWord)) {
+        const pattern = buildWakePattern(variant);
+        if (!pattern) {
+          continue;
+        }
+        if (pattern.test(original)) {
+          return {
+            detected: true,
+            wakeWord: normalizeWakeText(wakeWord),
+            variant,
+            remainingText: original.replace(pattern, "").trim(),
+          };
+        }
+      }
+    }
+
+    return {
+      detected: false,
+      wakeWord: null,
+      variant: null,
+      remainingText: original,
+    };
+  }
+
+  function scheduleRefresh() {
+    window.setInterval(() => {
+      if (state.refreshInFlight || state.busy || state.recognitionActive || state.speaking) {
+        return;
+      }
+      void refreshStatus({ quiet: true });
+    }, REFRESH_INTERVAL_MS);
+  }
+
+  function handleAssistantFailure(message) {
+    const safeMessage = normalizeAssistantText(message || FALLBACK_REPLY) || FALLBACK_REPLY;
+    updateLiveResponse(safeMessage, { provider: "degraded", mode: "fallback" });
+    addActivity("Assistant issue", safeMessage, "error");
+    setAssistantState("error", {
+      pill: "Error",
+      kicker: "Assistant issue",
+      headline: "I couldn't complete that cleanly.",
+      description: safeMessage,
+    });
+    updateWakeBanner(safeMessage);
+    resumeWakeStandby({ reason: "assistant_failure" });
   }
 
   function formatTime(date) {

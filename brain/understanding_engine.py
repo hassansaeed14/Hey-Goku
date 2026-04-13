@@ -119,12 +119,6 @@ def expand_short_forms(text: str) -> str:
 
 def strip_conversation_fillers(text: str) -> str:
     patterns = [
-        r"^\s*hi\s+",
-        r"^\s*hey\s+",
-        r"^\s*hello\s+",
-        r"^\s*hi aura\s+",
-        r"^\s*hey aura\s+",
-        r"^\s*hello aura\s+",
         r"^\s*no\s+i\s+mean\s+",
         r"^\s*i\s+mean\s+",
     ]

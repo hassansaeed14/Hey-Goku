@@ -1,6 +1,6 @@
 {
   "default": {
-    "active_topic": "how are you?",
+    "active_topic": "how are you",
     "active_file": null,
     "active_url": null,
     "last_agent": "currency",
@@ -10,7 +10,6 @@
     "current_mode": "smart",
     "unresolved_follow_up": null,
     "recent_references": [
-      "what roles did Pakistan play for solving the",
       "what roles did pakistan played for solving the war between america and iran?",
       "Suppose a large ship is sinking in the middle of the ocean. There is only one lifeboat, and it can only hold ten people, but there are eleven people on the ship",
       "Ten of the passengers are healthy, productive members of society. The eleventh person is a world-renowned doctor who is currently unconscious and requires immediate medical attention to survive, but they possess the knowledge to cure a disease currently affecting thousands",
@@ -19,7 +18,6 @@
       "Jarvis",
       "Facebook",
       "give me explanation",
-      "what is AI",
       "aura",
       "What is wrong with my setup?",
       "what did we talk about before this",
@@ -33,8 +31,10 @@
       "What is artificial intelligence?",
       "what is new at the world",
       "what is artificial intelligence",
-      "how are you?"
+      "how are you?",
+      "what is AI",
+      "how are you"
     ],
-    "updated_at": "2026-04-11 19:41:30"
+    "updated_at": "2026-04-12 18:12:51"
   }
 }

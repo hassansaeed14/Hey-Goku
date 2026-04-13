@@ -132,7 +132,7 @@
         "preferences": {}
     },
     "topic_frequency": {
-        "general": 79,
+        "general": 80,
         "news": 1,
         "memory": 12,
         "greeting": 10,
@@ -141,7 +141,7 @@
         "dictionary": 2,
         "screenshot": 1,
         "code": 13,
-        "currency": 14,
+        "currency": 15,
         "study": 1
     },
     "interaction_history": [
@@ -1138,10 +1138,24 @@
             "input": "how are you?",
             "response": "I am not aware of the current exchange rate for HOW to ARE. Could you please provide more information about these currencies, such as their full names or the countries that use them. I will do my best",
             "length_type": "short"
+        },
+        {
+            "time": "2026-04-12 18:07",
+            "intent": "general",
+            "input": "what is AI",
+            "response": "Sir, artificial intelligence refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-12 18:12",
+            "intent": "currency",
+            "input": "how are you",
+            "response": "I am not able to convert 1.0 HOW to ARE as I do not have information on these currency codes. Can you please provide more context or information about the HOW and ARE currencies.",
+            "length_type": "short"
         }
     ],
     "behavior_stats": {
-        "short_queries": 89,
+        "short_queries": 91,
         "medium_queries": 48,
         "long_queries": 5
     },
@@ -1709,10 +1723,18 @@
         [
             "greeting",
             "currency"
+        ],
+        [
+            "currency",
+            "general"
+        ],
+        [
+            "general",
+            "currency"
         ]
     ],
     "intent_weights": {
-        "general": 158,
+        "general": 160,
         "news": 2,
         "memory": 24,
         "greeting": 20,
@@ -1721,8 +1743,8 @@
         "dictionary": 4,
         "screenshot": 2,
         "code": 26,
-        "currency": 28,
+        "currency": 30,
         "study": 2
     },
-    "last_seen": "2026-04-11 19:41"
+    "last_seen": "2026-04-12 18:12"
 }
