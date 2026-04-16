@@ -1379,5 +1379,215 @@
       ],
       "timestamp": "2026-04-11 18:12:04"
     }
+  },
+  {
+    "id": "mem_20260413112954053384",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-13 11:29:54"
+    }
+  },
+  {
+    "id": "mem_20260413113543699223",
+    "text": "yes",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-13 11:35:43"
+    }
+  },
+  {
+    "id": "mem_20260413113618916842",
+    "text": "what is artificial intelligence",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-13 11:36:18"
+    }
+  },
+  {
+    "id": "mem_20260413113659078326",
+    "text": "explain in detail",
+    "metadata": {
+      "type": "user_input",
+      "intent": "study",
+      "confidence": 0.2,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-13 11:36:59"
+    }
+  },
+  {
+    "id": "mem_20260413114209987684",
+    "text": "how is your developer",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-13 11:42:09"
+    }
+  },
+  {
+    "id": "mem_20260414094917103607",
+    "text": "headphones",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 09:49:17"
+    }
+  },
+  {
+    "id": "mem_20260414105147482386",
+    "text": "what is AI?",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 10:51:47"
+    }
+  },
+  {
+    "id": "mem_20260414105531904708",
+    "text": "tell me about yourself",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 10:55:31"
+    }
+  },
+  {
+    "id": "mem_20260414105624156385",
+    "text": "resd full",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 10:56:24"
+    }
+  },
+  {
+    "id": "mem_20260414105649231213",
+    "text": "read read full",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 10:56:49"
+    }
+  },
+  {
+    "id": "mem_20260414105724676055",
+    "text": "tell me about iran and israel conflicts",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 10:57:24"
+    }
+  },
+  {
+    "id": "mem_20260414105941051215",
+    "text": "what is new about their conflict",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-14 10:59:41"
+    }
+  },
+  {
+    "id": "mem_20260415113224167953",
+    "text": "how to impress a girl",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-15 11:32:24"
+    }
+  },
+  {
+    "id": "mem_20260416121457303627",
+    "text": "what is NLP",
+    "metadata": {
+      "type": "user_input",
+      "intent": "general",
+      "confidence": 0.0,
+      "used_agents": [],
+      "execution_mode": "fallback_llm",
+      "plan_steps": [
+        "Step 1: general -> respond [ready]"
+      ],
+      "timestamp": "2026-04-16 12:14:57"
+    }
   }
 ]

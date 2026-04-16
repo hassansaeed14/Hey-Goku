@@ -686,6 +686,91 @@
             "time": "2026-04-11 18:12",
             "command": "what is artificial intelligence",
             "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 10:43",
+            "command": "what is Artifical intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 10:44",
+            "command": "how is your developer",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 11:27",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 11:29",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 11:35",
+            "command": "yes",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 11:36",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-13 11:36",
+            "command": "explain in detail",
+            "confidence": 0.2
+        },
+        {
+            "time": "2026-04-13 11:42",
+            "command": "how is your developer",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 09:49",
+            "command": "headphones",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 10:50",
+            "command": "what is AI?",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 10:54",
+            "command": "tell me about yourself",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 10:55",
+            "command": "resd full",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 10:56",
+            "command": "read read full",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 10:57",
+            "command": "tell me about iran and israel conflicts",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-14 10:59",
+            "command": "what is new about their conflict",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-15 11:32",
+            "command": "how to impress a girl",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-16 12:14",
+            "command": "what is NLP",
+            "confidence": 0.0
         }
     ],
     "agent_errors": [],
@@ -2272,6 +2357,159 @@
             "time": "2026-04-11 19:41",
             "requested_action": "currency",
             "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:29",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:35",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:36",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:37",
+            "requested_action": "general",
+            "actual_action": "study",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:38",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:42",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 11:46",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-13 13:46",
+            "requested_action": "dictionary",
+            "actual_action": "dictionary",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 09:49",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 10:51",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 10:55",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 10:56",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 10:56",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 10:57",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-14 10:59",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-15 11:32",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-16 12:14",
+            "requested_action": "general",
+            "actual_action": "general",
             "success": true,
             "blocked_by_permission": false,
             "retry_possible": false,

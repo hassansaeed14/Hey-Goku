@@ -1,4 +1,4 @@
-from brain.core_ai import process_command
+import brain.core_ai
 from config.settings import APP_NAME, VERSION
 from voice.text_to_speech import speak, stop_speaking
 from voice.speech_to_text import listen
@@ -43,7 +43,7 @@ if app is not None:
                 raise ValueError("message is required")
 
             routed_agent, _confidence = orchestrator.route(message)
-            intent, response = process_command(message)
+            intent, response = brain.core_ai.process_command(message)
             response = orchestrator.process_response(response, intent, learn=False)
 
             reply_payload = {
@@ -182,7 +182,7 @@ def start_goku():
             routed_intent, confidence = orchestrator.route(user_input)
 
             # Core AI processing
-            intent, response = process_command(user_input)
+            intent, response = brain.core_ai.process_command(user_input)
 
             # Orchestrator post-processing
             response = orchestrator.process_response(response, intent, learn=False)

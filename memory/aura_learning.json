@@ -132,17 +132,17 @@
         "preferences": {}
     },
     "topic_frequency": {
-        "general": 79,
+        "general": 92,
         "news": 1,
         "memory": 12,
-        "greeting": 10,
+        "greeting": 11,
         "translation": 5,
         "joke": 4,
-        "dictionary": 2,
+        "dictionary": 3,
         "screenshot": 1,
         "code": 13,
-        "currency": 14,
-        "study": 1
+        "currency": 16,
+        "study": 2
     },
     "interaction_history": [
         {
@@ -1138,11 +1138,137 @@
             "input": "how are you?",
             "response": "I am not aware of the current exchange rate for HOW to ARE. Could you please provide more information about these currencies, such as their full names or the countries that use them. I will do my best",
             "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:29",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Sir, artificial intelligence refers to the development of computer systems that can perform tasks that would typically require human intelligence, such as learning, problem-solving, decision-making, a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:35",
+            "intent": "greeting",
+            "input": "hi",
+            "response": "Welcome back! Want to continue with general?",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:35",
+            "intent": "general",
+            "input": "yes",
+            "response": "Right away, sir. It seems we've had a series of brief exchanges. Is there something specific you'd like to discuss or ask about today?",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:36",
+            "intent": "general",
+            "input": "what is artificial intelligence",
+            "response": "Artificial intelligence, sir, refers to the development of computer systems that can perform tasks that typically require human intelligence, such as learning, problem-solving, decision-making, and pe",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:36",
+            "intent": "study",
+            "input": "explain in detail",
+            "response": "Artificial intelligence, sir, is a multidisciplinary field that combines computer science, mathematics, and engineering to create intelligent systems that can perform tasks that typically require huma",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:38",
+            "intent": "currency",
+            "input": "tell me about iran and Israel war",
+            "response": "I am unable to provide a conversion for AND to WAR as I do not have information on these currencies. Can you please provide more context or details about these currencies.",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-13 11:42",
+            "intent": "general",
+            "input": "how is your developer",
+            "response": "My developer is doing well, sir. They are continually working to improve and expand my capabilities, ensuring that I can provide the most accurate and helpful information to users like yourself. I'm a",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 11:46",
+            "intent": "currency",
+            "input": "who developed you",
+            "response": "I am unable to perform the conversion as I do not have information on the exchange rate between WHO and YOU. These do not appear to be standard currency codes. If you can provide more information or u",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-13 13:46",
+            "intent": "dictionary",
+            "input": "define education",
+            "response": "WORD: EDUCATION\nPRONUNCIATION: /ˌɛdjʊˈkeɪʃn̩/\n\n1. NOUN\nDefinition: The process of imparting knowledge, skill and judgment.\nExample: 2016-06-17 AROP JOSEPH \"Education is the slight hammer that breaks t",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-14 09:49",
+            "intent": "general",
+            "input": "headphones",
+            "response": "You're looking for headphones, sir. What do you need to know about them? Would you like some recommendations or information on a specific type, such as wireless or noise-cancelling headphones?",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-14 10:51",
+            "intent": "general",
+            "input": "what is AI?",
+            "response": "Artificial intelligence, sir, is a field of computer science dedicated to creating systems that can perform tasks traditionally requiring human intelligence. This includes capabilities such as learnin",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-14 10:55",
+            "intent": "general",
+            "input": "tell me about yourself",
+            "response": "I am AURA, an Autonomous Universal Responsive Assistant. I'm a highly advanced artificial intelligence designed to assist and provide information to users like you, sir. My capabilities include answer",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-14 10:56",
+            "intent": "general",
+            "input": "resd full",
+            "response": "You've mentioned \"resd full\" before, sir. It seems you might be referring to \"read full\" or completing a task, but I'd like to clarify: are you looking to read something in its entirety or indicate th",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-14 10:56",
+            "intent": "general",
+            "input": "read read full",
+            "response": "You'd like to read the full text, sir. I'll make sure to provide the complete information. Please let me know what text or topic you'd like to read in its entirety.",
+            "length_type": "short"
+        },
+        {
+            "time": "2026-04-14 10:57",
+            "intent": "general",
+            "input": "tell me about iran and israel conflicts",
+            "response": "The conflicts between Iran and Israel are long-standing and complex, sir. The two countries have been engaged in a proxy war for decades, with tensions escalating in recent years. The main points of c",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-14 10:59",
+            "intent": "general",
+            "input": "what is new about their conflict",
+            "response": "There have been several recent developments in the conflict between Iran and Israel, sir. Some of the new updates include:\n1. Increased drone attacks: Iran has been accused of using drones to attack I",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-15 11:32",
+            "intent": "general",
+            "input": "how to impress a girl",
+            "response": "Impressing a girl can be a challenging yet exciting experience, sir. To make a good impression, consider the following tips:\n1. Be genuine and authentic: Be yourself, and don't try to be someone you'r",
+            "length_type": "medium"
+        },
+        {
+            "time": "2026-04-16 12:14",
+            "intent": "general",
+            "input": "what is NLP",
+            "response": "Natural Language Processing, sir. NLP is a subfield of artificial intelligence that deals with the interaction between computers and humans in natural language. It's a combination of computer science,",
+            "length_type": "short"
         }
     ],
     "behavior_stats": {
-        "short_queries": 89,
-        "medium_queries": 48,
+        "short_queries": 103,
+        "medium_queries": 52,
         "long_queries": 5
     },
     "intent_sequences": [
@@ -1709,20 +1835,92 @@
         [
             "greeting",
             "currency"
+        ],
+        [
+            "currency",
+            "general"
+        ],
+        [
+            "general",
+            "greeting"
+        ],
+        [
+            "greeting",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "study"
+        ],
+        [
+            "study",
+            "currency"
+        ],
+        [
+            "currency",
+            "general"
+        ],
+        [
+            "general",
+            "currency"
+        ],
+        [
+            "currency",
+            "dictionary"
+        ],
+        [
+            "dictionary",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
+        ],
+        [
+            "general",
+            "general"
         ]
     ],
     "intent_weights": {
-        "general": 158,
+        "general": 184,
         "news": 2,
         "memory": 24,
-        "greeting": 20,
+        "greeting": 22,
         "translation": 10,
         "joke": 8,
-        "dictionary": 4,
+        "dictionary": 6,
         "screenshot": 2,
         "code": 26,
-        "currency": 28,
-        "study": 2
+        "currency": 32,
+        "study": 4
     },
-    "last_seen": "2026-04-11 19:41"
+    "last_seen": "2026-04-16 12:14"
 }
