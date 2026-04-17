@@ -94,6 +94,18 @@ SIMPLE_EXPLANATION_MARKERS = (
     "overview",
 )
 
+DOCUMENT_NOTES_PROMPT = (
+    "Create clear study notes. Use a short title, then concise headings with bullet points. "
+    "Keep the content organized, accurate, and easy to revise from. "
+    "Do not write like a chat reply and do not include filler."
+)
+
+DOCUMENT_ASSIGNMENT_PROMPT = (
+    "Write a structured academic-style assignment in plain readable language. "
+    "Include an introduction, clear section headings, explanatory paragraphs, and a conclusion. "
+    "Do not use robotic filler or chatty phrases."
+)
+
 JARVIS_SYSTEM_PROMPT = """
 You are AURA - Autonomous Universal Responsive Assistant.
 You are a real AI assistant, not a chatbot.
@@ -106,8 +118,8 @@ You speak with quiet confidence.
 You are proactive - you think ahead of the user.
 
 HOW YOU ADDRESS THE USER:
-Call the user "sir" by default.
-If they have set a preferred name use it.
+Do not use honorifics like "sir" by default.
+Only use a preferred name or title if the user clearly asked for it and it genuinely helps.
 Be warm but professional.
 Never be sycophantic.
 
@@ -248,6 +260,9 @@ def infer_explanation_mode(user_input: str) -> str:
     if any(marker in normalized for marker in COMPARISON_MARKERS):
         return "comparison"
 
+    if " simply" in normalized or normalized.endswith("simple") or normalized.endswith("simply"):
+        return "simple"
+
     if any(marker in normalized for marker in DEEP_EXPLANATION_MARKERS):
         return "deep"
 
@@ -268,15 +283,16 @@ def build_explanation_guidance(user_input: str, *, web_used: bool = False) -> Di
             "Do not drift into a long preamble."
         ),
         "simple": (
-            "Start with the answer, then give a short clear explanation. "
-            "Use plain language and keep the structure easy to follow."
+            "Start with the answer, then give a short clear explanation in plain language. "
+            "Keep it to a few short sentences unless the user asks for depth."
         ),
         "deep": (
             "Start with the answer, then explain the reasoning in a few clear parts. "
-            "Prefer a short breakdown over a dense paragraph."
+            "Prefer a short breakdown with visible steps over one dense paragraph."
         ),
         "comparison": (
-            "Answer with a crisp comparison. Lead with the key difference, then cover the most important tradeoffs."
+            "Answer with a crisp comparison. Lead with the key difference, then cover the most important tradeoffs. "
+            "Keep it focused on best fit, performance, safety, and ease of use."
         ),
     }
     guidance = instructions.get(mode, instructions["direct"])
@@ -367,23 +383,386 @@ def build_local_web_summary(search_result: Dict[str, Any], user_input: str = "")
     )
 
     if abstract:
-        opening = f"Based on the current web result, {abstract}" if time_sensitive else abstract
+        opening = f"Right now, {abstract}" if time_sensitive else abstract
         opening = opening.rstrip(".") + "."
         if related_topics:
-            return f"{opening} The main angles showing up are {', '.join(related_topics)}."
+            return f"{opening} Other useful details: {', '.join(related_topics)}."
         return opening
 
     if heading:
         summary = (
-            f"The live result centers on {heading}."
+            f"Right now, the live result centers on {heading}."
             if time_sensitive
             else f"The result centers on {heading}."
         )
         if related_topics:
-            return f"{summary} Useful related points include {', '.join(related_topics)}."
+            return f"{summary} Other useful details: {', '.join(related_topics)}."
         return summary
 
     return build_degraded_reply(user_input, providers_tried=[])
+
+
+def _build_local_notes_content(topic: str) -> str:
+    title_topic = topic.title()
+    return clean_response(
+        f"""Overview
+- {title_topic} refers to an important concept area that should be understood through definition, structure, uses, and limits.
+- A strong set of notes should focus on what it is, how it works, where it is used, and why it matters.
+
+Core Ideas
+- Define {topic} in simple terms before moving into technical details.
+- Break the topic into its main components, process, or stages.
+- Highlight the key terms a student should remember for exams, assignments, or discussion.
+
+How It Works
+- Explain the basic workflow or mechanism behind {topic}.
+- Show how the main parts connect to produce a result.
+- Mention the conditions, inputs, or assumptions that make the topic work well.
+
+Applications
+- Identify common real-world uses of {topic}.
+- Connect the topic to industry, education, research, or everyday technology where relevant.
+- Note why the topic is valuable in practical settings.
+
+Advantages
+- Summarize the main benefits, strengths, or reasons the topic is useful.
+- Point out where it improves speed, quality, accuracy, understanding, or decision-making.
+
+Limitations
+- Mention the main weaknesses, risks, costs, or challenges related to {topic}.
+- Note that good understanding includes both benefits and constraints.
+
+Quick Summary
+- {title_topic} is best understood by combining definition, mechanism, applications, strengths, and limitations.
+- For revision, remember the core concept first, then the real-world uses and tradeoffs."""
+    )
+
+
+def _normalize_assignment_page_target(page_target: Optional[int]) -> Optional[int]:
+    if page_target is None:
+        return None
+    try:
+        return max(1, min(int(page_target), 12))
+    except Exception:
+        return None
+
+
+def _build_assignment_depth_profile(page_target: Optional[int]) -> Dict[str, Any]:
+    normalized_pages = _normalize_assignment_page_target(page_target)
+    if normalized_pages and normalized_pages >= 10:
+        return {
+            "band": "extended",
+            "paragraph_range": "3 to 4",
+            "max_tokens": 760,
+            "temperature": 0.35,
+            "depth_guidance": (
+                "Use fuller academic depth. Add explanation, evaluation, and concrete implications where they fit, "
+                "but keep the section controlled and readable."
+            ),
+            "local_depth_sentences": [
+                "A stronger long-form section should move beyond definition into interpretation, evidence, and practical significance.",
+                "It should also connect this discussion to the broader assignment so the reader sees how the section supports the overall argument.",
+            ],
+        }
+    if normalized_pages and normalized_pages >= 7:
+        return {
+            "band": "expanded",
+            "paragraph_range": "2 to 3",
+            "max_tokens": 620,
+            "temperature": 0.34,
+            "depth_guidance": (
+                "Use clear academic depth with a little more explanation than a short assignment. "
+                "Include at least one concrete implication, example, or evaluative point where it helps."
+            ),
+            "local_depth_sentences": [
+                "In a mid-length assignment, this section should do more than define the idea; it should also explain why it matters in context.",
+            ],
+        }
+    return {
+        "band": "compact",
+        "paragraph_range": "1 to 2",
+        "max_tokens": 480,
+        "temperature": 0.33,
+        "depth_guidance": (
+            "Keep the section concise and focused. Explain the essential point clearly without padding it into a long discussion."
+        ),
+        "local_depth_sentences": [],
+    }
+
+
+def _build_assignment_section_plan(topic: str, page_target: Optional[int] = None) -> List[Dict[str, str]]:
+    _ = topic
+    normalized_pages = _normalize_assignment_page_target(page_target)
+    sections: List[Dict[str, str]] = [
+        {"title": "Introduction", "purpose": "Introduce the topic, its importance, and the direction of the assignment."},
+        {"title": "Background and Context", "purpose": "Explain the context, origins, or broader field around the topic."},
+        {"title": "Core Concepts", "purpose": "Define the main ideas, terms, and foundational concepts clearly."},
+        {"title": "How It Works", "purpose": "Explain the process, structure, or mechanism step by step."},
+        {"title": "Applications", "purpose": "Describe real-world uses, adoption areas, or practical relevance."},
+        {"title": "Advantages and Importance", "purpose": "Explain the main strengths, benefits, and academic importance."},
+        {"title": "Challenges and Limitations", "purpose": "Present key limitations, risks, costs, or implementation barriers."},
+    ]
+
+    if normalized_pages and normalized_pages >= 4:
+        sections.insert(2, {"title": "Historical Development", "purpose": "Summarize how the topic developed or evolved over time."})
+        sections.append({"title": "Case Studies and Practical Examples", "purpose": "Add concrete examples or realistic use cases that ground the discussion."})
+
+    if normalized_pages and normalized_pages >= 7:
+        sections.append({"title": "Ethical and Social Impact", "purpose": "Discuss wider effects on people, society, fairness, safety, or policy."})
+        sections.append({"title": "Future Scope and Trends", "purpose": "Explain likely future directions, open problems, and upcoming developments."})
+
+    if normalized_pages and normalized_pages >= 10:
+        sections.append({"title": "Implementation Considerations", "purpose": "Discuss resources, infrastructure, skills, cost, and deployment considerations."})
+        sections.append({"title": "Comparative Perspective", "purpose": "Compare the topic with related methods, systems, or alternatives."})
+
+    sections.append({"title": "Conclusion", "purpose": "Conclude the assignment by restating the central idea and final significance."})
+    return sections
+
+
+def _build_local_assignment_section_body(topic: str, section_title: str, page_target: Optional[int] = None) -> str:
+    title_topic = topic.title()
+    normalized_title = str(section_title or "").strip().lower()
+    depth_profile = _build_assignment_depth_profile(page_target)
+    page_hint = (
+        f" This section is part of a longer assignment target of about {page_target} pages, so it is written with extra depth in mind."
+        if page_target
+        else ""
+    )
+
+    templates = {
+        "introduction": (
+            f"{title_topic} is an important subject because it connects theory with practical use in modern learning, technology, and decision-making. "
+            f"A strong introduction should explain why {topic} matters, what the reader should understand by the end, and how the discussion will unfold.{page_hint}"
+        ),
+        "background and context": (
+            f"The background of {topic} is best understood by examining the broader problem it addresses and the field in which it developed. "
+            f"This context helps the reader see why {title_topic} became important and how it relates to earlier ideas, systems, or methods.{page_hint}"
+        ),
+        "historical development": (
+            f"The development of {topic} can be traced through key stages of research, experimentation, and practical adoption. "
+            f"Discussing this progression makes the assignment stronger because it shows how the topic matured over time rather than appearing as an isolated concept.{page_hint}"
+        ),
+        "core concepts": (
+            f"The core concepts of {topic} include its main definitions, components, and operating principles. "
+            f"This section should make the foundational ideas clear enough that later sections on applications and challenges are easy to follow.{page_hint}"
+        ),
+        "how it works": (
+            f"To explain how {topic} works, it is useful to describe the process in a logical sequence, beginning with inputs or assumptions and then moving through the main stages. "
+            f"That step-by-step explanation helps connect the theory behind {title_topic} to its practical outcome.{page_hint}"
+        ),
+        "applications": (
+            f"One of the strongest reasons to study {topic} is its practical use in real settings such as education, research, business, engineering, or software systems. "
+            f"Examples of application show how {title_topic} produces value beyond classroom theory.{page_hint}"
+        ),
+        "advantages and importance": (
+            f"The importance of {topic} comes from the benefits it provides, such as clearer problem-solving, improved efficiency, stronger analysis, or more advanced automation. "
+            f"A balanced assignment should show not only what {title_topic} is, but also why it has become important in academic and professional environments.{page_hint}"
+        ),
+        "challenges and limitations": (
+            f"No topic is complete without a discussion of its limits. "
+            f"{title_topic} may involve cost, complexity, resource requirements, implementation barriers, or risks that affect its adoption and performance.{page_hint}"
+        ),
+        "case studies and practical examples": (
+            f"Case studies and practical examples make the discussion of {topic} more concrete by showing how the ideas operate in realistic situations. "
+            f"They also help the reader move from abstract explanation to practical understanding.{page_hint}"
+        ),
+        "ethical and social impact": (
+            f"The ethical and social impact of {topic} should be addressed carefully, especially where fairness, privacy, safety, access, or misuse may be involved. "
+            f"This section strengthens the assignment by showing awareness of consequences beyond technical success.{page_hint}"
+        ),
+        "future scope and trends": (
+            f"The future of {topic} can be discussed in terms of likely improvements, open research problems, and broader adoption trends. "
+            f"Looking ahead helps position {title_topic} as a developing field rather than a finished idea.{page_hint}"
+        ),
+        "implementation considerations": (
+            f"Implementation considerations include the resources, skills, infrastructure, cost, and maintenance requirements needed to apply {topic} effectively. "
+            f"This section is especially valuable in a longer assignment because it connects theory with real deployment constraints.{page_hint}"
+        ),
+        "comparative perspective": (
+            f"A comparative perspective helps the reader understand {topic} more clearly by setting it beside related methods, approaches, or alternatives. "
+            f"This creates a sharper academic evaluation of where {title_topic} is strongest and where other options may perform better.{page_hint}"
+        ),
+        "conclusion": (
+            f"In conclusion, {title_topic} should be understood through its background, core concepts, practical applications, benefits, and limitations. "
+            f"A strong conclusion restates the central idea and explains why the topic remains relevant for future study and use.{page_hint}"
+        ),
+    }
+    base_paragraph = templates.get(
+        normalized_title,
+        f"{title_topic} can be explained clearly by relating this section to the broader meaning, use, and significance of {topic}.{page_hint}",
+    )
+    supporting_paragraphs = list(depth_profile.get("local_depth_sentences") or [])
+    if not supporting_paragraphs:
+        return base_paragraph
+    return "\n\n".join([base_paragraph, *supporting_paragraphs])
+
+
+def _build_local_assignment_content(topic: str, page_target: Optional[int] = None) -> str:
+    section_blocks = []
+    for section in _build_assignment_section_plan(topic, page_target):
+        section_blocks.append(
+            f"{section['title']}\n{_build_local_assignment_section_body(topic, section['title'], page_target)}"
+        )
+    return clean_response("\n\n".join(section_blocks))
+
+
+def _build_assignment_section_prompt(topic: str, section_title: str, section_purpose: str, page_target: Optional[int]) -> str:
+    depth_profile = _build_assignment_depth_profile(page_target)
+    page_hint = (
+        f"The full assignment should feel deep enough for about {page_target} pages, so write this section with solid academic depth."
+        if page_target
+        else "Write this section with clear academic depth."
+    )
+    return (
+        f"Write only the '{section_title}' section for an assignment on {topic}. "
+        f"Purpose: {section_purpose} "
+        f"{page_hint} "
+        f"{depth_profile['depth_guidance']} "
+        f"Start with the exact heading '{section_title}' on its own line, then provide {depth_profile['paragraph_range']} coherent paragraphs. "
+        "Do not add other section headings."
+    )
+
+
+def _normalize_assignment_section_output(section_title: str, content: str) -> str:
+    cleaned = clean_response(content)
+    if not cleaned:
+        return ""
+    first_line = cleaned.splitlines()[0].strip().lower()
+    if first_line == section_title.strip().lower():
+        return cleaned
+    return f"{section_title}\n{cleaned}"
+
+
+def _generate_assignment_chunked_content_payload(topic: str, page_target: Optional[int]) -> Dict[str, Any]:
+    normalized_pages = _normalize_assignment_page_target(page_target)
+    depth_profile = _build_assignment_depth_profile(normalized_pages)
+    section_plan = _build_assignment_section_plan(topic, normalized_pages)
+    combined_sections: List[str] = []
+    providers_tried: List[Any] = []
+    provider_name: Optional[str] = None
+    provider_model: Optional[str] = None
+    used_provider = False
+    degraded = False
+
+    for section in section_plan:
+        payload = generate_response_payload(
+            _build_assignment_section_prompt(topic, section["title"], section["purpose"], normalized_pages),
+            system_override=DOCUMENT_ASSIGNMENT_PROMPT,
+            max_tokens=int(depth_profile["max_tokens"]),
+            temperature=float(depth_profile["temperature"]),
+        )
+        providers_tried.extend(list(payload.get("providers_tried") or []))
+        content = _normalize_assignment_section_output(section["title"], str(payload.get("content") or ""))
+        if payload.get("success") and is_meaningful_text(content):
+            combined_sections.append(content)
+            used_provider = True
+            if provider_name is None:
+                provider_name = payload.get("provider")
+                provider_model = payload.get("model")
+            continue
+
+        degraded = True
+        combined_sections.append(
+            f"{section['title']}\n{_build_local_assignment_section_body(topic, section['title'], normalized_pages)}"
+        )
+
+    source = "provider_chunked"
+    if degraded and used_provider:
+        source = "mixed_chunked"
+    elif not used_provider:
+        source = "local_template"
+
+    return {
+        "success": True,
+        "content": clean_response("\n\n".join(combined_sections)),
+        "provider": provider_name if used_provider else "local",
+        "model": provider_model if used_provider else "template",
+        "source": source,
+        "degraded": degraded or not used_provider,
+        "providers_tried": providers_tried,
+        "error": None if used_provider else "Provider content was unavailable for chunked assignment generation.",
+    }
+
+
+def _build_document_generation_prompt(document_type: str, topic: str, page_target: Optional[int]) -> str:
+    if document_type == "notes":
+        return f"Create structured notes on {topic}."
+    page_hint = f" Aim for enough detail to support about {page_target} pages." if page_target else ""
+    return f"Write a structured assignment on {topic}.{page_hint}"
+
+
+def generate_document_content_payload(
+    document_type: str,
+    topic: str,
+    *,
+    page_target: Optional[int] = None,
+) -> Dict[str, Any]:
+    normalized_type = str(document_type or "").strip().lower()
+    normalized_topic = str(topic or "").strip()
+    if normalized_type not in {"notes", "assignment"}:
+        return {
+            "success": False,
+            "content": "",
+            "provider": None,
+            "model": None,
+            "source": "invalid_request",
+            "degraded": True,
+            "providers_tried": [],
+            "error": "Unsupported document type.",
+        }
+    if not is_meaningful_text(normalized_topic):
+        return {
+            "success": False,
+            "content": "",
+            "provider": None,
+            "model": None,
+            "source": "invalid_request",
+            "degraded": True,
+            "providers_tried": [],
+            "error": "Topic is required.",
+        }
+
+    normalized_pages = _normalize_assignment_page_target(page_target)
+    if normalized_type == "assignment" and normalized_pages and normalized_pages >= 4:
+        return _generate_assignment_chunked_content_payload(normalized_topic, normalized_pages)
+
+    system_prompt = DOCUMENT_NOTES_PROMPT if normalized_type == "notes" else DOCUMENT_ASSIGNMENT_PROMPT
+    prompt = _build_document_generation_prompt(normalized_type, normalized_topic, page_target)
+    max_tokens = 1500 if normalized_type == "notes" else 2600
+    payload = generate_response_payload(
+        prompt,
+        system_override=system_prompt,
+        max_tokens=max_tokens,
+        temperature=0.4,
+    )
+    content = clean_response(payload.get("content"))
+    if payload.get("success") and is_meaningful_text(content):
+        return {
+            "success": True,
+            "content": content,
+            "provider": payload.get("provider"),
+            "model": payload.get("model"),
+            "source": "provider",
+            "degraded": False,
+            "providers_tried": list(payload.get("providers_tried") or []),
+            "error": None,
+        }
+
+    local_content = (
+        _build_local_notes_content(normalized_topic)
+        if normalized_type == "notes"
+        else _build_local_assignment_content(normalized_topic, page_target)
+    )
+    return {
+        "success": True,
+        "content": local_content,
+        "provider": "local",
+        "model": "template",
+        "source": "local_template",
+        "degraded": True,
+        "providers_tried": list(payload.get("providers_tried") or []),
+        "error": payload.get("error"),
+    }
 
 
 def get_groq_client():
@@ -424,6 +803,73 @@ def _strip_leading_filler(text: str) -> str:
         if updated != cleaned:
             cleaned = updated.strip()
     return cleaned
+
+
+def _strip_direct_address_phrases(text: str) -> str:
+    cleaned = str(text or "").strip()
+    patterns = [
+        r"^(hello|hi|hey)\s+[A-Z][a-z]+(?:\s+from\s+[A-Z][A-Za-z-]+)?[,:\-\s]+",
+        r"^(hello|hi|hey)\s+[A-Z][a-z]+\s+[A-Z][a-z]+[,:\-\s]+",
+        r",\s*(sir|ma'am)\s*,",
+        r",\s*(sir|ma'am)\s*\.",
+        r"\b(sir|ma'am)\b[:\-]?\s+",
+        r"\bto\s+assist\s+[A-Z][a-z]+\b",
+    ]
+    for pattern in patterns:
+        cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+([,.!?])", r"\1", cleaned)
+    return cleaned.strip()
+
+
+def _strip_meta_section_wrappers(text: str) -> str:
+    cleaned = str(text or "").strip()
+    if not cleaned:
+        return cleaned
+
+    lines = [line.strip() for line in cleaned.splitlines()]
+    filtered: List[str] = []
+    inline_patterns = (
+        r"^objective:\s*.*$",
+        r"^introduction\s*$",
+        r"^current knowledge\s*$",
+        r"^current status\s*$",
+        r"^recent updates\s*$",
+        r"^potential sources\s*$",
+        r"^next actions\s*$",
+    )
+    for line in lines:
+        updated = line
+        for pattern in inline_patterns:
+            if re.match(pattern, updated, flags=re.IGNORECASE):
+                updated = ""
+                break
+        if not updated:
+            continue
+        filtered.append(updated)
+
+    result = "\n".join(filtered).strip()
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result.strip()
+
+
+def _apply_mode_length_guard(text: str, user_input: str) -> str:
+    cleaned = str(text or "").strip()
+    mode = infer_explanation_mode(user_input)
+    if mode == "direct" and len(cleaned) > 420:
+        return _trim_to_sentence_count(cleaned, max_sentences=3, max_chars=420)
+    if mode == "simple" and len(cleaned) > 520:
+        return _trim_to_sentence_count(cleaned, max_sentences=4, max_chars=520)
+    if mode == "comparison" and len(cleaned) > 900:
+        return _trim_to_sentence_count(cleaned, max_sentences=6, max_chars=900)
+    return cleaned
+
+
+def _format_inline_numbered_list(text: str) -> str:
+    cleaned = str(text or "").strip()
+    if not cleaned:
+        return cleaned
+    return re.sub(r"\s+(?=\d+\.\s)", "\n", cleaned)
 
 
 def _looks_like_direct_question(user_input: str) -> bool:
@@ -550,6 +996,10 @@ def polish_assistant_reply(text: Optional[str], user_input: str = "") -> str:
     if not cleaned:
         return ""
 
+    cleaned = _strip_direct_address_phrases(cleaned)
+    cleaned = _strip_meta_section_wrappers(cleaned)
+    cleaned = _format_inline_numbered_list(cleaned)
+
     if _looks_like_casual_conversation(user_input):
         cleaned = _strip_leading_filler(cleaned)
         cleaned = _strip_stale_memory_filler(cleaned)
@@ -563,6 +1013,7 @@ def polish_assistant_reply(text: Optional[str], user_input: str = "") -> str:
             cleaned = _strip_repeat_claim_sentences(cleaned)
             cleaned = _strip_stale_memory_filler(cleaned)
 
+    cleaned = _apply_mode_length_guard(cleaned, user_input)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -624,6 +1075,7 @@ def generate_with_fallback(
     messages: List[Dict[str, str]],
     system_prompt: str,
     *,
+    preferred_only: bool = False,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     temperature: float = DEFAULT_TEMPERATURE,
 ) -> Dict[str, Any]:
@@ -634,6 +1086,7 @@ def generate_with_fallback(
     provider_result = generate_with_best_provider(
         normalized_messages,
         preferred=DEFAULT_REASONING_PROVIDER,
+        preferred_only=preferred_only,
         max_tokens=max_tokens,
         temperature=temperature,
     )
@@ -773,6 +1226,7 @@ def generate_response_payload(
     payload = generate_with_fallback(
         provider_messages,
         system_prompt,
+        preferred_only=True,
         max_tokens=max_tokens,
         temperature=temperature,
     )
