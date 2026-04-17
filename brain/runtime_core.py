@@ -30,7 +30,7 @@ from brain.response_engine import (
     is_meaningful_text,
 )
 from brain.telemetry_engine import ProcessingTelemetry, set_last_telemetry
-from brain.intent_engine import detect_intent_with_confidence
+from brain.intent_engine import detect_intent_with_confidence, is_conversational_input
 from brain.understanding_engine import clean_user_input
 
 from config.settings import DEFAULT_REASONING_PROVIDER
@@ -81,6 +81,52 @@ from agents.registry import build_runtime_agent_cards
 
 
 GREETING_INPUTS = {"hi", "hello", "hey", "hey aura", "hi aura", "hello aura"}
+CONVERSATIONAL_INTENTS = {"greeting", "conversation"}
+DIRECT_ASSISTANT_STARTERS = (
+    "what ",
+    "who ",
+    "why ",
+    "how ",
+    "when ",
+    "where ",
+    "is ",
+    "are ",
+    "can ",
+    "could ",
+    "should ",
+    "would ",
+    "do ",
+    "does ",
+    "did ",
+    "tell me",
+    "explain",
+    "write",
+    "make",
+    "create",
+    "show me",
+    "give me",
+    "help me",
+)
+DIRECT_ASSISTANT_TOOL_MARKERS = (
+    "convert ",
+    "translate ",
+    "search ",
+    "google ",
+    "weather",
+    "forecast",
+    "news",
+    "remind me",
+    "task",
+    "todo",
+    "youtube",
+    "screenshot",
+    "open file",
+    "read file",
+    "list files",
+    "compare ",
+    "buy ",
+    "purchase ",
+)
 
 try:
     from memory.vector_memory import store_memory
@@ -475,6 +521,61 @@ def build_enhanced_input(raw_command: str, confidence: float) -> str:
     return enhanced_input
 
 
+def should_prefer_conversational_path(raw_command: str, detected_intent: str, confidence: float) -> bool:
+    normalized_command = str(raw_command or "").strip()
+    if not normalized_command:
+        return False
+
+    normalized_intent = str(detected_intent or "general").strip().lower()
+    if normalized_intent in CONVERSATIONAL_INTENTS:
+        return True
+
+    if normalized_intent == "general" and confidence < 0.55 and is_conversational_input(normalized_command):
+        return True
+
+    return False
+
+
+def looks_like_direct_assistant_request(raw_command: str) -> bool:
+    normalized_command = str(raw_command or "").strip().lower()
+    if not normalized_command:
+        return False
+    if any(marker in normalized_command for marker in DIRECT_ASSISTANT_TOOL_MARKERS):
+        return False
+    if normalized_command.endswith("?"):
+        return True
+    return normalized_command.startswith(DIRECT_ASSISTANT_STARTERS)
+
+
+def select_fast_assistant_route(raw_command: str, detected_intent: str, confidence: float) -> str:
+    if should_prefer_conversational_path(raw_command, detected_intent, confidence):
+        return "conversation"
+
+    normalized_intent = str(detected_intent or "general").strip().lower()
+    if normalized_intent == "general" and confidence < 0.55 and looks_like_direct_assistant_request(raw_command):
+        return "assistant"
+
+    return ""
+
+
+def build_general_assistant_orchestration(raw_command: str, route_kind: str) -> Dict[str, Any]:
+    reason = (
+        f"Human-first conversational routing kept '{raw_command}' on the general assistant path."
+        if route_kind == "conversation"
+        else f"Direct assistant routing answered '{raw_command}' without unnecessary agent orchestration."
+    )
+    return {
+        "primary_agent": "general",
+        "secondary_agents": [],
+        "execution_order": [],
+        "requires_multiple": False,
+        "primary_selection_source": f"{route_kind}_guard",
+        "top_score": 0,
+        "mode": route_kind,
+        "reason": reason,
+    }
+
+
 def run_agent(agent_name: str, raw_command: str) -> str:
     try:
         return normalize_agent_output(AGENT_ROUTER[agent_name](raw_command))
@@ -746,6 +847,75 @@ def process_single_command_detailed(
         alternatives=alternatives,
         time_ms=(time.perf_counter() - intent_started) * 1000,
     )
+
+    fast_assistant_route = select_fast_assistant_route(raw_command, detected_intent, confidence)
+    print(
+        "[RUNTIME ROUTE]",
+        {
+            "intent": detected_intent,
+            "confidence": round(confidence, 4),
+            "fast_assistant_route": fast_assistant_route or "none",
+        },
+    )
+
+    if fast_assistant_route:
+        routing_started = time.perf_counter()
+        orchestration = build_general_assistant_orchestration(raw_command, fast_assistant_route)
+        permission_action = "general"
+        permission = build_permission_response(permission_action)
+        active_telemetry.record_routing(
+            agent_selected="general",
+            reason=orchestration["reason"],
+            trust_level="safe",
+            time_ms=(time.perf_counter() - routing_started) * 1000,
+        )
+
+        execution_started = time.perf_counter()
+        provider_result = _llm_response_with_provider(raw_command, language)
+        execution_time_ms = (time.perf_counter() - execution_started) * 1000
+        provider_name = str(provider_result.get("provider_name") or "").strip() or None
+        provider_model = str(provider_result.get("model") or "").strip() or None
+        providers_tried = list(provider_result.get("providers_tried") or [])
+
+        active_telemetry.record_provider(
+            provider_result.get("provider_name") or "unknown",
+            provider_result.get("model") or "unknown",
+            provider_result.get("tokens_used"),
+            provider_result.get("time_ms") or 0.0,
+            success=bool(provider_result.get("success")),
+            error=provider_result.get("error"),
+        )
+
+        response_text = str(provider_result.get("text") or "").strip()
+        execution_mode = "conversation_llm" if fast_assistant_route == "conversation" else "assistant_llm"
+        if not provider_result.get("success"):
+            execution_mode = "degraded_assistant"
+
+        active_telemetry.record_execution(
+            "general",
+            response_text or provider_result.get("error") or "No response content.",
+            bool(provider_result.get("success") and response_text),
+            execution_time_ms,
+        )
+
+        return build_result(
+            raw_command=raw_command,
+            detected_intent=detected_intent,
+            confidence=confidence,
+            response=response_text,
+            language=language,
+            orchestration=orchestration,
+            used_agents=["general"],
+            execution_mode=execution_mode,
+            plan_steps=[],
+            permission_action=permission_action,
+            permission=permission,
+            provider_name=provider_name,
+            provider_model=provider_model,
+            providers_tried=providers_tried,
+            telemetry=active_telemetry,
+            publish_telemetry=publish_telemetry,
+        )
 
     routing_started = time.perf_counter()
     orchestration = master_orchestrator.analyze_task(raw_command, intent=detected_intent)

@@ -48,6 +48,20 @@ BAD_RESPONSE_MARKERS = (
     "couldn't generate a useful response",
 )
 
+CASUAL_CONVERSATION_MARKERS = (
+    "hi",
+    "hello",
+    "hey",
+    "how are you",
+    "how r you",
+    "what's up",
+    "whats up",
+    "are you there",
+    "you there",
+    "thanks",
+    "thank you",
+)
+
 JARVIS_SYSTEM_PROMPT = """
 You are AURA - Autonomous Universal Responsive Assistant.
 You are a real AI assistant, not a chatbot.
@@ -281,6 +295,21 @@ def _looks_like_direct_question(user_input: str) -> bool:
     return normalized.startswith(starters)
 
 
+def _looks_like_casual_conversation(user_input: str) -> bool:
+    normalized = str(user_input or "").strip().lower()
+    if not normalized:
+        return False
+    return normalized in CASUAL_CONVERSATION_MARKERS
+
+
+def _trim_to_sentence_count(text: str, max_sentences: int = 2, max_chars: int = 220) -> str:
+    sentences = re.split(r"(?<=[.!?])\s+", str(text or "").strip())
+    trimmed = " ".join(part for part in sentences[:max_sentences] if part.strip()).strip()
+    if len(trimmed) > max_chars:
+        trimmed = trimmed[: max_chars - 3].rstrip() + "..."
+    return trimmed or str(text or "").strip()
+
+
 def _is_history_question(user_input: str) -> bool:
     normalized = str(user_input or "").strip().lower()
     history_markers = (
@@ -356,6 +385,12 @@ def polish_assistant_reply(text: Optional[str], user_input: str = "") -> str:
     cleaned = clean_response(text)
     if not cleaned:
         return ""
+
+    if _looks_like_casual_conversation(user_input):
+        cleaned = _strip_leading_filler(cleaned)
+        cleaned = _strip_stale_memory_filler(cleaned)
+        cleaned = _strip_repeat_claim_sentences(cleaned)
+        cleaned = _trim_to_sentence_count(cleaned)
 
     if _looks_like_direct_question(user_input):
         cleaned = _strip_leading_filler(cleaned)

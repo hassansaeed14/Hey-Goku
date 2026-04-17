@@ -1,6 +1,6 @@
 {
   "default": {
-    "active_topic": "what is NLP",
+    "active_topic": "facebook",
     "active_file": null,
     "active_url": null,
     "last_agent": "general",
@@ -10,31 +10,31 @@
     "current_mode": "smart",
     "unresolved_follow_up": null,
     "recent_references": [
-      "write me a python function to reverse a string",
-      "and AI agents",
-      "what is quantum computing",
-      "what time is it",
-      "task buy milk",
-      "What is artificial intelligence?",
-      "what is new at the world",
-      "how are you?",
-      "yes",
-      "what is artificial intelligence",
-      "explain in detail",
-      "tell me about iran and Israel war",
-      "how is your developer",
-      "who developed you",
-      "define education",
-      "headphones",
-      "what is AI?",
       "tell me about yourself",
       "resd full",
       "read read full",
       "tell me about iran and israel conflicts",
       "what is new about their conflict",
       "how to impress a girl",
-      "what is NLP"
+      "what is NLP",
+      "and AI agents",
+      "what is quantum computing",
+      "what time is it",
+      "convert usd to eur",
+      "what is artificail intelligence",
+      "can you elaborate and give me in fine notes format?",
+      "what is +",
+      "how are you",
+      "aura",
+      "what is ai?",
+      "give complete pdf on topic ai atleast pages",
+      "what is artificial intelligence",
+      "explain more",
+      "how you are working on your self?",
+      "read all the",
+      "delete the history",
+      "facebook"
     ],
-    "updated_at": "2026-04-16 12:14:57"
+    "updated_at": "2026-04-17 15:17:21"
   }
 }

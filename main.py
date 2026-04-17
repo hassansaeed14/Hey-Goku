@@ -15,7 +15,7 @@ app = Flask(__name__) if Flask else None
 
 
 WELCOME_MESSAGE = (
-    "Hello! I am AURA, your Autonomous Universal Responsive Assistant. "
+    "Hello! I am AURA, your Personal Assistant. "
     "How can I help you?"
 )
 
@@ -126,7 +126,7 @@ def speak_response(response, read_full=False):
     if len(response) > 500:
         short_preview = build_short_preview(response)
         speak(short_preview)
-        print("AURA: (Say 'read full' to hear the complete response)")
+        print("AURA: (Say 'read full' or 'read it to hear the complete response)")
     else:
         speak(response)
 

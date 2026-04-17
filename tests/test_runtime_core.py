@@ -5,6 +5,74 @@ import brain.runtime_core as runtime_core
 
 
 class RuntimeCoreTests(unittest.TestCase):
+    def test_conversational_input_stays_on_general_assistant_path(self):
+        with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
+            runtime_core,
+            "detect_intent_with_confidence",
+            return_value=("conversation", 0.92),
+        ), patch.object(
+            runtime_core,
+            "_llm_response_with_provider",
+            return_value={
+                "success": True,
+                "text": "I'm here and doing well. What would you like to work on?",
+                "provider_name": "groq",
+                "model": "llama-3.3-70b-versatile",
+                "providers_tried": ["groq"],
+                "tokens_used": 42,
+                "time_ms": 20.0,
+            },
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "analyze_task",
+            side_effect=AssertionError("Conversation should bypass orchestrator routing."),
+        ), patch.object(
+            runtime_core,
+            "respond_in_language",
+            side_effect=lambda response, language: response,
+        ), patch.object(runtime_core, "store_and_learn"):
+            result = runtime_core.process_single_command_detailed("hi how are you")
+
+        self.assertEqual(result["detected_intent"], "conversation")
+        self.assertEqual(result["used_agents"], ["general"])
+        self.assertEqual(result["execution_mode"], "conversation_llm")
+        self.assertEqual(result["provider"], "groq")
+        self.assertIn("doing well", result["response"].lower())
+
+    def test_direct_question_prefers_fast_assistant_path(self):
+        with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
+            runtime_core,
+            "detect_intent_with_confidence",
+            return_value=("general", 0.18),
+        ), patch.object(
+            runtime_core,
+            "_llm_response_with_provider",
+            return_value={
+                "success": True,
+                "text": "Artificial intelligence is software designed to perform tasks that usually need human judgment, learning, or pattern recognition.",
+                "provider_name": "groq",
+                "model": "llama-3.3-70b-versatile",
+                "providers_tried": ["groq"],
+                "tokens_used": 51,
+                "time_ms": 18.0,
+            },
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "analyze_task",
+            side_effect=AssertionError("Direct assistant questions should bypass heavy orchestration."),
+        ), patch.object(
+            runtime_core,
+            "respond_in_language",
+            side_effect=lambda response, language: response,
+        ), patch.object(runtime_core, "store_and_learn"):
+            result = runtime_core.process_single_command_detailed("what is artificial intelligence")
+
+        self.assertEqual(result["detected_intent"], "general")
+        self.assertEqual(result["used_agents"], ["general"])
+        self.assertEqual(result["execution_mode"], "assistant_llm")
+        self.assertEqual(result["provider"], "groq")
+        self.assertIn("human judgment", result["response"].lower())
+
     def test_special_intent_returns_structured_metadata(self):
         orchestration = {
             "primary_agent": "time",

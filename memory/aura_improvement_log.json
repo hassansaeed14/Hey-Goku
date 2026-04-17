@@ -69,6 +69,11 @@
             "time": "2026-04-11 14:15",
             "command": "what is quantum computing",
             "reason": "No healthy AI provider completed the request."
+        },
+        {
+            "time": "2026-04-17 03:34",
+            "command": "what is quantum computing",
+            "reason": "No healthy AI provider completed the request."
         }
     ],
     "low_confidence_commands": [
@@ -770,6 +775,126 @@
         {
             "time": "2026-04-16 12:14",
             "command": "what is NLP",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 03:34",
+            "command": "research and summarize AI agents",
+            "confidence": 0.3
+        },
+        {
+            "time": "2026-04-17 03:41",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 03:41",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 03:41",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 03:48",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 03:49",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 03:50",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 13:00",
+            "command": "what is 2+2",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 13:01",
+            "command": "what is ai?",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 13:02",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 13:02",
+            "command": "what is artificial intelligence",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:20",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:20",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:21",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:25",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:31",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:33",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:53",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:55",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:58",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 14:58",
+            "command": "aura",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 15:15",
+            "command": "read all the",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 15:16",
+            "command": "delete the history",
+            "confidence": 0.0
+        },
+        {
+            "time": "2026-04-17 15:17",
+            "command": "open facebook",
             "confidence": 0.0
         }
     ],
@@ -2508,6 +2633,537 @@
         },
         {
             "time": "2026-04-16 12:14",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:34",
+            "requested_action": "conversation",
+            "actual_action": "conversation",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:34",
+            "requested_action": "general",
+            "actual_action": "research",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:34",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:34",
+            "requested_action": "time",
+            "actual_action": "time",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:35",
+            "requested_action": "conversation",
+            "actual_action": "conversation",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:41",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:48",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:49",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 03:50",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:00",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:01",
+            "requested_action": "currency",
+            "actual_action": "currency",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:01",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:02",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:02",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:09",
+            "requested_action": "conversation",
+            "actual_action": "conversation",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:09",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 13:39",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:05",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:07",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:12",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:13",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:14",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:20",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:20",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:20",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:21",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:21",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:21",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:21",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:21",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:25",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:31",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:31",
+            "requested_action": "conversation",
+            "actual_action": "conversation",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:31",
+            "requested_action": "conversation",
+            "actual_action": "conversation",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:33",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:33",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:33",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:48",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:53",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:53",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:55",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:55",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:58",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:58",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 14:58",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:01",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:10",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:11",
+            "requested_action": "general",
+            "actual_action": "permission_blocked",
+            "success": false,
+            "blocked_by_permission": true,
+            "retry_possible": true,
+            "learning_signal": "permission_enforcement_blocked_execution"
+        },
+        {
+            "time": "2026-04-17 15:12",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:13",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:15",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:16",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:16",
+            "requested_action": "general",
+            "actual_action": "general",
+            "success": true,
+            "blocked_by_permission": false,
+            "retry_possible": false,
+            "learning_signal": "successful_runtime_path"
+        },
+        {
+            "time": "2026-04-17 15:17",
             "requested_action": "general",
             "actual_action": "general",
             "success": true,

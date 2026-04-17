@@ -1,0 +1,21 @@
+﻿msedge.exe : [23716:25904:0417/034220.812:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] 
+Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is 
+shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+At line:2 char:1
++ & 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' --he ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([23716:25904:04...g.com/40528867.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[23716:25904:0417/034221.097:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer 
+should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a 
+bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[23716:25904:0417/034222.124:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer 
+should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a 
+bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[23716:25904:0417/034233.317:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer 
+should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a 
+bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[23716:25904:0417/034244.073:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer 
+should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a 
+bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.

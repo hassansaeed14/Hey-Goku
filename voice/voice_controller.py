@@ -6,8 +6,8 @@ from voice.audio_manager import get_audio_status
 from voice.mic_handler import get_microphone_status
 from voice.noise_filter import analyze_transcript_noise, clean_transcript_text
 from voice.speech_to_text import get_stt_status, transcribe_audio_file, transcribe_microphone
-from voice.text_to_speech import list_voices, speak_text, stop_speaking, tts_available
-from voice.voice_config import list_voice_personas, load_voice_settings, update_voice_settings
+from voice.text_to_speech import get_tts_status, list_voices, stop_speaking
+from voice.voice_config import load_voice_settings, update_voice_settings
 from voice.voice_manager import build_spoken_preview, load_user_profile
 from voice.wake_word import detect_wake_word
 
@@ -19,11 +19,24 @@ def get_voice_status() -> Dict[str, Any]:
     microphone_status = get_microphone_status()
     audio_status = get_audio_status()
     backend_microphone_ready = bool(stt_status.get("supports_microphone") and microphone_status.get("available"))
+    locked_voice = list_voices()
+    tts_status = get_tts_status()
     return {
-        "mode": "hybrid",
-        "settings": settings.to_dict(),
+        "mode": "browser_voice",
+        "settings": {
+            "backend": "browser_speech_synthesis",
+            "enabled": settings.enabled,
+            "language": settings.language,
+            "auto_speak_responses": settings.auto_speak_responses,
+            "wake_words": list(settings.wake_words),
+            "phrase_time_limit": settings.phrase_time_limit,
+        },
         "user_profile": user_profile,
-        "tts": {"available": tts_available(), "voices": list_voices()[:8]},
+        "tts": {
+            **tts_status,
+            "voice": locked_voice[0] if locked_voice else None,
+            "voice_locked": True,
+        },
         "stt": stt_status,
         "microphone": microphone_status,
         "audio": audio_status,
@@ -37,7 +50,6 @@ def get_voice_status() -> Dict[str, Any]:
                 else "Backend host microphone capture is unavailable."
             ),
         },
-        "personas": list_voice_personas(),
         "wake_word_preview": detect_wake_word("hey aura status check", settings.wake_words),
         "wake_word": {
             "phrases": list(settings.wake_words),
@@ -49,12 +61,34 @@ def get_voice_status() -> Dict[str, Any]:
 
 
 def update_voice_preferences(**updates: object) -> Dict[str, Any]:
-    settings = update_voice_settings(**updates)
+    allowed_updates = {
+        key: value
+        for key, value in updates.items()
+        if key in {"enabled", "language", "auto_speak_responses"} and value is not None
+    }
+    settings = update_voice_settings(**allowed_updates)
     return {"success": True, "settings": settings.to_dict()}
 
 
 def speak_response(text: str) -> Dict[str, Any]:
-    return speak_text(build_spoken_preview(text))
+    preview = build_spoken_preview(text)
+    if not preview:
+        return {
+            "success": False,
+            "status": "empty_text",
+            "message": "Speech text is empty.",
+            "provider": "browser_speech_synthesis",
+            "client_managed": True,
+        }
+    return {
+        "success": False,
+        "status": "disabled",
+        "message": "Backend speech playback is disabled. The browser client speaks responses directly.",
+        "provider": "browser_speech_synthesis",
+        "client_managed": True,
+        "backend_enabled": False,
+        "spoken_text": preview,
+    }
 
 
 def stop_voice_output() -> Dict[str, Any]:

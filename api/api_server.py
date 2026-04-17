@@ -187,13 +187,7 @@ class VoiceCaptureRequest(BaseModel):
 
 
 class VoiceSettingsUpdate(BaseModel):
-    persona: Optional[str] = None
-    voice_profile: Optional[str] = None
     language: Optional[str] = None
-    voice_gender: Optional[str] = None
-    rate: Optional[float] = None
-    pitch: Optional[float] = None
-    volume: Optional[float] = None
     enabled: Optional[bool] = None
 
 
@@ -471,6 +465,87 @@ def _build_chat_success_payload(
         "error": error,
         "status": "ok" if success else "degraded",
     }
+
+
+def _normalize_casual_conversation_input(message: str) -> str:
+    lowered = str(message or "").strip().lower()
+    lowered = re.sub(r"[^\w\s']", " ", lowered)
+    lowered = re.sub(r"\s+", " ", lowered)
+    return lowered.strip()
+
+
+def _build_casual_conversation_reply(message: str) -> Optional[str]:
+    normalized = _normalize_casual_conversation_input(message)
+    if not normalized:
+        return None
+
+    greeting_inputs = {
+        "hi": "Hey. What can I help you with?",
+        "hello": "Hey. What can I help you with?",
+        "hey": "Hey. What can I help you with?",
+        "hi aura": "Hey. I'm here.",
+        "hello aura": "Hey. I'm here.",
+        "hey aura": "Hey. I'm here.",
+    }
+    if normalized in greeting_inputs:
+        return greeting_inputs[normalized]
+
+    check_in_inputs = {
+        "how are you",
+        "how are you doing",
+        "how are you doing today",
+        "how are you today",
+        "hi how are you",
+        "hello how are you",
+        "hey how are you",
+        "hi aura how are you",
+        "hello aura how are you",
+        "hey aura how are you",
+        "hi aura how are you doing",
+        "hello aura how are you doing",
+        "hey aura how are you doing",
+        "hello aura how are you doing today",
+    }
+    if normalized in check_in_inputs:
+        return "I'm doing great. What do you need?"
+
+    return None
+
+
+def _build_casual_chat_payload(context: dict[str, Any]) -> Optional[dict[str, Any]]:
+    reply = _build_casual_conversation_reply(context.get("raw_message") or context.get("cleaned_message") or "")
+    if not reply:
+        return None
+
+    permission = build_permission_response("general", confirmed=True)
+    intent = str(context.get("detected_intent") or "conversation")
+    payload = _build_chat_success_payload(
+        reply=reply,
+        intent=intent,
+        agent_used="General AURA",
+        mode=_normalize_chat_mode(context.get("requested_mode"), "greeting", permission),
+        provider="local",
+    )
+    payload["decision"] = context.get("decision", {})
+    payload["permission"] = permission
+    payload["execution_mode"] = "casual_local"
+    payload["used_agents"] = ["general"]
+    payload["plan"] = []
+    payload["orchestration"] = {
+        "primary_agent": "general",
+        "secondary_agents": [],
+        "execution_order": [],
+        "requires_multiple": False,
+        "primary_selection_source": "casual_shortcut",
+        "reason": "Local casual conversation shortcut handled a simple greeting or check-in.",
+    }
+    payload["confidence"] = context.get("confidence", 1.0)
+    payload["session_id"] = context.get("session_id")
+    payload["provider"] = "local"
+    payload["model"] = "local"
+    payload["providers_tried"] = []
+    payload["degraded"] = False
+    return payload
 
 
 def _persist_chat_turn(context: dict[str, Any], reply: str, intent: str, agent_used: Optional[str], mode: Optional[str]) -> None:
@@ -1056,6 +1131,16 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             user=user,
             confirmation_code=payload.confirmation_code,
         )
+        casual_payload = _build_casual_chat_payload(context)
+        if casual_payload is not None:
+            casual_payload["history_status"] = _attempt_persist_chat_turn(
+                context,
+                casual_payload["reply"],
+                casual_payload["intent"],
+                casual_payload.get("agent_used"),
+                casual_payload.get("mode"),
+            )
+            return JSONResponse(content=casual_payload, headers=_cors_headers())
         if not context["permission"].get("success", False):
             blocked_payload = _build_blocked_chat_payload(context)
             blocked_payload["history_status"] = _attempt_persist_chat_turn(

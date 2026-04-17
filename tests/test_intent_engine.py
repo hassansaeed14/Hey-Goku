@@ -4,6 +4,11 @@ from brain.intent_engine import detect_intent_with_confidence
 
 
 class IntentEngineTests(unittest.TestCase):
+    def test_detects_casual_conversation(self):
+        intent, confidence = detect_intent_with_confidence("hi how are you")
+        self.assertEqual(intent, "conversation")
+        self.assertGreaterEqual(confidence, 0.6)
+
     def test_detects_translation_request(self):
         intent, confidence = detect_intent_with_confidence("translate this to urdu")
         self.assertEqual(intent, "translation")

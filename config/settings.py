@@ -60,6 +60,14 @@ OPENAI_API_KEY = _env_or_bundle("OPENAI_API_KEY", section="OPENAI")
 ANTHROPIC_API_KEY = _env_or_bundle("ANTHROPIC_API_KEY", section="CLAUDE")
 GEMINI_API_KEY = _env_or_bundle("GEMINI_API_KEY", section="GEMINI")
 OPENROUTER_API_KEY = _env_or_bundle("OPENROUTER_API_KEY", section="OPENROUTER")
+ELEVENLABS_API_KEY = _env_or_bundle("ELEVENLABS_API_KEY", section="ELEVENLABS")
+ELEVENLABS_VOICE_ID = _env_or_bundle("ELEVENLABS_VOICE_ID", section="ELEVENLABS", bundle_key="VOICE_ID")
+ELEVENLABS_MODEL_ID = _env_or_bundle(
+    "ELEVENLABS_MODEL_ID",
+    section="ELEVENLABS",
+    bundle_key="MODEL_ID",
+    default="eleven_multilingual_v2",
+)
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL_NAME = "llama-3.3-70b-versatile"

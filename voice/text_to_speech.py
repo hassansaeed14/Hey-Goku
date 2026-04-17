@@ -1,101 +1,80 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from voice.voice_config import load_voice_settings
-from voice.voice_manager import build_spoken_preview, choose_voice_metadata, format_speech_text
-
-try:
-    import pyttsx3  # type: ignore
-except Exception:  # pragma: no cover
-    pyttsx3 = None
+from voice.voice_manager import build_spoken_preview, format_speech_text
 
 
-def _build_engine():
-    if pyttsx3 is None:
-        return None
-    try:
-        return pyttsx3.init()
-    except Exception:
-        return None
+BROWSER_TTS_PROVIDER = "browser_speech_synthesis"
+DISABLED_BACKEND_PROVIDER = "elevenlabs"
+BACKEND_TTS_DISABLED_MESSAGE = (
+    "Backend TTS is disabled in this build. AURA speaks through browser speech synthesis only."
+)
 
 
 def tts_available() -> bool:
-    return _build_engine() is not None
+    return bool(get_tts_status().get("available"))
 
 
-def list_voices() -> List[Dict[str, Any]]:
-    engine = _build_engine()
-    if engine is None:
-        return []
-    voices = []
-    for voice in engine.getProperty("voices"):
-        voices.append(
-            {
-                "id": getattr(voice, "id", ""),
-                "name": getattr(voice, "name", ""),
-                "languages": [str(item) for item in getattr(voice, "languages", [])],
-            }
-        )
-    return voices
+def get_tts_status() -> Dict[str, Any]:
+    return {
+        "provider": BROWSER_TTS_PROVIDER,
+        "status": "browser_only",
+        "available": True,
+        "client_managed": True,
+        "backend_enabled": False,
+        "disabled_provider": DISABLED_BACKEND_PROVIDER,
+        "message": BACKEND_TTS_DISABLED_MESSAGE,
+    }
 
 
-def _set_voice(engine, voice_gender: str, language: str):
-    voices = list_voices()
-    selected = choose_voice_metadata(voices, gender=voice_gender, language=language)
-    if not selected:
-        return None
-    try:
-        engine.setProperty("voice", selected.get("id", ""))
-    except Exception:
-        return None
-    return selected
+def list_voices() -> list[Dict[str, Any]]:
+    return [
+        {
+            "id": "browser-default",
+            "name": "Browser speech",
+            "provider": BROWSER_TTS_PROVIDER,
+            "locked": True,
+            "client_managed": True,
+        }
+    ]
 
 
 def speak_text(text: str, *, blocking: bool = True, preview_only: bool = False) -> Dict[str, Any]:
-    if not tts_available():
-        return {"success": False, "status": "unavailable", "message": "Local text-to-speech backend is not available."}
+    del blocking
 
-    engine = _build_engine()
-    settings = load_voice_settings()
-    if engine is None:
-        return {"success": False, "status": "engine_error", "message": "Could not initialize TTS engine."}
-
-    try:
-        base_rate = engine.getProperty("rate")
-        engine.setProperty("rate", int(base_rate * float(settings.rate)))
-        engine.setProperty("volume", max(0.0, min(1.0, float(settings.volume))))
-        selected_voice = _set_voice(engine, settings.voice_gender, settings.language)
-        payload = build_spoken_preview(text) if preview_only else format_speech_text(text)
-        if not payload:
-            return {"success": False, "status": "empty_text", "message": "Speech text is empty."}
-        engine.say(payload)
-        if blocking:
-            engine.runAndWait()
+    payload_text = build_spoken_preview(text) if preview_only else format_speech_text(text)
+    if not payload_text:
         return {
-            "success": True,
-            "status": "spoken",
-            "message": "Speech completed.",
-            "persona": settings.profile_id,
-            "voice_id": selected_voice.get("id", "") if selected_voice is not None else "",
-            "spoken_text": payload,
+            "success": False,
+            "status": "empty_text",
+            "message": "Speech text is empty.",
+            "provider": BROWSER_TTS_PROVIDER,
+            "client_managed": True,
         }
-    except Exception as error:
-        return {"success": False, "status": "tts_error", "message": str(error)}
+
+    return {
+        "success": False,
+        "status": "disabled",
+        "message": BACKEND_TTS_DISABLED_MESSAGE,
+        "provider": BROWSER_TTS_PROVIDER,
+        "client_managed": True,
+        "backend_enabled": False,
+        "spoken_text": payload_text,
+    }
 
 
 def stop_speaking() -> Dict[str, Any]:
-    if not tts_available():
-        return {"success": False, "status": "unavailable", "message": "Local text-to-speech backend is not available."}
-    engine = _build_engine()
-    if engine is None:
-        return {"success": False, "status": "engine_error", "message": "Could not initialize TTS engine."}
-    try:
-        engine.stop()
-        return {"success": True, "status": "stopped", "message": "Speech playback stopped."}
-    except Exception as error:
-        return {"success": False, "status": "tts_error", "message": str(error)}
+    return {
+        "success": True,
+        "status": "client_managed",
+        "message": "Speech playback is controlled by the browser client.",
+        "provider": BROWSER_TTS_PROVIDER,
+        "client_managed": True,
+        "backend_enabled": False,
+    }
 
 
 def speak(text: str, read_full: bool = False) -> bool:
-    return bool(speak_text(text, preview_only=not read_full).get("success"))
+    del text, read_full
+    return False

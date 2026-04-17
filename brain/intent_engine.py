@@ -1,6 +1,40 @@
 import re
 
 
+GREETING_PHRASES = {
+    "hi",
+    "hello",
+    "hey",
+    "hey aura",
+    "hi aura",
+    "hello aura",
+    "good morning",
+    "good afternoon",
+    "good evening",
+}
+
+CONVERSATION_PHRASES = {
+    "how are you",
+    "how r you",
+    "what's up",
+    "whats up",
+    "are you there",
+    "you there",
+    "how's it going",
+    "hows it going",
+    "how are things",
+    "are you okay",
+}
+
+GRATITUDE_PHRASES = {
+    "thanks",
+    "thank you",
+    "thanks aura",
+    "thank you aura",
+    "appreciate it",
+}
+
+
 # -----------------------------
 # Normalization (NEW - IMPORTANT)
 # -----------------------------
@@ -29,11 +63,15 @@ def _score_match(text, phrases, starts_with=False, whole_match=False):
     score = 0
 
     for phrase in phrases:
-        if whole_match and text == phrase:
-            score += 4
-        elif starts_with and text.startswith(phrase):
-            score += 3
-        elif phrase in text:
+        if whole_match:
+            if text == phrase:
+                score += 4
+            continue
+        if starts_with:
+            if text.startswith(phrase):
+                score += 3
+            continue
+        if phrase in text:
             score += 1
 
     return score
@@ -52,7 +90,42 @@ def _has_currency_code(text):
     blocked = {"BYE", "HEY", "THE"}
     codes = re.findall(r"\b[A-Z]{3}\b", text.upper())
     codes = [c for c in codes if c not in blocked]
-    return len(codes) >= 2
+    if len(codes) < 2:
+        return False
+    normalized = str(text or "").lower()
+    return any(
+        marker in normalized
+        for marker in ("convert", "exchange", "currency", "rate", " to ", " from ", " into ")
+    )
+
+
+def _is_short_natural_language(text: str) -> bool:
+    normalized = str(text or "").strip().lower()
+    if not normalized:
+        return False
+    if any(char.isdigit() for char in normalized):
+        return False
+    if re.search(r"[=+\-*/%]", normalized):
+        return False
+    if len(normalized.split()) > 8:
+        return False
+    return bool(re.match(r"^[a-z\s'?!.,]+$", normalized))
+
+
+def is_conversational_input(text: str) -> bool:
+    normalized = normalize_text(text)
+    if not normalized:
+        return False
+    if normalized in GREETING_PHRASES:
+        return True
+    if normalized in CONVERSATION_PHRASES:
+        return True
+    if normalized in GRATITUDE_PHRASES:
+        return True
+    return _is_short_natural_language(normalized) and any(
+        marker in normalized
+        for marker in ("how are", "what's up", "whats up", "are you there", "you there", "thank", "thanks")
+    )
 
 
 # -----------------------------
@@ -75,6 +148,15 @@ def detect_intent_with_confidence(command: str):
         if value > 0:
             scores[intent] = scores.get(intent, 0) + value
 
+    if text in GREETING_PHRASES:
+        return "greeting", 1.0
+
+    if text in GRATITUDE_PHRASES:
+        return "conversation", 0.9
+
+    if text in CONVERSATION_PHRASES:
+        return "conversation", 0.95
+
     # -----------------------------
     # Core Intents
     # -----------------------------
@@ -86,6 +168,9 @@ def detect_intent_with_confidence(command: str):
     add("shutdown", _score_match(text, [
         "bye", "goodbye", "exit", "quit"
     ]))
+
+    add("conversation", _score_match(text, list(CONVERSATION_PHRASES), whole_match=True))
+    add("conversation", _score_match(text, ["how are", "what's up", "whats up", "are you there", "you there"], starts_with=True))
 
     add("identity", _score_match(text, [
         "who are you", "your name"
@@ -168,6 +253,8 @@ def detect_intent_with_confidence(command: str):
     # -----------------------------
 
     if not scores:
+        if is_conversational_input(command):
+            return "conversation", 0.65
         return "general", 0.0
 
     sorted_intents = sorted(scores.items(), key=lambda x: x[1], reverse=True)
