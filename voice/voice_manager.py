@@ -64,15 +64,68 @@ def format_speech_text(text: str) -> str:
     return content.strip()
 
 
-def build_spoken_preview(text: str, *, max_sentences: int = 3, max_length: int = 420) -> str:
+def build_spoken_preview(text: str, *, max_sentences: int = 8, max_length: int = 1200) -> str:
     formatted = format_speech_text(text)
     if not formatted:
         return ""
+    if len(formatted) <= max_length:
+        return formatted
     sentences = re.split(r"(?<=[.!?])\s+", formatted)
-    preview = " ".join(sentence for sentence in sentences[:max_sentences] if sentence.strip()).strip()
-    if len(preview) > max_length:
-        preview = preview[: max_length - 3].rstrip() + "..."
-    return preview or formatted[:max_length]
+    preview: list[str] = []
+    current_length = 0
+    for sentence in sentences[:max_sentences]:
+        stripped = sentence.strip()
+        if not stripped:
+            continue
+        if current_length + len(stripped) > max_length and len(preview) >= 2:
+            break
+        preview.append(stripped)
+        current_length += len(stripped) + 1
+        if current_length >= max_length:
+            break
+    spoken = " ".join(preview).strip()
+    if spoken and len(formatted) > max_length:
+        return f"{spoken} The full response is on screen — say stop or I'll read it myself to silence me."
+    return spoken or formatted[:max_length]
+
+
+STOP_SPEECH_PHRASES: tuple[str, ...] = (
+    "stop",
+    "okay stop",
+    "ok stop",
+    "stop it",
+    "stop speaking",
+    "stop talking",
+    "be quiet",
+    "quiet",
+    "shut up",
+    "enough",
+    "that's enough",
+    "thats enough",
+    "i'll read it myself",
+    "ill read it myself",
+    "i will read it myself",
+    "i can read",
+    "let me read",
+    "silence",
+    "pause",
+)
+
+
+def is_stop_speech_phrase(transcript: str) -> bool:
+    normalized = re.sub(r"[^a-z'\s]", " ", str(transcript or "").lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if not normalized:
+        return False
+    if normalized in STOP_SPEECH_PHRASES:
+        return True
+    first_words = " ".join(normalized.split(" ")[:5])
+    for phrase in STOP_SPEECH_PHRASES:
+        if not phrase:
+            continue
+        if first_words == phrase or first_words.startswith(f"{phrase} "):
+            return True
+    return False
 
 
 def choose_voice_metadata(voices: List[Dict[str, Any]], *, gender: str, language: str) -> Optional[Dict[str, Any]]:

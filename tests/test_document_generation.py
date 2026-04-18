@@ -137,6 +137,106 @@ class DocumentGeneratorTests(unittest.TestCase):
         self.assertEqual(followup_request.export_format, "pdf")
         self.assertEqual(followup_request.requested_formats, ("pdf", "pptx"))
 
+    def test_detect_document_retrieval_followup_matches_link_requests(self):
+        matches = [
+            "give me the download link",
+            "send me the file",
+            "pdf link",
+            "the docx",
+            "send file",
+            "share the link",
+            "where is the file",
+            "show preview",
+            "resend it",
+            "can you send the pdf",
+            "give me docx",
+        ]
+        for phrase in matches:
+            intent = document_generator.detect_document_retrieval_followup(phrase)
+            self.assertIsNotNone(intent, msg=f"Expected retrieval intent for {phrase!r}")
+
+    def test_detect_document_retrieval_followup_ignores_new_generation(self):
+        self.assertIsNone(
+            document_generator.detect_document_retrieval_followup(
+                "make notes on transformers in pdf"
+            )
+        )
+        self.assertIsNone(
+            document_generator.detect_document_retrieval_followup("")
+        )
+        self.assertIsNone(
+            document_generator.detect_document_retrieval_followup("what is python")
+        )
+
+    def test_detect_document_retrieval_followup_captures_requested_format(self):
+        intent = document_generator.detect_document_retrieval_followup("give me the pdf link")
+        self.assertEqual(intent["requested_format"], "pdf")
+        self.assertFalse(intent["wants_preview"])
+
+        preview_intent = document_generator.detect_document_retrieval_followup("show me the preview")
+        self.assertTrue(preview_intent["wants_preview"])
+
+    def test_resolve_document_retrieval_followup_returns_cached_primary(self):
+        session_id = "session-retrieval"
+        document_generator.LAST_GENERATED_DOCUMENT.pop(session_id, None)
+        cached = {
+            "success": True,
+            "document_type": "notes",
+            "topic": "transformers",
+            "format": "txt",
+            "primary_format": "txt",
+            "requested_formats": ["txt"],
+            "file_name": "Transformers-Notes.txt",
+            "file_path": "/tmp/Transformers-Notes.txt",
+            "download_url": "/downloads/Transformers-Notes.txt",
+            "title": "Transformers",
+            "subtitle": "Study Notes",
+            "preview_text": "Overview: Transformers.",
+            "style": "simple",
+            "include_references": False,
+            "citation_style": None,
+            "artifacts": {
+                "txt": {"file_name": "Transformers-Notes.txt", "file_path": "/tmp/Transformers-Notes.txt", "download_url": "/downloads/Transformers-Notes.txt"},
+                "pdf": {"file_name": "Transformers-Notes.pdf", "file_path": "/tmp/Transformers-Notes.pdf", "download_url": "/downloads/Transformers-Notes.pdf"},
+                "docx": {"file_name": "Transformers-Notes.docx", "file_path": "/tmp/Transformers-Notes.docx", "download_url": "/downloads/Transformers-Notes.docx"},
+                "pptx": {"file_name": "Transformers-Notes-Slides.pptx", "file_path": "/tmp/Transformers-Notes-Slides.pptx", "download_url": "/downloads/Transformers-Notes-Slides.pptx"},
+            },
+            "format_links": {
+                "txt": "/downloads/Transformers-Notes.txt",
+                "pdf": "/downloads/Transformers-Notes.pdf",
+                "docx": "/downloads/Transformers-Notes.docx",
+                "pptx": "/downloads/Transformers-Notes-Slides.pptx",
+            },
+            "message": "Done. Your notes are ready.",
+        }
+        document_generator.remember_generated_document(session_id, cached)
+
+        plain = document_generator.resolve_document_retrieval_followup(
+            "give me the download link", session_id=session_id
+        )
+        self.assertIsNotNone(plain)
+        self.assertEqual(plain["format"], "txt")
+        self.assertEqual(plain["download_url"], "/downloads/Transformers-Notes.txt")
+        self.assertTrue(plain["retrieval_followup"])
+        self.assertIn("pdf", plain["alternate_format_links"])
+
+        pdf = document_generator.resolve_document_retrieval_followup(
+            "give me the pdf link", session_id=session_id
+        )
+        self.assertIsNotNone(pdf)
+        self.assertEqual(pdf["format"], "pdf")
+        self.assertEqual(pdf["file_name"], "Transformers-Notes.pdf")
+        self.assertEqual(pdf["download_url"], "/downloads/Transformers-Notes.pdf")
+        self.assertNotIn("pdf", pdf["alternate_format_links"])
+        self.assertIn("txt", pdf["alternate_format_links"])
+
+    def test_resolve_document_retrieval_followup_returns_none_without_cache(self):
+        self.assertIsNone(
+            document_generator.resolve_document_retrieval_followup(
+                "give me the pdf link", session_id="no-session-here"
+            )
+        )
+
 
 class RuntimeDocumentRoutingTests(unittest.TestCase):
     def test_document_generation_permission_is_safe(self):

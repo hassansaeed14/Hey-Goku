@@ -40,19 +40,6 @@ class PublicAccessTests(unittest.TestCase):
             "confirmation_required": False,
             "confirmation_ok": False,
         }
-        payload = {
-            "success": True,
-            "content": "Hello. How can I help?",
-            "reply": "Hello. How can I help?",
-            "provider": "groq",
-            "error": None,
-            "status": "ok",
-            "intent": "general",
-            "agent_used": "general",
-            "agent": "general",
-            "mode": "hybrid",
-        }
-
         with patch.object(api_server, "requires_first_run_setup", return_value=False), patch.object(
             api_server,
             "_current_user",
@@ -63,10 +50,6 @@ class PublicAccessTests(unittest.TestCase):
             return_value=context,
         ), patch.object(
             api_server,
-            "_execute_chat_pipeline",
-            return_value=payload,
-        ), patch.object(
-            api_server,
             "_attempt_persist_chat_turn",
             return_value={"saved": True},
         ):
@@ -75,8 +58,8 @@ class PublicAccessTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertTrue(body["success"])
-        self.assertEqual(body["content"], "Hello. How can I help?")
-        self.assertEqual(body["provider"], "groq")
+        self.assertEqual(body["content"], "Hey. What can I help you with?")
+        self.assertEqual(body["provider"], "local")
         self.assertIsNone(body["error"])
 
     def test_admin_api_remains_protected_for_public_user(self):

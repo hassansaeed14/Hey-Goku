@@ -26,6 +26,7 @@ FORMAT_ALIAS_PATTERNS: tuple[tuple[str, str], ...] = (
 FORMAT_TOKEN_PATTERN = r"(?:pdf|docx|word|txt|text|pptx|ppt|slides?|presentation)"
 DOCUMENT_REQUEST_PREFIX = r"^(?:please\s+)?(?:make|create|generate|prepare|give me|write)\b"
 DOCUMENT_SESSION_CACHE: dict[str, "DocumentRequest"] = {}
+LAST_GENERATED_DOCUMENT: dict[str, dict[str, Any]] = {}
 DOCUMENT_STYLE_ALIASES = {
     "professional": "professional",
     "simple": "simple",
@@ -273,6 +274,116 @@ def remember_document_request(session_id: Optional[str], request: DocumentReques
     if request is None:
         return
     DOCUMENT_SESSION_CACHE[_normalize_session_id(session_id)] = request
+
+
+def remember_generated_document(session_id: Optional[str], generated: dict[str, Any]) -> None:
+    if not generated:
+        return
+    LAST_GENERATED_DOCUMENT[_normalize_session_id(session_id)] = dict(generated)
+
+
+def get_last_generated_document(session_id: Optional[str]) -> Optional[dict[str, Any]]:
+    return LAST_GENERATED_DOCUMENT.get(_normalize_session_id(session_id))
+
+
+_RETRIEVAL_TRIGGER_PATTERNS: tuple[str, ...] = (
+    r"\b(?:download|send|share)\s+(?:me\s+)?(?:the\s+)?(?:file|link|pdf|docx|doc|txt|pptx|ppt|slides?|presentation|document|it|again)\b",
+    r"\b(?:pdf|docx|doc|txt|pptx|ppt|slides?|presentation|document|file|download)\s+(?:link|file)\b",
+    r"\bthe\s+(?:pdf|docx|doc|txt|pptx|ppt|slides?|presentation|document|link|file)\b",
+    r"\b(?:give|get|grab|fetch)\s+(?:me\s+)?(?:the\s+)?(?:file|link|pdf|docx|doc|txt|pptx|ppt|slides?|presentation|document|download)\b",
+    r"\bwhere(?:\s+is)?\s+(?:the\s+)?(?:file|link|pdf|docx|doc|txt|pptx|ppt|slides?|presentation|document)\b",
+    r"\bshow\s+(?:me\s+)?(?:the\s+)?(?:preview|file|link|document)\b",
+    r"\bpreview(?:\s+(?:it|please|again|the\s+document))?\b",
+    r"\bsend\s+(?:it|again|file|me|me\s+the\s+file)\b",
+    r"\bcan\s+you\s+(?:send|share|give|resend)\b",
+    r"\bresend\s+(?:it|the\s+link|the\s+file|please)?\b",
+)
+
+
+def detect_document_retrieval_followup(text: str) -> Optional[dict[str, Any]]:
+    lowered = str(text or "").strip().lower()
+    if not lowered:
+        return None
+    if detect_document_request(text) is not None:
+        return None
+    matched = any(re.search(pattern, lowered) for pattern in _RETRIEVAL_TRIGGER_PATTERNS)
+    if not matched:
+        return None
+    requested_format: Optional[str] = None
+    for pattern, fmt in FORMAT_ALIAS_PATTERNS:
+        if re.search(pattern, lowered, flags=re.IGNORECASE):
+            requested_format = fmt
+            break
+    wants_preview = bool(re.search(r"\bpreview\b", lowered))
+    return {
+        "requested_format": requested_format,
+        "wants_preview": wants_preview,
+    }
+
+
+def resolve_document_retrieval_followup(
+    text: str,
+    *,
+    session_id: Optional[str] = None,
+) -> Optional[dict[str, Any]]:
+    intent = detect_document_retrieval_followup(text)
+    if intent is None:
+        return None
+    cached = get_last_generated_document(session_id)
+    if not cached:
+        return None
+
+    requested_format = intent.get("requested_format")
+    wants_preview = bool(intent.get("wants_preview"))
+    artifacts = cached.get("artifacts") or {}
+    format_links: dict[str, str] = dict(cached.get("format_links") or {})
+    primary_format = str(cached.get("format") or cached.get("primary_format") or "txt").lower()
+
+    if requested_format and requested_format in artifacts:
+        chosen_format = requested_format
+        artifact = artifacts[requested_format]
+        file_name = artifact.get("file_name", cached.get("file_name", ""))
+        file_path = artifact.get("file_path", cached.get("file_path", ""))
+        download_url = artifact.get("download_url", cached.get("download_url", ""))
+    elif requested_format and requested_format in format_links:
+        chosen_format = requested_format
+        file_name = cached.get("file_name", "")
+        file_path = cached.get("file_path", "")
+        download_url = format_links[requested_format]
+    else:
+        chosen_format = primary_format
+        file_name = cached.get("file_name", "")
+        file_path = cached.get("file_path", "")
+        download_url = cached.get("download_url", "")
+
+    alternate_format_links = {
+        fmt: link
+        for fmt, link in format_links.items()
+        if fmt != chosen_format
+    }
+
+    doc_type = str(cached.get("document_type") or "document").lower()
+    doc_label = "notes" if doc_type == "notes" else ("assignment" if doc_type == "assignment" else doc_type)
+    fmt_upper = str(chosen_format).upper()
+    if wants_preview and cached.get("preview_text"):
+        message = f"Here is the preview of your {doc_label}. The {fmt_upper} link is ready below."
+    elif requested_format:
+        message = f"Here is your {fmt_upper} link."
+    else:
+        message = f"Here is your {doc_label} download link."
+
+    result = dict(cached)
+    result["format"] = chosen_format
+    result["primary_format"] = chosen_format
+    result["file_name"] = file_name
+    result["file_path"] = file_path
+    result["download_url"] = download_url
+    result["format_links"] = format_links
+    result["alternate_format_links"] = alternate_format_links
+    result["message"] = message
+    result["retrieval_followup"] = True
+    result["document_delivery"] = _build_document_delivery_payload(result)
+    return result
 
 
 def _detect_followup_request_controls(text: str) -> dict[str, Any]:

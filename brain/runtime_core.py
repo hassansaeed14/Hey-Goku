@@ -77,6 +77,7 @@ from agents.productivity.summarizer_agent import summarize_text, summarize_topic
 from agents.productivity.task_agent import add_task, complete_task, delete_task, get_tasks, plan_tasks
 from agents.system.file_agent import analyze_file, list_files
 from agents.system.screenshot_agent import take_screenshot
+from security.enforcement import enforce_action, record_execution_result
 from security.trust_engine import build_permission_response, get_trust_level
 from agents.agent_fabric import match_generated_agent_request, run_generated_agent
 from agents.registry import build_runtime_agent_cards
@@ -87,7 +88,9 @@ from tools.document_generator import (
     normalize_document_style,
     normalize_citation_style,
     remember_document_request,
+    remember_generated_document,
     resolve_document_request,
+    resolve_document_retrieval_followup,
 )
 from tools.content_extractor import extract_content, is_youtube_url
 
@@ -548,7 +551,7 @@ WORKFLOW_HANDLERS: Dict[tuple[str, ...], Callable[[str], Dict[str, str]]] = {
 }
 
 
-def handle_personal_memory(command: str) -> Optional[tuple[str, str]]:
+def handle_personal_memory(command: str) -> Optional[Dict[str, Any]]:
     cmd = command.lower().strip()
 
     normalized = re.sub(r"^(hi|hey|hello)\s+", "", cmd).strip()
@@ -557,12 +560,19 @@ def handle_personal_memory(command: str) -> Optional[tuple[str, str]]:
     name_match = re.search(r"\bmy name is\s+([a-zA-Z ]{1,40})$", normalized)
     if name_match:
         name = name_match.group(1).strip().title()
-        store_user_name(name)
-        return "memory", f"Nice to meet you {name}!"
+        return {
+            "intent": "memory",
+            "action_name": "memory_write",
+            "operation": "store_name",
+            "value": name,
+        }
 
     if "what is my name" in normalized:
-        name = get_user_name()
-        return "memory", f"Your name is {name}." if name else "I don't know your name yet."
+        return {
+            "intent": "memory",
+            "action_name": "memory_read",
+            "operation": "read_name",
+        }
 
     return None
 
@@ -590,7 +600,7 @@ def handle_document_generation(raw_command: str, *, session_id: Optional[str] = 
     request = resolve_document_request(raw_command, session_id=session_id)
     if request is None:
         return None
-    return generate_document(
+    generated = generate_document(
         request.document_type,
         request.topic,
         request.export_format,
@@ -600,6 +610,17 @@ def handle_document_generation(raw_command: str, *, session_id: Optional[str] = 
         include_references=request.include_references,
         citation_style=request.citation_style,
     )
+    if generated and generated.get("success"):
+        remember_generated_document(session_id, generated)
+    return generated
+
+
+def handle_document_retrieval_followup(
+    raw_command: str,
+    *,
+    session_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    return resolve_document_retrieval_followup(raw_command, session_id=session_id)
 
 
 def _find_youtube_url_in_text(text: str) -> Optional[str]:
@@ -759,6 +780,7 @@ def handle_transformation(
             citation_style=normalize_citation_style(citation_style),
         )
         remember_document_request(session_id, dr)
+        remember_generated_document(session_id, result)
 
     return result
 
@@ -1010,6 +1032,8 @@ def maybe_execute_web_search_answer(
     language: str,
     permission_action: str,
     permission: Dict[str, Any],
+    session_id: str = "runtime",
+    username: Optional[str] = None,
     telemetry: ProcessingTelemetry,
     publish_telemetry: bool,
 ) -> Optional[Dict[str, Any]]:
@@ -1091,6 +1115,8 @@ def maybe_execute_web_search_answer(
         provider_name=provider_name,
         provider_model=provider_model,
         providers_tried=providers_tried,
+        session_id=session_id,
+        username=username,
         telemetry=telemetry,
         publish_telemetry=publish_telemetry,
     )
@@ -1120,6 +1146,8 @@ def build_result(
     provider_name: Optional[str] = None,
     provider_model: Optional[str] = None,
     providers_tried: Optional[List[str]] = None,
+    session_id: str = "runtime",
+    username: Optional[str] = None,
     telemetry: Optional[ProcessingTelemetry] = None,
     publish_telemetry: bool = True,
 ) -> Dict[str, Any]:
@@ -1155,6 +1183,19 @@ def build_result(
     except Exception:
         pass
 
+    try:
+        record_execution_result(
+            permission_action or final_intent,
+            session_id=session_id,
+            username=username,
+            success=execution_mode not in {"degraded_assistant", "permission_blocked"},
+            trust_level=get_trust_level(permission_action).value if permission_action else "safe",
+            reason=execution_mode,
+            meta={"layer": "runtime_core", "used_agents": used_agents},
+        )
+    except Exception:
+        pass
+
     return _with_telemetry({
         "intent": final_intent,
         "detected_intent": detected_intent,
@@ -1177,14 +1218,97 @@ def build_result(
     }, telemetry, publish=publish_telemetry)
 
 
+def _runtime_identity(security_context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    context = dict(security_context or {})
+    return {
+        "username": str(context.get("username") or "").strip() or None,
+        "user_id": str(context.get("user_id") or "").strip() or None,
+        "session_token": str(context.get("session_token") or "").strip() or None,
+        "confirmed": bool(context.get("confirmed", False)),
+        "pin": str(context.get("pin") or "").strip() or None,
+        "otp": str(context.get("otp") or "").strip() or None,
+        "otp_token": str(context.get("otp_token") or "").strip() or None,
+        "resource_id": str(context.get("resource_id") or "").strip() or None,
+    }
+
+
+def _permission_status_from_access(status: Optional[str]) -> str:
+    normalized = str(status or "").strip().lower()
+    status_map = {
+        "confirm": "needs_confirmation",
+        "session_approval": "needs_session_approval",
+        "pin": "needs_pin",
+    }
+    return status_map.get(normalized, normalized or "approved")
+
+
+def _permission_payload_from_access(action_name: str, access: Dict[str, Any]) -> Dict[str, Any]:
+    decision = dict(access.get("decision") or {})
+    trust_level = str(access.get("trust_level") or decision.get("trust_level") or get_trust_level(action_name).value)
+    approval_type = str(
+        access.get("approval_type")
+        or decision.get("approval_type")
+        or build_permission_response(action_name).get("permission", {}).get("approval_type")
+        or "none"
+    )
+    permission_payload = {
+        "action_name": action_name,
+        "trust_level": trust_level,
+        "approval_type": approval_type,
+        "reason": str(access.get("reason") or decision.get("reason") or ""),
+        "requires_approval": approval_type != "none",
+    }
+    for key, value in decision.items():
+        if permission_payload.get(key) is None and value is not None:
+            permission_payload[key] = value
+    return {
+        "success": bool(access.get("allowed")),
+        "status": "approved" if access.get("allowed") else _permission_status_from_access(access.get("status")),
+        "mode": "real",
+        "permission": permission_payload,
+        "enforcement": access,
+    }
+
+
+def _enforce_runtime_permission(
+    action_name: str,
+    *,
+    session_id: Optional[str],
+    security_context: Optional[Dict[str, Any]],
+    require_auth: bool = True,
+    resource_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    identity = _runtime_identity(security_context)
+    access = enforce_action(
+        action_name,
+        username=identity["username"],
+        user_id=identity["user_id"],
+        session_id=session_id or "runtime",
+        session_token=identity["session_token"],
+        confirmed=identity["confirmed"],
+        pin=identity["pin"],
+        otp=identity["otp"],
+        otp_token=identity["otp_token"],
+        resource_id=resource_id or identity["resource_id"],
+        require_auth=require_auth,
+        meta={"layer": "runtime_core", "stage": "pre_execution"},
+    )
+    return _permission_payload_from_access(action_name, access)
+
+
 def process_single_command_detailed(
     command: str,
     telemetry: Optional[ProcessingTelemetry] = None,
     *,
     publish_telemetry: bool = True,
     session_id: Optional[str] = None,
+    security_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     active_telemetry = telemetry or ProcessingTelemetry()
+    security_context = dict(security_context or {})
+    runtime_session_id = session_id or "runtime"
+    runtime_identity = _runtime_identity(security_context)
+    runtime_username = runtime_identity.get("username")
     raw_input = str(command or "")
     understanding_started = time.perf_counter()
     raw_command = clean_user_input(command)
@@ -1198,6 +1322,12 @@ def process_single_command_detailed(
     command_lower = raw_command.lower()
 
     if not raw_command:
+        permission = _enforce_runtime_permission(
+            "general",
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        )
         active_telemetry.record_intent("general", 0.0, [], 0.0)
         active_telemetry.record_routing("general", "No message was provided.", "safe", 0.0)
         active_telemetry.record_execution("general", "Please type something.", False, 0.0)
@@ -1214,10 +1344,16 @@ def process_single_command_detailed(
             "orchestration": master_orchestrator.analyze_task("", intent="general"),
             "language": "english",
             "permission_action": "general",
-            "permission": build_permission_response("general"),
+            "permission": permission,
         }, active_telemetry, publish=publish_telemetry)
 
     if command_lower in GREETING_INPUTS:
+        permission = _enforce_runtime_permission(
+            "general",
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        )
         response = get_personalized_greeting()
         active_telemetry.record_intent("greeting", 1.0, [], 0.0)
         active_telemetry.record_routing("general", "Greeting shortcut matched a known greeting input.", "safe", 0.0)
@@ -1236,20 +1372,60 @@ def process_single_command_detailed(
             "orchestration": master_orchestrator.analyze_task(raw_command, intent="general"),
             "language": "english",
             "permission_action": "general",
-            "permission": build_permission_response("general"),
+            "permission": permission,
         }, active_telemetry, publish=publish_telemetry)
 
     memory_response = handle_personal_memory(raw_command)
     if memory_response:
-        active_telemetry.record_intent(memory_response[0], 1.0, [], 0.0)
-        active_telemetry.record_routing("memory", "Personal memory handler matched the request.", "safe", 0.0)
-        active_telemetry.record_execution("memory", memory_response[1], True, 0.0)
-        store_and_learn(raw_command, memory_response[1], memory_response[0])
+        memory_action = str(memory_response.get("action_name") or "memory_read")
+        memory_permission = _enforce_runtime_permission(
+            memory_action,
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=True,
+        )
+        active_telemetry.record_intent(str(memory_response.get("intent") or "memory"), 1.0, [], 0.0)
+        active_telemetry.record_routing(
+            "memory",
+            "Personal memory handler matched the request.",
+            str((memory_permission.get("permission") or {}).get("trust_level") or "private"),
+            0.0,
+        )
+        if not memory_permission.get("success"):
+            reason = str((memory_permission.get("permission") or {}).get("reason") or "Permission required.")
+            active_telemetry.record_execution("memory", reason, False, 0.0)
+            return _with_telemetry({
+                "intent": "permission",
+                "detected_intent": "memory",
+                "confidence": 1.0,
+                "response": reason,
+                "plan": [],
+                "used_agents": ["memory"],
+                "agent_capabilities": build_runtime_agent_cards(["memory"]),
+                "execution_mode": "permission_blocked",
+                "decision": build_decision_summary("memory", 1.0, AGENT_ROUTER),
+                "orchestration": master_orchestrator.analyze_task(raw_command, intent="memory"),
+                "language": "english",
+                "permission_action": memory_action,
+                "permission": memory_permission,
+            }, active_telemetry, publish=publish_telemetry)
+
+        memory_operation = str(memory_response.get("operation") or "")
+        if memory_operation == "store_name":
+            name = str(memory_response.get("value") or "").strip()
+            store_user_name(name)
+            final_memory_response = f"Nice to meet you {name}!"
+        else:
+            name = get_user_name()
+            final_memory_response = f"Your name is {name}." if name else "I don't know your name yet."
+
+        active_telemetry.record_execution("memory", final_memory_response, True, 0.0)
+        store_and_learn(raw_command, final_memory_response, "memory")
         return _with_telemetry({
-            "intent": memory_response[0],
-            "detected_intent": memory_response[0],
+            "intent": "memory",
+            "detected_intent": "memory",
             "confidence": 1.0,
-            "response": memory_response[1],
+            "response": final_memory_response,
             "plan": [],
             "used_agents": ["memory"],
             "agent_capabilities": build_runtime_agent_cards(["memory"]),
@@ -1257,14 +1433,88 @@ def process_single_command_detailed(
             "decision": build_decision_summary("general", 1.0, AGENT_ROUTER),
             "orchestration": master_orchestrator.analyze_task(raw_command, intent="general"),
             "language": "english",
-            "permission_action": "memory_read",
-            "permission": build_permission_response("memory_read", confirmed=True),
+            "permission_action": memory_action,
+            "permission": memory_permission,
         }, active_telemetry, publish=publish_telemetry)
 
-    document_result = handle_document_generation(raw_command, session_id=session_id)
+    retrieval_result = handle_document_retrieval_followup(raw_command, session_id=runtime_session_id)
+    if retrieval_result is not None:
+        reply = str(retrieval_result.get("message") or "Here is your document.")
+        permission = _enforce_runtime_permission(
+            "document_generation",
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        )
+        active_telemetry.record_intent("document", 1.0, [], 0.0)
+        active_telemetry.record_routing(
+            "document_retrieval",
+            "Follow-up retrieval matched a cached document; skipped LLM.",
+            "safe",
+            0.0,
+        )
+        active_telemetry.record_execution("document_retrieval", reply, True, 0.0)
+        result = build_result(
+            raw_command=raw_command,
+            detected_intent="document",
+            confidence=1.0,
+            response=reply,
+            language="english",
+            orchestration={
+                "primary_agent": "document_retrieval",
+                "secondary_agents": [],
+                "execution_order": ["document_retrieval"],
+                "requires_multiple": False,
+                "primary_selection_source": "document_retrieval_followup",
+                "mode": "real",
+                "reason": "Follow-up retrieval served a previously generated document from session memory.",
+            },
+            used_agents=["document_retrieval"],
+            execution_mode="document_retrieval",
+            plan_steps=[],
+            permission_action="document_generation",
+            permission=permission,
+            provider_name=retrieval_result.get("provider"),
+            provider_model=retrieval_result.get("model"),
+            providers_tried=retrieval_result.get("providers_tried") or [],
+            session_id=runtime_session_id,
+            username=runtime_username,
+            telemetry=active_telemetry,
+            publish_telemetry=publish_telemetry,
+        )
+        result["download_url"] = retrieval_result.get("download_url")
+        result["file_name"] = retrieval_result.get("file_name")
+        result["file_path"] = retrieval_result.get("file_path")
+        result["document_type"] = retrieval_result.get("document_type")
+        result["document_format"] = retrieval_result.get("format")
+        result["page_target"] = retrieval_result.get("page_target")
+        result["document_topic"] = retrieval_result.get("topic")
+        result["document_source"] = retrieval_result.get("source")
+        result["document_delivery"] = retrieval_result.get("document_delivery")
+        result["alternate_format_links"] = retrieval_result.get("alternate_format_links") or {}
+        result["format_links"] = retrieval_result.get("format_links") or {}
+        result["available_formats"] = retrieval_result.get("available_formats") or []
+        result["document_files"] = retrieval_result.get("files") or []
+        result["requested_formats"] = retrieval_result.get("requested_formats") or []
+        result["document_style"] = retrieval_result.get("style")
+        result["include_references"] = retrieval_result.get("include_references")
+        result["citation_style"] = retrieval_result.get("citation_style")
+        result["document_title"] = retrieval_result.get("title")
+        result["document_subtitle"] = retrieval_result.get("subtitle")
+        result["document_preview"] = retrieval_result.get("preview_text")
+        result["retrieval_followup"] = True
+        return result
+
+    document_result = handle_document_generation(raw_command, session_id=runtime_session_id)
     if document_result is not None:
         reply = str(document_result.get("message") or "Your document is ready.")
         execution_time_ms = 0.0
+        permission = _enforce_runtime_permission(
+            "document_generation",
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        )
         active_telemetry.record_intent("document", 1.0, [], 0.0)
         active_telemetry.record_routing(
             "document_generator",
@@ -1292,10 +1542,12 @@ def process_single_command_detailed(
             execution_mode="document_generation",
             plan_steps=[],
             permission_action="document_generation",
-            permission=build_permission_response("document_generation"),
+            permission=permission,
             provider_name=document_result.get("provider"),
             provider_model=document_result.get("model"),
             providers_tried=document_result.get("providers_tried") or [],
+            session_id=runtime_session_id,
+            username=runtime_username,
             telemetry=active_telemetry,
             publish_telemetry=publish_telemetry,
         )
@@ -1321,9 +1573,15 @@ def process_single_command_detailed(
         result["document_preview"] = document_result.get("preview_text")
         return result
 
-    transformation_result = handle_transformation(raw_command, session_id=session_id)
+    transformation_result = handle_transformation(raw_command, session_id=runtime_session_id)
     if transformation_result is not None:
         reply = str(transformation_result.get("message") or "Your transformed document is ready.")
+        permission = _enforce_runtime_permission(
+            "document_generation",
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        )
         active_telemetry.record_intent("transformation", 1.0, [], 0.0)
         active_telemetry.record_routing(
             "transformation_engine",
@@ -1351,10 +1609,12 @@ def process_single_command_detailed(
             execution_mode="document_transformation",
             plan_steps=[],
             permission_action="document_generation",
-            permission=build_permission_response("document_generation"),
+            permission=permission,
             provider_name=transformation_result.get("provider"),
             provider_model=transformation_result.get("model"),
             providers_tried=transformation_result.get("providers_tried") or [],
+            session_id=runtime_session_id,
+            username=runtime_username,
             telemetry=active_telemetry,
             publish_telemetry=publish_telemetry,
         )
@@ -1414,7 +1674,12 @@ def process_single_command_detailed(
         routing_started = time.perf_counter()
         orchestration = build_general_assistant_orchestration(raw_command, fast_assistant_route)
         permission_action = "general"
-        permission = build_permission_response(permission_action)
+        permission = _enforce_runtime_permission(
+            permission_action,
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        )
         active_telemetry.record_routing(
             agent_selected="general",
             reason=orchestration["reason"],
@@ -1465,6 +1730,8 @@ def process_single_command_detailed(
             provider_name=provider_name,
             provider_model=provider_model,
             providers_tried=providers_tried,
+            session_id=runtime_session_id,
+            username=runtime_username,
             telemetry=active_telemetry,
             publish_telemetry=publish_telemetry,
         )
@@ -1475,7 +1742,14 @@ def process_single_command_detailed(
         confidence=confidence,
         language=language,
         permission_action="general",
-        permission=build_permission_response("general"),
+        permission=_enforce_runtime_permission(
+            "general",
+            session_id=runtime_session_id,
+            security_context=security_context,
+            require_auth=False,
+        ),
+        session_id=runtime_session_id,
+        username=runtime_username,
         telemetry=active_telemetry,
         publish_telemetry=publish_telemetry,
     )
@@ -1485,7 +1759,12 @@ def process_single_command_detailed(
     routing_started = time.perf_counter()
     orchestration = master_orchestrator.analyze_task(raw_command, intent=detected_intent)
     permission_action = resolve_permission_action(raw_command, detected_intent, orchestration)
-    permission = build_permission_response(permission_action)
+    permission = _enforce_runtime_permission(
+        permission_action,
+        session_id=runtime_session_id,
+        security_context=security_context,
+        require_auth=True,
+    )
     selected_agent = orchestration.get("primary_agent") or detected_intent or "general"
     routing_reason = (
         orchestration.get("reason")
@@ -1558,6 +1837,8 @@ def process_single_command_detailed(
             plan_steps=[],
             permission_action=permission_action,
             permission=permission,
+            session_id=runtime_session_id,
+            username=runtime_username,
             telemetry=active_telemetry,
             publish_telemetry=publish_telemetry,
         )
@@ -1592,7 +1873,18 @@ def process_single_command_detailed(
         else:
             generated_match = match_generated_agent_request(raw_command, exclude_ids=AGENT_ROUTER.keys())
             if generated_match:
-                generated_result = run_generated_agent(generated_match.id, raw_command)
+                generated_result = run_generated_agent(
+                    generated_match.id,
+                    raw_command,
+                    username=runtime_username,
+                    user_id=runtime_identity.get("user_id"),
+                    session_id=runtime_session_id,
+                    session_token=runtime_identity.get("session_token"),
+                    confirmed=runtime_identity.get("confirmed", False),
+                    pin=runtime_identity.get("pin"),
+                    otp=runtime_identity.get("otp"),
+                    otp_token=runtime_identity.get("otp_token"),
+                )
                 response = normalize_agent_output(generated_result)
                 used_agents = [generated_match.id]
                 execution_mode = "generated_agent"
@@ -1660,6 +1952,8 @@ def process_single_command_detailed(
         provider_name=provider_name,
         provider_model=provider_model,
         providers_tried=providers_tried,
+        session_id=runtime_session_id,
+        username=runtime_username,
         telemetry=active_telemetry,
         publish_telemetry=publish_telemetry,
     )
@@ -1670,20 +1964,37 @@ def process_single_command(command: str) -> tuple[str, str]:
     return result["intent"], result["response"]
 
 
-def process_command_detailed(command: str, *, session_id: Optional[str] = None) -> Dict[str, Any]:
+def process_command_detailed(
+    command: str,
+    *,
+    session_id: Optional[str] = None,
+    security_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     raw_input = str(command or "")
     raw_command = clean_user_input(command)
 
     if not raw_command:
-        return process_single_command_detailed(raw_command, session_id=session_id)
+        return process_single_command_detailed(
+            raw_command,
+            session_id=session_id,
+            security_context=security_context,
+        )
 
     if resolve_document_request(raw_input, session_id=session_id) is not None or resolve_document_request(raw_command, session_id=session_id) is not None:
-        return process_single_command_detailed(raw_command, session_id=session_id)
+        return process_single_command_detailed(
+            raw_command,
+            session_id=session_id,
+            security_context=security_context,
+        )
 
     sub_commands = split_commands(raw_command)
 
     if not should_treat_as_multi_command(sub_commands):
-        return process_single_command_detailed(raw_command, session_id=session_id)
+        return process_single_command_detailed(
+            raw_command,
+            session_id=session_id,
+            security_context=security_context,
+        )
 
     aggregate_telemetry = ProcessingTelemetry()
     understanding_started = time.perf_counter()
@@ -1695,7 +2006,12 @@ def process_command_detailed(command: str, *, session_id: Optional[str] = None) 
     )
 
     results = [
-        process_single_command_detailed(sub_command, publish_telemetry=False, session_id=session_id)
+        process_single_command_detailed(
+            sub_command,
+            publish_telemetry=False,
+            session_id=session_id,
+            security_context=security_context,
+        )
         for sub_command in sub_commands
     ]
     responses = [item["response"] for item in results]

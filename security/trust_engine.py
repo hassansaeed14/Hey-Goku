@@ -129,6 +129,10 @@ ACTION_TRUST_MAP: Dict[str, TrustLevel] = {
     "file_delete": TrustLevel.CRITICAL,
     "account_delete": TrustLevel.CRITICAL,
     "locked_chat_unlock": TrustLevel.CRITICAL,
+    "password_change": TrustLevel.CRITICAL,
+    "external_integration": TrustLevel.CRITICAL,
+    "owner_transfer": TrustLevel.CRITICAL,
+    "phone_register": TrustLevel.CRITICAL,
 }
 
 
@@ -151,6 +155,18 @@ def get_trust_level(action_name: Optional[str]) -> TrustLevel:
     return ACTION_TRUST_MAP.get(normalized, TrustLevel.SENSITIVE)
 
 
+def coerce_trust_level(value: Optional[str]) -> Optional[TrustLevel]:
+    if value is None:
+        return None
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return None
+    try:
+        return TrustLevel(normalized)
+    except ValueError:
+        return None
+
+
 def get_approval_type(trust_level: TrustLevel) -> ApprovalType:
     return LEVEL_TO_APPROVAL[trust_level]
 
@@ -168,11 +184,13 @@ def evaluate_action(
     confirmed: bool = False,
     session_approved: bool = False,
     pin_verified: bool = False,
+    trust_level_override: Optional[str] = None,
 ) -> TrustDecision:
     normalized = normalize_action_name(action_name)
-    trust_level = get_trust_level(normalized)
+    override_level = coerce_trust_level(trust_level_override)
+    trust_level = override_level or get_trust_level(normalized)
     approval_type = get_approval_type(trust_level)
-    policy_source = get_policy_source(normalized)
+    policy_source = "trust_level_override" if override_level else get_policy_source(normalized)
 
     if trust_level == TrustLevel.SAFE:
         return TrustDecision(
@@ -255,6 +273,7 @@ def build_permission_response(
     confirmed: bool = False,
     session_approved: bool = False,
     pin_verified: bool = False,
+    trust_level_override: Optional[str] = None,
     trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     decision = evaluate_action(
@@ -262,6 +281,7 @@ def build_permission_response(
         confirmed=confirmed,
         session_approved=session_approved,
         pin_verified=pin_verified,
+        trust_level_override=trust_level_override,
     )
 
     if decision.allowed:

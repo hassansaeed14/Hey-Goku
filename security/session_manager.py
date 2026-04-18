@@ -102,6 +102,46 @@ def get_login_session(token: str, *, touch: bool = True) -> Optional[Dict[str, s
     return dict(entry)
 
 
+def describe_login_session(token: str) -> Dict[str, Any]:
+    if not token:
+        return {"valid": False, "reason": "no_session_token", "session": None}
+
+    payload = _load_login_sessions()
+    sessions = payload["sessions"]
+    token_hash = _hash_token(token)
+    entry = sessions.get(token_hash)
+    if not entry:
+        return {"valid": False, "reason": "expired_or_missing", "session": None}
+
+    try:
+        last_seen_at = datetime.fromisoformat(str(entry["last_seen_at"]))
+    except Exception:
+        sessions.pop(token_hash, None)
+        _save_login_sessions(payload)
+        return {"valid": False, "reason": "invalid_session_state", "session": None}
+
+    expires_at = last_seen_at + AUTH_SESSION_IDLE_DELTA
+    remaining_seconds = max(int((expires_at - _now()).total_seconds()), 0)
+    if remaining_seconds <= 0:
+        sessions.pop(token_hash, None)
+        _save_login_sessions(payload)
+        return {
+            "valid": False,
+            "reason": "expired_or_missing",
+            "session": None,
+            "expires_at": expires_at.isoformat(),
+            "remaining_seconds": 0,
+        }
+
+    return {
+        "valid": True,
+        "reason": "active",
+        "session": dict(entry),
+        "expires_at": expires_at.isoformat(),
+        "remaining_seconds": remaining_seconds,
+    }
+
+
 def invalidate_login_session(token: str) -> None:
     if not token:
         return

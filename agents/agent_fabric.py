@@ -17,6 +17,7 @@ from memory.semantic_memory import list_facts
 from memory.working_memory import load_working_memory, remember_reference, update_working_memory
 from security.access_control import evaluate_access
 from security.auth_manager import get_auth_state, validate_login
+from security.enforcement import enforce_action, record_execution_result
 from security.pin_manager import get_pin_status, set_pin, verify_pin
 from security.trust_engine import build_permission_response
 from tools import browser_tools, process_tools, system_tools
@@ -735,9 +736,13 @@ def _run_system_agent(
     request: str,
     *,
     username: Optional[str],
+    user_id: Optional[str],
     session_id: str,
+    session_token: Optional[str],
     confirmed: bool,
     pin: Optional[str],
+    otp: Optional[str],
+    otp_token: Optional[str],
 ) -> Dict[str, Any]:
     lowered = str(request or "").lower()
     if blueprint.id == "system_info_agent":
@@ -754,8 +759,20 @@ def _run_system_agent(
             return {"success": True, "message": f"Found {len(processes)} running processes.", "data": {"processes": processes}}
         app_name = request.strip()
         preview = process_tools.open_application(app_name, launch=False)
-        access = evaluate_access("system_control", username=username, session_id=session_id, confirmed=confirmed, pin=pin)
-        return {"success": access["success"], "message": "App control preview ready." if access["success"] else access["reason"], "data": {"preview": preview, "access": access}}
+        access = enforce_action(
+            "system_control",
+            username=username,
+            user_id=user_id,
+            session_id=session_id,
+            session_token=session_token,
+            confirmed=confirmed,
+            pin=pin,
+            otp=otp,
+            otp_token=otp_token,
+            require_auth=True,
+            meta={"agent": blueprint.id, "stage": "system_preview"},
+        )
+        return {"success": access["allowed"], "message": "App control preview ready." if access["allowed"] else access["reason"], "data": {"preview": preview, "access": access}}
 
     if blueprint.id == "backup_agent":
         snapshot = system_tools.get_workspace_snapshot()
@@ -763,8 +780,20 @@ def _run_system_agent(
 
     if blueprint.id == "cleanup_agent":
         snapshot = system_tools.get_workspace_snapshot()
-        access = evaluate_access("file_delete", username=username, session_id=session_id, confirmed=confirmed, pin=pin)
-        return {"success": access["success"], "message": "Cleanup assessment prepared." if access["success"] else access["reason"], "data": {"workspace": snapshot, "access": access}}
+        access = enforce_action(
+            "file_delete",
+            username=username,
+            user_id=user_id,
+            session_id=session_id,
+            session_token=session_token,
+            confirmed=confirmed,
+            pin=pin,
+            otp=otp,
+            otp_token=otp_token,
+            require_auth=True,
+            meta={"agent": blueprint.id, "stage": "cleanup_preview"},
+        )
+        return {"success": access["allowed"], "message": "Cleanup assessment prepared." if access["allowed"] else access["reason"], "data": {"workspace": snapshot, "access": access}}
 
     if blueprint.id == "download_manager_agent":
         return {"success": True, "message": "Download manager is prepared for future integration.", "data": {"mode": "hybrid", "status": "planned_bridge"}}
@@ -908,9 +937,13 @@ def run_generated_agent(
     request: str,
     *,
     username: Optional[str] = None,
+    user_id: Optional[str] = None,
     session_id: str = "default",
+    session_token: Optional[str] = None,
     confirmed: bool = False,
     pin: Optional[str] = None,
+    otp: Optional[str] = None,
+    otp_token: Optional[str] = None,
     save_artifact: Optional[bool] = None,
 ) -> Dict[str, Any]:
     blueprint = blueprint_from_identifier(identifier)
@@ -925,13 +958,51 @@ def run_generated_agent(
             "trust_level": blueprint.trust_level,
         }
 
+    gate = enforce_action(
+        blueprint.id,
+        username=username,
+        user_id=user_id,
+        session_id=session_id,
+        session_token=session_token,
+        confirmed=confirmed,
+        pin=pin,
+        otp=otp,
+        otp_token=otp_token,
+        require_auth=blueprint.trust_level != "safe",
+        trust_level_override=blueprint.trust_level,
+        meta={"layer": "agent_fabric", "agent": blueprint.id},
+    )
+    if not gate["allowed"]:
+        return {
+            "success": False,
+            "message": gate["reason"],
+            "data": {"access": gate},
+            "agent": blueprint.id,
+            "agent_name": blueprint.name,
+            "category": blueprint.category,
+            "mode": blueprint.capability_mode,
+            "trust_level": blueprint.trust_level,
+            "status": gate["status"],
+        }
+
     try:
         if blueprint.category == "memory":
             result = _run_memory_agent(blueprint, text)
         elif blueprint.category == "security":
             result = _run_security_agent(blueprint, text, username=username, session_id=session_id, pin=pin)
         elif blueprint.category == "system":
-            result = _run_system_agent(blueprint, text, username=username, session_id=session_id, confirmed=confirmed, pin=pin)
+            result = _run_system_agent(
+                blueprint,
+                text,
+                username=username,
+                user_id=user_id,
+                session_id=session_id,
+                session_token=session_token,
+                confirmed=confirmed,
+                pin=pin,
+                otp=otp,
+                otp_token=otp_token,
+            )
         elif blueprint.category == "integration":
             result = _run_integration_agent(blueprint, text)
         elif blueprint.id in {"openai_agent", "claude_agent", "gemini_agent", "groq_agent", "ollama_agent", "model_router_agent"}:
@@ -973,8 +1044,31 @@ def run_generated_agent(
             )
         except Exception:
             pass
+        try:
+            record_execution_result(
+                blueprint.id,
+                session_id=session_id,
+                username=username,
+                success=bool(result.get("success")),
+                trust_level=blueprint.trust_level,
+                meta={"layer": "agent_fabric", "category": blueprint.category},
+            )
+        except Exception:
+            pass
         return result
     except Exception as error:
+        try:
+            record_execution_result(
+                blueprint.id,
+                session_id=session_id,
+                username=username,
+                success=False,
+                reason=str(error),
+                trust_level=blueprint.trust_level,
+                meta={"layer": "agent_fabric", "category": blueprint.category},
+            )
+        except Exception:
+            pass
         return {
             "success": False,
             "message": f"{blueprint.name} hit an error.",

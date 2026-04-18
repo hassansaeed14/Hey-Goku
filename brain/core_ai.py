@@ -17,6 +17,7 @@ from config.settings import GROQ_API_KEY, MODEL_NAME
 from memory.chat_history import get_history
 from memory.knowledge_base import get_user_age, get_user_city, get_user_name
 from memory.working_memory import load_working_memory
+from security.enforcement import enforce_action
 
 load_dotenv()
 if GROQ_API_KEY:
@@ -111,18 +112,14 @@ def _build_user_reference(user_profile: Optional[dict[str, Any]]) -> str:
     return title or "sir"
 
 
-def _knowledge_base_reply(command: str, user_profile: Optional[dict[str, Any]] = None) -> Optional[str]:
+def _knowledge_base_request(command: str) -> Optional[dict[str, str]]:
     text = str(command or "").strip().lower()
-    user_reference = _build_user_reference(user_profile)
     if "what is my name" in text:
-        value = get_user_name()
-        return f"Certainly {user_reference}. Your name is {value}." if value else None
+        return {"action_name": "memory_read", "field": "name"}
     if "what is my age" in text or "how old am i" in text:
-        value = get_user_age()
-        return f"Certainly {user_reference}. Your age is {value}." if value else None
+        return {"action_name": "memory_read", "field": "age"}
     if "what is my city" in text or "where do i live" in text:
-        value = get_user_city()
-        return f"Certainly {user_reference}. You previously said you are in {value}." if value else None
+        return {"action_name": "memory_read", "field": "city"}
     return None
 
 
@@ -221,11 +218,89 @@ def _call_live_brain_direct(command: str, session_id: str) -> dict[str, Any]:
     return payload
 
 
-def _knowledge_base_result(command: str, session_id: str, user_profile: Optional[dict[str, Any]], current_mode: str) -> Optional[dict[str, Any]]:
-    reply = _knowledge_base_reply(command, user_profile=user_profile)
+def _knowledge_base_result(
+    command: str,
+    session_id: str,
+    user_profile: Optional[dict[str, Any]],
+    current_mode: str,
+    security_context: Optional[dict[str, Any]] = None,
+) -> Optional[dict[str, Any]]:
+    lookup = _knowledge_base_request(command)
+    if not lookup:
+        return None
+    profile = dict(user_profile or {})
+    identity = dict(security_context or {})
+    access = enforce_action(
+        str(lookup.get("action_name") or "memory_read"),
+        username=str(identity.get("username") or profile.get("username") or "").strip() or None,
+        user_id=str(identity.get("user_id") or profile.get("id") or "").strip() or None,
+        session_id=session_id,
+        session_token=str(identity.get("session_token") or "").strip() or None,
+        confirmed=bool(identity.get("confirmed", False)),
+        pin=str(identity.get("pin") or "").strip() or None,
+        otp=str(identity.get("otp") or "").strip() or None,
+        otp_token=str(identity.get("otp_token") or "").strip() or None,
+        require_auth=True,
+        meta={"layer": "core_ai", "stage": "knowledge_base"},
+    )
+    permission = {
+        "success": bool(access.get("allowed")),
+        "status": "approved" if access.get("allowed") else str(access.get("status") or "blocked"),
+        "mode": "real",
+        "permission": {
+            **dict(access.get("decision") or {}),
+            "action_name": str(lookup.get("action_name") or "memory_read"),
+            "trust_level": str(access.get("trust_level") or "private"),
+            "approval_type": str(access.get("approval_type") or "confirm"),
+            "reason": str(access.get("reason") or ""),
+        },
+        "enforcement": access,
+    }
+    if not permission["success"]:
+        return {
+            "intent": "permission",
+            "detected_intent": "memory",
+            "confidence": 1.0,
+            "response": str(permission["permission"].get("reason") or "Permission required."),
+            "provider": None,
+            "model": None,
+            "plan": [],
+            "used_agents": ["memory"],
+            "agent_capabilities": runtime_core_module.build_runtime_agent_cards(["memory"]),
+            "execution_mode": "permission_blocked",
+            "decision": runtime_core_module.build_decision_summary("memory", 1.0, AGENT_ROUTER),
+            "orchestration": {
+                "primary_agent": "memory",
+                "execution_order": ["memory"],
+                "agent_registry_connected": True,
+            },
+            "permission_action": str(lookup.get("action_name") or "memory_read"),
+            "permission": permission,
+            "reasoning_trace": {
+                "intent_detected": "memory",
+                "confidence_score": 1.0,
+                "agents_involved": ["memory"],
+                "critical_thinking_result": "permission_required",
+                "time_taken_ms": 0.0,
+            },
+            "context_window": list(_get_session_history(session_id)),
+            "mode": current_mode,
+        }
+
+    user_reference = _build_user_reference(profile)
+    field = str(lookup.get("field") or "").strip().lower()
+    if field == "name":
+        value = get_user_name()
+        reply = f"Certainly {user_reference}. Your name is {value}." if value else None
+    elif field == "age":
+        value = get_user_age()
+        reply = f"Certainly {user_reference}. Your age is {value}." if value else None
+    else:
+        value = get_user_city()
+        reply = f"Certainly {user_reference}. You previously said you are in {value}." if value else None
     if not reply:
         return None
-    context = _build_context(session_id, user_profile=user_profile, current_mode=current_mode)
+    context = _build_context(session_id, user_profile=profile, current_mode=current_mode)
     context.activate("memory")
     reasoning_trace = {
         "intent_detected": "memory",
@@ -251,8 +326,8 @@ def _knowledge_base_result(command: str, session_id: str, user_profile: Optional
             "execution_order": ["memory"],
             "agent_registry_connected": True,
         },
-        "permission_action": "memory_read",
-        "permission": runtime_core_module.build_permission_response("memory_read", confirmed=True),
+        "permission_action": str(lookup.get("action_name") or "memory_read"),
+        "permission": permission,
         "reasoning_trace": reasoning_trace,
         "context_window": context.conversation_history[-MAX_SESSION_EXCHANGES * 2 :],
         "mode": current_mode,
@@ -309,9 +384,10 @@ def process_single_command_detailed(
     session_id: str = "default",
     user_profile: Optional[dict[str, Any]] = None,
     current_mode: str = "hybrid",
+    security_context: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     normalized_session = _normalize_session_id(session_id)
-    kb_result = _knowledge_base_result(command, normalized_session, user_profile, current_mode)
+    kb_result = _knowledge_base_result(command, normalized_session, user_profile, current_mode, security_context)
     if kb_result is not None:
         _record_exchange(normalized_session, command, kb_result["response"])
         return kb_result
@@ -319,7 +395,11 @@ def process_single_command_detailed(
     _sync_context_into_response_engine(normalized_session)
     started = time.perf_counter()
     try:
-        result = runtime_core_module.process_single_command_detailed(command, session_id=normalized_session)
+        result = runtime_core_module.process_single_command_detailed(
+            command,
+            session_id=normalized_session,
+            security_context=security_context,
+        )
     except Exception as error:
         print(f"[BRAIN ERROR] Runtime pipeline failed: {error}")
         raise
@@ -356,9 +436,10 @@ def process_command_detailed(
     session_id: str = "default",
     user_profile: Optional[dict[str, Any]] = None,
     current_mode: str = "hybrid",
+    security_context: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     normalized_session = _normalize_session_id(session_id)
-    kb_result = _knowledge_base_result(command, normalized_session, user_profile, current_mode)
+    kb_result = _knowledge_base_result(command, normalized_session, user_profile, current_mode, security_context)
     if kb_result is not None:
         _record_exchange(normalized_session, command, kb_result["response"])
         return kb_result
@@ -366,7 +447,11 @@ def process_command_detailed(
     _sync_context_into_response_engine(normalized_session)
     started = time.perf_counter()
     try:
-        result = runtime_core_module.process_command_detailed(command, session_id=normalized_session)
+        result = runtime_core_module.process_command_detailed(
+            command,
+            session_id=normalized_session,
+            security_context=security_context,
+        )
     except Exception as error:
         print(f"[BRAIN ERROR] Runtime pipeline failed: {error}")
         raise

@@ -74,10 +74,20 @@ from security.auth_manager import (
     requires_first_run_setup,
     set_session_cookie,
 )
+from security.audit_logger import tail_audit_log
 from security.confirmation_system import ConfirmationSystem
+from security.enforcement import enforce_action, record_execution_result
 from security.lock_manager import is_locked, lock_resource, unlock_resource
+from security.otp_manager import get_otp_status, invalidate_otp, request_otp, verify_otp
+from security.phone_registry import get_phone, list_phones, register_phone, remove_phone
 from security.pin_manager import get_pin_status
-from security.session_manager import approve_action, is_action_approved
+from security.session_manager import (
+    approve_action,
+    describe_login_session,
+    get_login_session,
+    is_action_approved,
+    list_login_sessions,
+)
 from security.trust_engine import build_permission_response
 from api.auth import get_user
 from voice.voice_controller import (
@@ -98,6 +108,7 @@ from tools.document_generator import (
     normalize_document_formats,
     normalize_document_style,
     resolve_document_request,
+    detect_document_retrieval_followup,
 )
 from tools.content_extractor import extract_content
 from brain.response_engine import generate_transformation_content_payload
@@ -129,6 +140,10 @@ class ChatApiRequest(BaseModel):
     message: str
     mode: str = "hybrid"
     confirmation_code: Optional[str] = None
+    confirmed: bool = False
+    pin: Optional[str] = None
+    otp: Optional[str] = None
+    otp_token: Optional[str] = None
 
 
 class LoginData(BaseModel):
@@ -187,6 +202,8 @@ class AgentRunRequest(BaseModel):
     session_id: str = "default"
     confirmed: bool = False
     pin: Optional[str] = None
+    otp: Optional[str] = None
+    otp_token: Optional[str] = None
     save_artifact: Optional[bool] = None
 
 
@@ -208,6 +225,32 @@ class VoiceSettingsUpdate(BaseModel):
 class SecurityActionRequest(BaseModel):
     action_name: str
     session_id: str = "default"
+
+
+class OtpRequestBody(BaseModel):
+    action_name: str
+    purpose: Optional[str] = None
+
+
+class OtpVerifyBody(BaseModel):
+    action_name: str
+    code: str
+    token: Optional[str] = None
+
+
+class PhoneRegisterBody(BaseModel):
+    phone: str
+    pin: Optional[str] = None
+
+
+class EnforceActionBody(BaseModel):
+    action_name: str
+    session_id: str = "default"
+    confirmed: bool = False
+    pin: Optional[str] = None
+    otp: Optional[str] = None
+    otp_token: Optional[str] = None
+    resource_id: Optional[str] = None
 
 
 class DocumentGenerateRequest(BaseModel):
@@ -681,6 +724,11 @@ def _prepare_chat_context(
     *,
     user: Optional[dict[str, Any]] = None,
     confirmation_code: Optional[str] = None,
+    confirmed: bool = False,
+    pin: Optional[str] = None,
+    otp: Optional[str] = None,
+    otp_token: Optional[str] = None,
+    session_token: Optional[str] = None,
 ) -> dict[str, Any]:
     message = (raw_message or "").strip()
     mode = (requested_mode or "hybrid").strip().lower() or "hybrid"
@@ -693,47 +741,54 @@ def _prepare_chat_context(
 
     normalized_session_id = _normalize_session_id(session_id)
     document_request = resolve_document_request(cleaned_message, session_id=normalized_session_id)
+    retrieval_followup = None
+    if document_request is None:
+        retrieval_followup = detect_document_retrieval_followup(cleaned_message)
     detected_intent, confidence = detect_intent_with_confidence(cleaned_message)
-    permission_action = "document_generation" if document_request is not None else detected_intent
-    if document_request is not None:
+    if document_request is not None or retrieval_followup is not None:
+        permission_action = "document_generation"
         detected_intent = "document"
         confidence = 1.0
+    else:
+        permission_action = detected_intent
     decision = build_decision_summary(detected_intent, confidence, AGENT_ROUTER)
-    permission = build_permission_response(
+    security_context = {
+        "username": user.get("username") if user else None,
+        "user_id": user.get("id") if user else None,
+        "session_token": session_token if user else None,
+        "confirmed": bool(confirmed),
+        "pin": pin,
+        "otp": otp,
+        "otp_token": otp_token,
+    }
+    access = enforce_action(
         permission_action,
-        confirmed=False,
-        session_approved=is_action_approved(normalized_session_id, detected_intent),
-        pin_verified=False,
+        username=str(user.get("username")) if user else None,
+        user_id=str(user.get("id")) if user else None,
+        session_id=normalized_session_id,
+        session_token=session_token if user else None,
+        confirmed=bool(confirmed),
+        pin=pin,
+        otp=otp,
+        otp_token=otp_token,
+        require_auth=permission_action != "document_generation",
+        meta={"layer": "api", "endpoint": "chat_precheck"},
     )
-    permission = _public_access_override(permission, user=user)
-    confirmation_required = permission.get("permission", {}).get("approval_type") == "pin"
+    permission = {
+        "success": bool(access.get("allowed")),
+        "status": "approved" if access.get("allowed") else str(access.get("status") or "blocked"),
+        "mode": "real",
+        "permission": {
+            **dict(access.get("decision") or {}),
+            "action_name": permission_action,
+            "trust_level": str(access.get("trust_level") or ((access.get("decision") or {}).get("trust_level") or "safe")),
+            "approval_type": str(access.get("approval_type") or ((access.get("decision") or {}).get("approval_type") or "none")),
+            "reason": str(access.get("reason") or ((access.get("decision") or {}).get("reason") or "")),
+        },
+        "enforcement": access,
+    }
+    confirmation_required = False
     confirmation_ok = False
-    if confirmation_required and user:
-        user_id = str(user.get("id", "")).strip()
-        if user_id and confirmation_code:
-            confirmation_ok = confirmation_system.verify_code(user_id, confirmation_code)
-        if confirmation_ok:
-            permission = {
-                "success": True,
-                "status": "approved",
-                "mode": "real",
-                "permission": {
-                    "action_name": detected_intent,
-                    "approval_type": "confirmation_code",
-                    "reason": "Critical action approved by confirmation code.",
-                },
-            }
-        else:
-            permission = {
-                "success": False,
-                "status": "confirmation_required",
-                "mode": "real",
-                "permission": {
-                    "action_name": detected_intent,
-                    "approval_type": "confirmation_code",
-                    "reason": "AURA requires your confirmation to proceed.",
-                },
-            }
     return {
         "raw_message": message,
         "requested_mode": mode,
@@ -744,10 +799,12 @@ def _prepare_chat_context(
         "confidence": confidence,
         "decision": decision,
         "permission": permission,
+        "permission_action": permission_action,
         "user": user,
         "user_profile": load_user_profile(),
         "confirmation_required": confirmation_required,
         "confirmation_ok": confirmation_ok,
+        "security_context": security_context,
     }
 
 
@@ -788,6 +845,7 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
         session_id=context["session_id"],
         user_profile={**(context.get("user_profile") or {}), **(context.get("user") or {})},
         current_mode=context["requested_mode"],
+        security_context=context.get("security_context") or {},
     )
     execution_mode = result.get("execution_mode")
     if result.get("intent") == "error" or execution_mode == "error":
@@ -1130,11 +1188,16 @@ async def logout_endpoint(request: Request):
 @app.get("/api/auth/session")
 async def auth_session_status(request: Request):
     user = _current_user(request)
+    session_snapshot = describe_login_session(request.cookies.get("aura_session"))
     return {
         "authenticated": bool(user),
         "access_mode": "authenticated" if user else "public",
         "setup_required": requires_first_run_setup(),
         "user": user,
+        "session_valid": bool(session_snapshot.get("valid")),
+        "session_reason": session_snapshot.get("reason"),
+        "session_expires_at": session_snapshot.get("expires_at"),
+        "session_remaining_seconds": session_snapshot.get("remaining_seconds"),
         "status": "ok",
     }
 
@@ -1211,12 +1274,18 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             )
         user = _current_user(request)
         session_id = _resolve_session_id(request)
+        session_token = request.cookies.get("aura_session") if user else None
         context = _prepare_chat_context(
             payload.message,
             payload.mode,
             session_id,
             user=user,
             confirmation_code=payload.confirmation_code,
+            confirmed=payload.confirmed,
+            pin=payload.pin,
+            otp=payload.otp,
+            otp_token=payload.otp_token,
+            session_token=session_token,
         )
         casual_payload = _build_casual_chat_payload(context)
         if casual_payload is not None:
@@ -2088,10 +2157,12 @@ async def get_memory_status():
 @app.get("/api/security/status")
 async def get_security_status(request: Request, session_id: str = "default", resource_id: Optional[str] = None):
     user = _require_authenticated_user(request)
+    session_snapshot = describe_login_session(request.cookies.get("aura_session"))
     return {
         "pin": get_pin_status(),
         "auth": {"authenticated": True, "user": user},
         "session_id": session_id,
+        "session": session_snapshot,
         "resource_locked": is_locked(resource_id) if resource_id else False,
         "confirmation_code": confirmation_system.code_exists(user.get("id", "")),
         "rate_limits": access_controller.list_rate_limits() if is_admin_user(user) else [],
@@ -2150,17 +2221,33 @@ async def get_modes():
 
 
 @app.post("/api/agents/run/{agent_id}")
-async def run_agent_endpoint(agent_id: str, request: AgentRunRequest):
+async def run_agent_endpoint(agent_id: str, payload: AgentRunRequest, request: Request):
+    user = _current_user(request)
+    session_token = request.cookies.get("aura_session") if user else None
+    normalized_session_id = _resolve_session_id(request, payload.session_id)
+    runtime_security_context = {
+        "username": user.get("username") if user else payload.username,
+        "user_id": user.get("id") if user else None,
+        "session_token": session_token,
+        "confirmed": payload.confirmed,
+        "pin": payload.pin,
+        "otp": payload.otp,
+        "otp_token": payload.otp_token,
+    }
     generated_ids = {item["id"] for item in list_generated_agent_cards()}
     if agent_id in generated_ids:
         result = run_generated_agent(
             agent_id,
-            request.text,
-            username=request.username,
-            session_id=request.session_id,
-            confirmed=request.confirmed,
-            pin=request.pin,
-            save_artifact=request.save_artifact,
+            payload.text,
+            username=user.get("username") if user else payload.username,
+            user_id=user.get("id") if user else None,
+            session_id=normalized_session_id,
+            session_token=session_token,
+            confirmed=payload.confirmed,
+            pin=payload.pin,
+            otp=payload.otp,
+            otp_token=payload.otp_token,
+            save_artifact=payload.save_artifact,
         )
         return {
             "success": bool(result.get("success")),
@@ -2169,7 +2256,11 @@ async def run_agent_endpoint(agent_id: str, request: AgentRunRequest):
             "result": result,
         }
 
-    runtime_result = process_command_detailed(request.text)
+    runtime_result = process_command_detailed(
+        payload.text,
+        session_id=normalized_session_id,
+        security_context=runtime_security_context,
+    )
     matched_target = (
         agent_id == runtime_result.get("intent")
         or agent_id == runtime_result.get("detected_intent")
@@ -2222,8 +2313,18 @@ async def transcribe_voice_microphone_endpoint(request: VoiceCaptureRequest):
 
 
 @app.post("/api/security/session-approve")
-async def approve_security_action(request: SecurityActionRequest):
-    return approve_action(request.session_id, request.action_name)
+async def approve_security_action(payload: SecurityActionRequest, request: Request):
+    user = _require_authenticated_user(request)
+    result = approve_action(payload.session_id, payload.action_name)
+    record_execution_result(
+        payload.action_name,
+        session_id=payload.session_id,
+        username=user.get("username"),
+        success=bool(result.get("success")),
+        trust_level="sensitive",
+        meta={"layer": "api", "endpoint": "session_approve"},
+    )
+    return result
 
 
 @app.post("/api/security/lock")
@@ -2234,6 +2335,137 @@ async def lock_resource_endpoint(request: LockRequest):
 @app.post("/api/security/unlock")
 async def unlock_resource_endpoint(request: LockRequest):
     return unlock_resource(request.resource_id)
+
+
+@app.post("/api/security/enforce")
+async def enforce_action_endpoint(payload: EnforceActionBody, request: Request):
+    user = _current_user(request)
+    user_id = str(user.get("id")) if user else None
+    username = user.get("username") if user else None
+    session_token = request.cookies.get("aura_session")
+    result = enforce_action(
+        payload.action_name,
+        username=username,
+        user_id=user_id,
+        session_id=payload.session_id,
+        session_token=session_token,
+        confirmed=payload.confirmed,
+        pin=payload.pin,
+        otp=payload.otp,
+        otp_token=payload.otp_token,
+        resource_id=payload.resource_id,
+        meta={"layer": "api", "endpoint": "enforce"},
+    )
+    return result
+
+
+@app.post("/api/security/otp/request")
+async def request_otp_endpoint(payload: OtpRequestBody, request: Request):
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    user_id = str(user.get("id") or user.get("username") or "anonymous")
+    result = request_otp(user_id, payload.action_name, purpose=payload.purpose)
+    return {
+        "success": result.get("success", False),
+        "status": result.get("status"),
+        "token": result.get("token"),
+        "expires_at": result.get("expires_at"),
+        "expires_in_seconds": result.get("expires_in_seconds"),
+        "action_name": result.get("action_name"),
+        "delivery": result.get("delivery"),
+        "phone_recipient": result.get("phone_recipient"),
+        "code": result.get("code") if not result.get("phone_recipient") else None,
+    }
+
+
+@app.post("/api/security/otp/verify")
+async def verify_otp_endpoint(payload: OtpVerifyBody, request: Request):
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    user_id = str(user.get("id") or user.get("username") or "anonymous")
+    result = verify_otp(user_id, payload.action_name, payload.code, token=payload.token)
+    return result
+
+
+@app.get("/api/security/otp/status")
+async def otp_status_endpoint(action_name: str, request: Request):
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    user_id = str(user.get("id") or user.get("username") or "anonymous")
+    return get_otp_status(user_id, action_name)
+
+
+@app.post("/api/security/phone/register")
+async def register_phone_endpoint(payload: PhoneRegisterBody, request: Request):
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    user_id = str(user.get("id") or user.get("username") or "anonymous")
+    session_token = request.cookies.get("aura_session")
+    access = enforce_action(
+        "phone_register",
+        username=user.get("username"),
+        user_id=user_id,
+        session_id=_resolve_session_id(request),
+        session_token=session_token,
+        pin=payload.pin,
+        require_auth=True,
+        meta={"layer": "api", "endpoint": "phone_register"},
+    )
+    if not access.get("allowed"):
+        return JSONResponse(
+            {
+                "success": False,
+                "status": access.get("status"),
+                "reason": access.get("reason"),
+                "access": access,
+            },
+            status_code=403,
+        )
+
+    result = register_phone(user_id, payload.phone)
+    record_execution_result(
+        "phone_register",
+        session_id=_resolve_session_id(request),
+        username=user.get("username"),
+        success=bool(result.get("success")),
+        reason=None if result.get("success") else str(result.get("reason") or "phone_register_failed"),
+        trust_level="critical",
+        meta={"layer": "api", "endpoint": "phone_register"},
+    )
+    return result
+
+
+@app.get("/api/security/phone")
+async def get_phone_endpoint(request: Request):
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    user_id = str(user.get("id") or user.get("username") or "anonymous")
+    entry = get_phone(user_id)
+    return {"success": bool(entry), "phone": entry}
+
+
+@app.delete("/api/security/phone")
+async def delete_phone_endpoint(request: Request):
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    user_id = str(user.get("id") or user.get("username") or "anonymous")
+    ok = remove_phone(user_id)
+    return {"success": ok}
+
+
+@app.get("/api/security/audit")
+async def audit_log_endpoint(limit: int = 100, kind: Optional[str] = None, request: Request = None):
+    user = _current_user(request) if request else None
+    if not user or not is_admin_user(user):
+        return JSONResponse({"success": False, "reason": "Admin privileges required."}, status_code=403)
+    kinds = [kind] if kind else None
+    return {"success": True, "events": tail_audit_log(limit=limit, kinds=kinds)}
 
 
 if __name__ == "__main__":

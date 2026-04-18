@@ -510,6 +510,26 @@
     addActivity("Interrupted", `AURA stopped speaking when it heard: ${transcript}`, "warn");
   }
 
+  function handleSpeechStopPhrase(transcript) {
+    state.bargeInTriggered = true;
+    state.bargeInArmed = false;
+    stopSpeech();
+    clearRecognitionStartTimer();
+    stopRecognition("speech_stop_phrase");
+    setVoicePhase("idle");
+    setAssistantState("idle", {
+      pill: "Silenced",
+      kicker: "Standby",
+      headline: "Silenced.",
+      description: "I stopped speaking. Waiting for your next command.",
+    });
+    updateWakeBanner("Silenced. Waiting for your next command.");
+    addActivity("Silenced", `AURA stopped speaking when it heard: ${transcript}`, "warn");
+    if (state.wakeModeEnabled) {
+      scheduleRecognitionStart("wake", { reason: "after_silence" });
+    }
+  }
+
   async function armBargeInListener() {
     if (!canUseVoice() || !hasBrowserMicPermission() || state.bargeInArmed || state.recognitionActive || state.voicePhase !== "speaking") {
       return false;
@@ -1002,6 +1022,11 @@
           lastEvent: "barge_in_echo_ignored",
           lastIssue: "Ignoring AURA's own speech while waiting for an interruption.",
         });
+        return;
+      }
+
+      if (state.bargeInArmed && finalTranscript && isSpeechStopPhrase(finalTranscript)) {
+        handleSpeechStopPhrase(finalTranscript);
         return;
       }
 
@@ -1893,7 +1918,7 @@
   }
 
   function updateLiveResponse(text, { provider = null, mode = null, documentDelivery = null } = {}) {
-    el.liveResponse.textContent = text || "AURA is standing by.";
+    renderResponseContent(el.liveResponse, text || "AURA is standing by.");
     if (documentDelivery) {
       renderDocumentDelivery(documentDelivery);
     } else {
@@ -1904,6 +1929,139 @@
     }
     if (mode) {
       el.responseMetaMode.textContent = `Mode: ${mode}`;
+    }
+  }
+
+  function renderResponseContent(container, rawText) {
+    if (!container) return;
+    container.innerHTML = "";
+    const text = String(rawText || "").trim();
+    if (!text) {
+      const placeholder = document.createElement("p");
+      placeholder.className = "response-body";
+      placeholder.textContent = "AURA is standing by.";
+      container.appendChild(placeholder);
+      return;
+    }
+
+    const lines = text.split(/\r?\n/);
+    const blocks = [];
+    let currentParagraph = [];
+    let currentList = null;
+
+    const flushParagraph = () => {
+      if (currentParagraph.length) {
+        blocks.push({ type: "paragraph", lines: currentParagraph });
+        currentParagraph = [];
+      }
+    };
+
+    const flushList = () => {
+      if (currentList) {
+        blocks.push(currentList);
+        currentList = null;
+      }
+    };
+
+    const titleDetected = (() => {
+      for (const raw of lines) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
+        const looksLikeTitle =
+          trimmed.length <= 90
+          && !/[.:!?-]$/.test(trimmed)
+          && !/^[-*•\d]/.test(trimmed)
+          && trimmed.split(" ").length <= 14;
+        return looksLikeTitle ? trimmed : null;
+      }
+      return null;
+    })();
+
+    let firstNonEmptyConsumed = false;
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        flushParagraph();
+        flushList();
+        continue;
+      }
+
+      if (!firstNonEmptyConsumed && titleDetected && line === titleDetected) {
+        blocks.push({ type: "title", text: line });
+        firstNonEmptyConsumed = true;
+        continue;
+      }
+      firstNonEmptyConsumed = true;
+
+      const bulletMatch = line.match(/^[-*•]\s+(.*)$/);
+      const numberedMatch = line.match(/^(\d{1,2})[.)]\s+(.*)$/);
+
+      if (bulletMatch) {
+        flushParagraph();
+        if (!currentList || currentList.ordered) {
+          flushList();
+          currentList = { type: "list", ordered: false, items: [] };
+        }
+        currentList.items.push(bulletMatch[1]);
+        continue;
+      }
+
+      if (numberedMatch) {
+        flushParagraph();
+        if (!currentList || !currentList.ordered) {
+          flushList();
+          currentList = { type: "list", ordered: true, items: [] };
+        }
+        currentList.items.push(numberedMatch[2]);
+        continue;
+      }
+
+      if (/^#{1,6}\s+/.test(line)) {
+        flushParagraph();
+        flushList();
+        blocks.push({ type: "heading", text: line.replace(/^#{1,6}\s+/, "") });
+        continue;
+      }
+
+      if (line.length <= 70 && line.endsWith(":")) {
+        flushParagraph();
+        flushList();
+        blocks.push({ type: "heading", text: line.replace(/:$/, "") });
+        continue;
+      }
+
+      flushList();
+      currentParagraph.push(line);
+    }
+    flushParagraph();
+    flushList();
+
+    for (const block of blocks) {
+      if (block.type === "title") {
+        const node = document.createElement("h3");
+        node.className = "response-title";
+        node.textContent = block.text;
+        container.appendChild(node);
+      } else if (block.type === "heading") {
+        const node = document.createElement("h4");
+        node.className = "response-heading";
+        node.textContent = block.text;
+        container.appendChild(node);
+      } else if (block.type === "paragraph") {
+        const node = document.createElement("p");
+        node.className = "response-body";
+        node.textContent = block.lines.join(" ");
+        container.appendChild(node);
+      } else if (block.type === "list") {
+        const list = document.createElement(block.ordered ? "ol" : "ul");
+        list.className = block.ordered ? "response-list response-list--ordered" : "response-list";
+        for (const item of block.items) {
+          const li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        }
+        container.appendChild(list);
+      }
     }
   }
 
@@ -2129,19 +2287,73 @@
       return "";
     }
 
-    const sentences = cleaned.match(/[^.!?]+[.!?]?/g) || [cleaned];
-    const preview = sentences
-      .map((sentence) => sentence.trim())
-      .filter(Boolean)
-      .slice(0, 3)
-      .join(" ")
-      .trim();
-
-    if (cleaned.length > 360 && sentences.length > 3) {
-      return `${preview} I have the rest on screen.`;
+    const SPEECH_FULL_READ_LIMIT = 1200;
+    if (cleaned.length <= SPEECH_FULL_READ_LIMIT) {
+      return cleaned;
     }
 
-    return cleaned;
+    const sentences = cleaned.match(/[^.!?]+[.!?]?/g) || [cleaned];
+    const trimmedSentences = sentences.map((sentence) => sentence.trim()).filter(Boolean);
+
+    const summary = [];
+    let summaryLength = 0;
+    for (const sentence of trimmedSentences) {
+      if (summaryLength + sentence.length > SPEECH_FULL_READ_LIMIT && summary.length >= 2) {
+        break;
+      }
+      summary.push(sentence);
+      summaryLength += sentence.length + 1;
+      if (summaryLength >= SPEECH_FULL_READ_LIMIT) {
+        break;
+      }
+    }
+    const summaryText = summary.join(" ").trim();
+    if (!summaryText) {
+      return cleaned.slice(0, SPEECH_FULL_READ_LIMIT);
+    }
+    return `${summaryText} The full response is on screen — say stop or I'll read it myself to silence me.`;
+  }
+
+  const SPEECH_STOP_PHRASES = [
+    "stop",
+    "okay stop",
+    "ok stop",
+    "stop it",
+    "stop stop",
+    "stop speaking",
+    "stop talking",
+    "be quiet",
+    "quiet",
+    "shut up",
+    "enough",
+    "that's enough",
+    "thats enough",
+    "i'll read it myself",
+    "ill read it myself",
+    "i will read it myself",
+    "i can read",
+    "let me read",
+    "silence",
+    "pause",
+  ];
+
+  function isSpeechStopPhrase(transcript) {
+    const normalized = String(transcript || "")
+      .toLowerCase()
+      .replace(/[^a-z'\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!normalized) {
+      return false;
+    }
+    if (SPEECH_STOP_PHRASES.includes(normalized)) {
+      return true;
+    }
+    const firstWords = normalized.split(" ").slice(0, 5).join(" ");
+    return SPEECH_STOP_PHRASES.some((phrase) => {
+      if (!phrase) return false;
+      return firstWords === phrase || firstWords.startsWith(`${phrase} `);
+    });
   }
 
   function formatTime(date) {

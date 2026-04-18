@@ -16,10 +16,6 @@ class RuntimeCoreTests(unittest.TestCase):
             side_effect=AssertionError("Live web search path should run before heavy orchestration."),
         ), patch.object(
             runtime_core,
-            "build_permission_response",
-            return_value={"success": True, "permission": {"reason": ""}},
-        ), patch.object(
-            runtime_core,
             "web_search",
             return_value={
                 "success": True,
@@ -185,10 +181,6 @@ class RuntimeCoreTests(unittest.TestCase):
             return_value=orchestration,
         ), patch.object(
             runtime_core,
-            "build_permission_response",
-            return_value={"success": True, "permission": {"reason": ""}},
-        ), patch.object(
-            runtime_core,
             "respond_in_language",
             side_effect=lambda response, language: response,
         ), patch.object(runtime_core, "store_and_learn"):
@@ -224,10 +216,6 @@ class RuntimeCoreTests(unittest.TestCase):
             runtime_core.master_orchestrator,
             "synthesize_responses",
             return_value={"response": "Synthesized research summary"},
-        ), patch.object(
-            runtime_core,
-            "build_permission_response",
-            return_value={"success": True, "permission": {"reason": ""}},
         ), patch.object(
             runtime_core,
             "research",
@@ -275,11 +263,21 @@ class RuntimeCoreTests(unittest.TestCase):
             return_value=orchestration,
         ), patch.object(
             runtime_core,
-            "build_permission_response",
+            "enforce_action",
             side_effect=lambda action_name, **kwargs: {
-                "success": True,
+                "allowed": True,
                 "status": "approved",
-                "permission": {"action_name": action_name, "reason": ""},
+                "reason": "Safe action. No approval required.",
+                "trust_level": "safe",
+                "approval_type": "none",
+                "action_name": action_name,
+                "decision": {
+                    "action_name": action_name,
+                    "trust_level": "safe",
+                    "approval_type": "none",
+                    "allowed": True,
+                    "reason": "Safe action. No approval required.",
+                },
             },
         ) as permission_mock, patch.dict(
             runtime_core.AGENT_ROUTER,
@@ -317,10 +315,6 @@ class RuntimeCoreTests(unittest.TestCase):
             runtime_core.master_orchestrator,
             "analyze_task",
             return_value=orchestration,
-        ), patch.object(
-            runtime_core,
-            "build_permission_response",
-            return_value={"success": True, "permission": {"reason": ""}},
         ), patch.object(
             runtime_core,
             "generate_response_payload",
