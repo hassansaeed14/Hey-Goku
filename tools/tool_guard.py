@@ -26,6 +26,8 @@ def guard_and_execute(
             "success": False,
             "status": "missing_tool",
             "reason": f"Unknown tool: {tool_name}",
+            "required_action": "none",
+            "next_step_hint": "Check the tool registry for available tool names.",
         }
 
     access = enforce_action(
@@ -39,14 +41,17 @@ def guard_and_execute(
         otp=otp,
         otp_token=otp_token,
         resource_id=resource_id,
-        require_auth=record.trust_level != "safe",
-        meta={"tool_name": tool_name},
+        require_auth=record.trust_level in ("sensitive", "critical"),
+        meta={"tool_name": tool_name, "layer": "tool_guard"},
     )
     if not access["allowed"]:
         return {
             "success": False,
             "status": access["status"],
             "reason": access["reason"],
+            "required_action": access.get("required_action"),
+            "next_step_hint": access.get("next_step_hint"),
+            "trust_level": access.get("trust_level"),
             "access": access,
         }
 
@@ -56,6 +61,8 @@ def guard_and_execute(
             "success": False,
             "status": "missing_inputs",
             "reason": f"Missing required inputs: {', '.join(missing_inputs)}",
+            "required_action": "none",
+            "next_step_hint": f"Provide: {', '.join(missing_inputs)}.",
             "access": access,
         }
 
@@ -71,7 +78,14 @@ def guard_and_execute(
             trust_level=record.trust_level,
             meta={"tool_name": tool_name},
         )
-        return {"success": False, "status": "execution_error", "reason": str(error), "access": access}
+        return {
+            "success": False,
+            "status": "execution_error",
+            "reason": str(error),
+            "required_action": "none",
+            "next_step_hint": "The tool raised an error. Review the error and retry.",
+            "access": access,
+        }
 
     record_execution_result(
         record.action_name,
@@ -81,4 +95,11 @@ def guard_and_execute(
         trust_level=record.trust_level,
         meta={"tool_name": tool_name},
     )
-    return {"success": True, "status": "executed", "result": result, "access": access}
+    return {
+        "success": True,
+        "status": "executed",
+        "result": result,
+        "required_action": "allow",
+        "next_step_hint": "Done. No further action required.",
+        "access": access,
+    }

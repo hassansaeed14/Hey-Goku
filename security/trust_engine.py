@@ -6,6 +6,17 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
 
+from config.permissions import (
+    ACTION_PERMISSIONS as _CONFIG_ACTION_PERMISSIONS,
+    DEFAULT_TRUST_LEVEL as _CONFIG_DEFAULT_TRUST_LEVEL,
+    OTP_REQUIRED_ACTIONS as _CONFIG_OTP_REQUIRED_ACTIONS,
+    PIN_REQUIRED_ACTIONS as _CONFIG_PIN_REQUIRED_ACTIONS,
+    get_action_policy as _config_get_action_policy,
+    normalize_action as _config_normalize_action,
+    requires_otp as _config_requires_otp,
+    requires_pin as _config_requires_pin,
+)
+
 
 class TrustLevel(str, Enum):
     SAFE = "safe"
@@ -45,95 +56,15 @@ class TrustDecision:
         }
 
 
+# Single source of truth lives in ``config.permissions``. We mirror it here
+# as ``TrustLevel`` enum values so downstream code that compares against
+# ``TrustLevel.SAFE`` etc. keeps working unchanged.
 ACTION_TRUST_MAP: Dict[str, TrustLevel] = {
-    # SAFE
-    "general": TrustLevel.SAFE,
-    "greeting": TrustLevel.SAFE,
-    "identity": TrustLevel.SAFE,
-    "time": TrustLevel.SAFE,
-    "date": TrustLevel.SAFE,
-    "weather": TrustLevel.SAFE,
-    "news": TrustLevel.SAFE,
-    "math": TrustLevel.SAFE,
-    "dictionary": TrustLevel.SAFE,
-    "quote": TrustLevel.SAFE,
-    "joke": TrustLevel.SAFE,
-    "translation": TrustLevel.SAFE,
-    "grammar": TrustLevel.SAFE,
-    "quiz": TrustLevel.SAFE,
-    "summarize": TrustLevel.SAFE,
-    "study": TrustLevel.SAFE,
-    "research": TrustLevel.SAFE,
-    "coding": TrustLevel.SAFE,
-    "reasoning": TrustLevel.SAFE,
-    "compare": TrustLevel.SAFE,
-    "web_search": TrustLevel.SAFE,
-    "youtube": TrustLevel.SAFE,
-    "currency": TrustLevel.SAFE,
-    "crypto": TrustLevel.SAFE,
-    "synonyms": TrustLevel.SAFE,
-    "permission": TrustLevel.SAFE,
-    "task": TrustLevel.SAFE,
-    "task_read": TrustLevel.SAFE,
-    "task_add": TrustLevel.SAFE,
-    "task_complete": TrustLevel.SAFE,
-    "task_delete": TrustLevel.SAFE,
-    "task_plan": TrustLevel.SAFE,
-    "reminder": TrustLevel.SAFE,
-    "reminder_read": TrustLevel.SAFE,
-    "reminder_add": TrustLevel.SAFE,
-    "reminder_complete": TrustLevel.SAFE,
-    "reminder_delete": TrustLevel.SAFE,
-    "password": TrustLevel.SAFE,
-    "planner_agent": TrustLevel.SAFE,
-    "tool_selector": TrustLevel.SAFE,
-    "debug_agent": TrustLevel.SAFE,
-    "document": TrustLevel.SAFE,
-    "document_generation": TrustLevel.SAFE,
-    "document_generator": TrustLevel.SAFE,
-    "document_export": TrustLevel.SAFE,
-    "content_transformation": TrustLevel.SAFE,
-    "content_transform": TrustLevel.SAFE,
-    "media_transform": TrustLevel.SAFE,
-    "diagram_generation": TrustLevel.SAFE,
-    "slides": TrustLevel.SAFE,
-    "notes": TrustLevel.SAFE,
-    "assignment": TrustLevel.SAFE,
-
-    # PRIVATE
-    "memory_read": TrustLevel.PRIVATE,
-    "history": TrustLevel.PRIVATE,
-    "insights": TrustLevel.PRIVATE,
-    "file": TrustLevel.PRIVATE,
-    "file_read": TrustLevel.PRIVATE,
-    "list_files": TrustLevel.PRIVATE,
-    "file_list": TrustLevel.PRIVATE,
-    "profile_read": TrustLevel.PRIVATE,
-    "system_read": TrustLevel.PRIVATE,
-
-    # SENSITIVE
-    "auth_login": TrustLevel.SENSITIVE,
-    "auth_register": TrustLevel.SENSITIVE,
-    "memory_write": TrustLevel.SENSITIVE,
-    "settings_update": TrustLevel.SENSITIVE,
-    "screenshot": TrustLevel.SENSITIVE,
-    "file_write": TrustLevel.SENSITIVE,
-    "file_upload": TrustLevel.SENSITIVE,
-    "executor": TrustLevel.SENSITIVE,
-
-    # CRITICAL
-    "payment": TrustLevel.CRITICAL,
-    "purchase": TrustLevel.CRITICAL,
-    "system_control": TrustLevel.CRITICAL,
-    "pc_control": TrustLevel.CRITICAL,
-    "file_delete": TrustLevel.CRITICAL,
-    "account_delete": TrustLevel.CRITICAL,
-    "locked_chat_unlock": TrustLevel.CRITICAL,
-    "password_change": TrustLevel.CRITICAL,
-    "external_integration": TrustLevel.CRITICAL,
-    "owner_transfer": TrustLevel.CRITICAL,
-    "phone_register": TrustLevel.CRITICAL,
+    action: TrustLevel(level)
+    for action, level in _CONFIG_ACTION_PERMISSIONS.items()
 }
+
+_DEFAULT_TRUST_LEVEL = TrustLevel(_CONFIG_DEFAULT_TRUST_LEVEL)
 
 
 LEVEL_TO_APPROVAL: Dict[TrustLevel, ApprovalType] = {
@@ -145,14 +76,12 @@ LEVEL_TO_APPROVAL: Dict[TrustLevel, ApprovalType] = {
 
 
 def normalize_action_name(action_name: Optional[str]) -> str:
-    if not action_name:
-        return "general"
-    return action_name.strip().lower().replace(" ", "_")
+    return _config_normalize_action(action_name)
 
 
 def get_trust_level(action_name: Optional[str]) -> TrustLevel:
     normalized = normalize_action_name(action_name)
-    return ACTION_TRUST_MAP.get(normalized, TrustLevel.SENSITIVE)
+    return ACTION_TRUST_MAP.get(normalized, _DEFAULT_TRUST_LEVEL)
 
 
 def coerce_trust_level(value: Optional[str]) -> Optional[TrustLevel]:
@@ -176,6 +105,24 @@ def get_policy_source(action_name: Optional[str]) -> str:
     if normalized in ACTION_TRUST_MAP:
         return "action_trust_map"
     return "default_sensitive_fallback"
+
+
+def action_requires_otp(action_name: Optional[str]) -> bool:
+    """True if the action's policy says an OTP must be provided."""
+
+    return bool(_config_requires_otp(action_name))
+
+
+def action_requires_pin(action_name: Optional[str]) -> bool:
+    """True if the action's policy says a PIN must be re-entered."""
+
+    return bool(_config_requires_pin(action_name))
+
+
+def get_action_policy(action_name: Optional[str]) -> Dict[str, Any]:
+    """Return the full structured policy for ``action_name``."""
+
+    return _config_get_action_policy(action_name).to_dict()
 
 
 def evaluate_action(

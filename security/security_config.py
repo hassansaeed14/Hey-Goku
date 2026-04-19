@@ -18,6 +18,7 @@ PIN_STATE_FILE = MEMORY_DIR / "pin_state.json"
 LOCKS_FILE = MEMORY_DIR / "locks.json"
 AUDIT_LOG_FILE = MEMORY_DIR / "security_audit.jsonl"
 ACTION_APPROVAL_FILE = MEMORY_DIR / "session_approvals.json"
+OTP_VERIFIED_FILE = MEMORY_DIR / "otp_verified.json"
 
 AUTH_COOKIE_NAME = "aura_session"
 AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24

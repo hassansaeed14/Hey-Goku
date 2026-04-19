@@ -79,6 +79,12 @@ from security.confirmation_system import ConfirmationSystem
 from security.enforcement import enforce_action, record_execution_result
 from security.lock_manager import is_locked, lock_resource, unlock_resource
 from security.otp_manager import get_otp_status, invalidate_otp, request_otp, verify_otp
+from security.permission_engine import check_permission
+from security.password_reset import (
+    confirm_password_reset,
+    request_password_reset,
+    verify_password_reset,
+)
 from security.phone_registry import get_phone, list_phones, register_phone, remove_phone
 from security.pin_manager import get_pin_status
 from security.session_manager import (
@@ -88,6 +94,7 @@ from security.session_manager import (
     is_action_approved,
     list_login_sessions,
 )
+from security.status import security_status_summary
 from security.trust_engine import build_permission_response
 from api.auth import get_user
 from voice.voice_controller import (
@@ -251,6 +258,22 @@ class EnforceActionBody(BaseModel):
     otp: Optional[str] = None
     otp_token: Optional[str] = None
     resource_id: Optional[str] = None
+
+
+class PasswordResetRequestBody(BaseModel):
+    identifier: str
+
+
+class PasswordResetVerifyBody(BaseModel):
+    reset_token: str
+    code: str
+    otp_token: Optional[str] = None
+
+
+class PasswordResetConfirmBody(BaseModel):
+    reset_token: str
+    confirm_token: str
+    new_password: str
 
 
 class DocumentGenerateRequest(BaseModel):
@@ -784,6 +807,8 @@ def _prepare_chat_context(
             "trust_level": str(access.get("trust_level") or ((access.get("decision") or {}).get("trust_level") or "safe")),
             "approval_type": str(access.get("approval_type") or ((access.get("decision") or {}).get("approval_type") or "none")),
             "reason": str(access.get("reason") or ((access.get("decision") or {}).get("reason") or "")),
+            "required_action": str(access.get("required_action") or "allow"),
+            "next_step_hint": str(access.get("next_step_hint") or ""),
         },
         "enforcement": access,
     }
@@ -1026,6 +1051,9 @@ PUBLIC_PATHS = {
     "/api/register",
     "/api/setup",
     "/api/auth/session",
+    "/api/auth/password-reset/request",
+    "/api/auth/password-reset/verify",
+    "/api/auth/password-reset/confirm",
     "/api/chat",
     "/api/providers",
     "/api/telemetry/providers",
@@ -1182,6 +1210,48 @@ async def logout_endpoint(request: Request):
     logout_request(request)
     response = JSONResponse({"success": True, "message": "Session secured."})
     clear_session_cookie(response, secure=_is_secure_request(request))
+    return response
+
+
+@app.post("/api/auth/password-reset/request")
+async def password_reset_request_endpoint(payload: PasswordResetRequestBody, request: Request):
+    result = request_password_reset(
+        payload.identifier,
+        ip_address=_client_ip(request),
+        user_agent=request.headers.get("user-agent", ""),
+        session_id=_resolve_session_id(request),
+    )
+    status_code = 200 if result.get("success") else 429 if result.get("status") == "rate_limited" else 400
+    return JSONResponse(result, status_code=status_code)
+
+
+@app.post("/api/auth/password-reset/verify")
+async def password_reset_verify_endpoint(payload: PasswordResetVerifyBody, request: Request):
+    result = verify_password_reset(
+        payload.reset_token,
+        payload.code,
+        otp_token=payload.otp_token,
+        ip_address=_client_ip(request),
+    )
+    status_code = 200 if result.get("success") else 400
+    return JSONResponse(result, status_code=status_code)
+
+
+@app.post("/api/auth/password-reset/confirm")
+async def password_reset_confirm_endpoint(payload: PasswordResetConfirmBody, request: Request):
+    result = confirm_password_reset(
+        payload.reset_token,
+        payload.confirm_token,
+        payload.new_password,
+        ip_address=_client_ip(request),
+    )
+    status_code = 200 if result.get("success") else 400
+    response = JSONResponse(result, status_code=status_code)
+    # Defence-in-depth: if the caller's cookie session belongs to the user
+    # whose password just rotated, clear it so the next request forces a
+    # fresh login with the new credentials.
+    if result.get("success"):
+        clear_session_cookie(response, secure=_is_secure_request(request))
     return response
 
 
@@ -2365,7 +2435,8 @@ async def request_otp_endpoint(payload: OtpRequestBody, request: Request):
     if not user:
         return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
     user_id = str(user.get("id") or user.get("username") or "anonymous")
-    result = request_otp(user_id, payload.action_name, purpose=payload.purpose)
+    session_id = _resolve_session_id(request)
+    result = request_otp(user_id, payload.action_name, purpose=payload.purpose, session_id=session_id)
     return {
         "success": result.get("success", False),
         "status": result.get("status"),
@@ -2376,6 +2447,7 @@ async def request_otp_endpoint(payload: OtpRequestBody, request: Request):
         "delivery": result.get("delivery"),
         "phone_recipient": result.get("phone_recipient"),
         "code": result.get("code") if not result.get("phone_recipient") else None,
+        "session_id": result.get("session_id"),
     }
 
 
@@ -2385,8 +2457,22 @@ async def verify_otp_endpoint(payload: OtpVerifyBody, request: Request):
     if not user:
         return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
     user_id = str(user.get("id") or user.get("username") or "anonymous")
-    result = verify_otp(user_id, payload.action_name, payload.code, token=payload.token)
+    session_id = _resolve_session_id(request)
+    result = verify_otp(user_id, payload.action_name, payload.code, token=payload.token, session_id=session_id)
     return result
+
+
+@app.get("/api/security/status")
+async def security_status_endpoint(request: Request, limit: int = 25):
+    """Operator dashboard: recent blocks / approvals / OTP / PIN lockouts."""
+
+    user = _current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "reason": "Authentication required."}, status_code=401)
+    if not is_admin_user(user):
+        return JSONResponse({"success": False, "reason": "Admin access required."}, status_code=403)
+    capped_limit = max(1, min(int(limit or 25), 200))
+    return {"success": True, "status": security_status_summary(limit=capped_limit)}
 
 
 @app.get("/api/security/otp/status")

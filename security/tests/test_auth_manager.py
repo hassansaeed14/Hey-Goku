@@ -12,7 +12,12 @@ class AuthManagerTests(unittest.TestCase):
         self.assertEqual(result["user"]["username"], "beast")
 
     def test_validate_login_surfaces_failed_login_reason(self):
-        with patch("security.auth_manager.login_user", return_value=(False, "Wrong password.")):
+        # validate_login delegates to authenticate_user; the old test patched
+        # a long-removed symbol (``login_user``) which no longer exists.
+        with patch(
+            "security.auth_manager.authenticate_user",
+            return_value=(False, "Wrong password.", None),
+        ):
             result = validate_login("beast", "wrong")
         self.assertFalse(result["success"])
         self.assertEqual(result["reason"], "Wrong password.")

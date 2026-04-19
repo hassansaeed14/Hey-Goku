@@ -33,6 +33,36 @@ class SecuritySystemTests(unittest.TestCase):
         self.assertGreater(snapshot["remaining_seconds"], 0)
         self.assertEqual(snapshot["session"]["username"], "tester")
 
+    def test_blocked_response_shape_is_uniform_across_trust_levels(self):
+        """Every blocked decision must surface the full contract fields.
+
+        The runtime, agents and UI all rely on this shape — a missing
+        ``required_action`` or ``next_step_hint`` silently breaks the
+        follow-up prompt flow, so pin it down here.
+        """
+
+        required_fields = {
+            "allowed",
+            "reason",
+            "trust_level",
+            "required_action",
+            "next_step_hint",
+            "status",
+        }
+        for action in ("memory_read", "screenshot", "purchase"):
+            with self.subTest(action=action):
+                result = enforcement.enforce_action(
+                    action,
+                    session_id=f"shape-{action}",
+                    require_auth=False,
+                )
+                self.assertFalse(result["allowed"], result)
+                missing = required_fields.difference(result.keys())
+                self.assertFalse(missing, f"{action} missing {missing}")
+                self.assertTrue(result["reason"])
+                self.assertTrue(result["required_action"])
+                self.assertTrue(result["next_step_hint"])
+
     def test_enforce_action_allows_critical_action_with_valid_otp(self):
         with TemporaryDirectory(dir=r"D:\HeyGoku") as temp_dir:
             otp_state_path = Path(temp_dir) / "otp_state.json"
@@ -53,24 +83,36 @@ class SecuritySystemTests(unittest.TestCase):
         self.assertEqual(result["status"], "approved")
 
     def test_runtime_personal_memory_read_is_blocked_when_permission_fails(self):
-        with patch.object(
-            runtime_core,
-            "enforce_action",
-            return_value={
+        def _fake_check_permission(action, session=None, context=None):
+            access = {
                 "allowed": False,
                 "status": "confirm",
                 "reason": "Private action requires confirmation.",
                 "trust_level": "private",
                 "approval_type": "confirm",
-                "action_name": "memory_read",
+                "action_name": action,
                 "decision": {
-                    "action_name": "memory_read",
+                    "action_name": action,
                     "trust_level": "private",
                     "approval_type": "confirm",
                     "allowed": False,
                     "reason": "Private action requires confirmation.",
                 },
-            },
+            }
+            return {
+                "allowed": False,
+                "reason": access["reason"],
+                "required_action": "confirm",
+                "trust_level": "private",
+                "action": action,
+                "status": "confirm",
+                "enforcement": access,
+            }
+
+        with patch.object(
+            runtime_core,
+            "check_permission",
+            side_effect=_fake_check_permission,
         ), patch.object(
             runtime_core,
             "get_user_name",

@@ -102,6 +102,66 @@ def get_login_session(token: str, *, touch: bool = True) -> Optional[Dict[str, s
     return dict(entry)
 
 
+def touch_login_session(token: str) -> Optional[Dict[str, str]]:
+    """Force-update ``last_seen_at`` for a session without other side effects.
+
+    Returns the refreshed session dict, or ``None`` if the session is gone.
+    Used by request paths that want to re-arm the idle timer even when they
+    aren't reading the full session payload.
+    """
+
+    return get_login_session(token, touch=True)
+
+
+def session_age_seconds(token: str) -> Optional[int]:
+    """How long ago was this session last active (in seconds)?
+
+    Returns ``None`` if the session is missing or expired.
+    """
+
+    if not token:
+        return None
+    payload = _load_login_sessions()
+    entry = payload["sessions"].get(_hash_token(token))
+    if not entry:
+        return None
+    try:
+        last_seen_at = datetime.fromisoformat(entry["last_seen_at"])
+    except Exception:
+        return None
+    return max(int((_now() - last_seen_at).total_seconds()), 0)
+
+
+def require_recent_auth(
+    token: str,
+    *,
+    max_age_seconds: int = 300,
+) -> Dict[str, Any]:
+    """Verify ``token`` is valid AND was recently active.
+
+    Critical actions (payment, password change, purchase, account delete, …)
+    route through this gate so a dormant session cannot execute a destructive
+    operation just because the 24-hour idle window hasn't elapsed yet.
+    """
+
+    age = session_age_seconds(token)
+    if age is None:
+        return {"valid": False, "reason": "expired_or_missing", "remaining_seconds": 0}
+    if age > max_age_seconds:
+        return {
+            "valid": False,
+            "reason": "reauth_required",
+            "age_seconds": age,
+            "max_age_seconds": int(max_age_seconds),
+        }
+    return {
+        "valid": True,
+        "reason": "recent",
+        "age_seconds": age,
+        "max_age_seconds": int(max_age_seconds),
+    }
+
+
 def describe_login_session(token: str) -> Dict[str, Any]:
     if not token:
         return {"valid": False, "reason": "no_session_token", "session": None}
@@ -204,3 +264,41 @@ def revoke_action(session_id: str, action_name: str) -> None:
     if session_key in payload:
         payload[session_key].pop(str(action_name or "").strip().lower(), None)
         _save_action_approvals(payload)
+
+
+# ---------------------------------------------------------------------------
+# OTP verification state (informational only — OTP is still single-use per
+# critical action; this table lets the permission engine surface *when* an
+# action was last verified without changing enforcement semantics).
+# ---------------------------------------------------------------------------
+
+from security.security_config import OTP_VERIFIED_FILE  # noqa: E402
+
+
+def _load_otp_verifications() -> Dict[str, Dict[str, float]]:
+    payload = _read_json(OTP_VERIFIED_FILE, {})
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_otp_verifications(payload: Dict[str, Dict[str, float]]) -> None:
+    _write_json(OTP_VERIFIED_FILE, payload)
+
+
+def mark_otp_verified(session_id: str, action_name: str, *, ttl_seconds: int = 120) -> None:
+    payload = _load_otp_verifications()
+    session_key = str(session_id or "default").strip()
+    payload.setdefault(session_key, {})
+    payload[session_key][str(action_name or "").strip().lower()] = _now().timestamp() + int(ttl_seconds)
+    _save_otp_verifications(payload)
+
+
+def was_otp_verified(session_id: str, action_name: str) -> bool:
+    payload = _load_otp_verifications()
+    session_key = str(session_id or "default").strip()
+    expiry = payload.get(session_key, {}).get(str(action_name or "").strip().lower())
+    if not expiry:
+        return False
+    try:
+        return _now().timestamp() <= float(expiry)
+    except Exception:
+        return False

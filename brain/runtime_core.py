@@ -78,6 +78,7 @@ from agents.productivity.task_agent import add_task, complete_task, delete_task,
 from agents.system.file_agent import analyze_file, list_files
 from agents.system.screenshot_agent import take_screenshot
 from security.enforcement import enforce_action, record_execution_result
+from security.permission_engine import check_permission
 from security.trust_engine import build_permission_response, get_trust_level
 from agents.agent_fabric import match_generated_agent_request, run_generated_agent
 from agents.registry import build_runtime_agent_cards
@@ -1244,18 +1245,27 @@ def _permission_status_from_access(status: Optional[str]) -> str:
 
 def _permission_payload_from_access(action_name: str, access: Dict[str, Any]) -> Dict[str, Any]:
     decision = dict(access.get("decision") or {})
-    trust_level = str(access.get("trust_level") or decision.get("trust_level") or get_trust_level(action_name).value)
+    trust_level = str(access.get("trust_level") or decision.get("trust_level") or get_trust_level(action_name))
     approval_type = str(
         access.get("approval_type")
         or decision.get("approval_type")
         or build_permission_response(action_name).get("permission", {}).get("approval_type")
         or "none"
     )
+    required_action = str(access.get("required_action") or "").strip().lower()
+    if not required_action:
+        required_action = (
+            "allow" if access.get("allowed") else
+            _permission_status_from_access(access.get("status")).replace("needs_", "")
+        )
+    next_step_hint = str(access.get("next_step_hint") or "").strip()
     permission_payload = {
         "action_name": action_name,
         "trust_level": trust_level,
         "approval_type": approval_type,
         "reason": str(access.get("reason") or decision.get("reason") or ""),
+        "required_action": required_action,
+        "next_step_hint": next_step_hint,
         "requires_approval": approval_type != "none",
     }
     for key, value in decision.items():
@@ -1279,20 +1289,27 @@ def _enforce_runtime_permission(
     resource_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     identity = _runtime_identity(security_context)
-    access = enforce_action(
+    # Route through the canonical permission_engine entry point so every
+    # privileged runtime action lands in the same audit path. The engine
+    # delegates to enforce_action for the actual OTP / PIN / lock logic.
+    decision = check_permission(
         action_name,
-        username=identity["username"],
-        user_id=identity["user_id"],
-        session_id=session_id or "runtime",
-        session_token=identity["session_token"],
-        confirmed=identity["confirmed"],
-        pin=identity["pin"],
-        otp=identity["otp"],
-        otp_token=identity["otp_token"],
-        resource_id=resource_id or identity["resource_id"],
-        require_auth=require_auth,
-        meta={"layer": "runtime_core", "stage": "pre_execution"},
+        identity["session_token"],
+        {
+            "username": identity["username"],
+            "user_id": identity["user_id"],
+            "session_id": session_id or "runtime",
+            "session_token": identity["session_token"],
+            "confirmed": identity["confirmed"],
+            "pin": identity["pin"],
+            "otp": identity["otp"],
+            "otp_token": identity["otp_token"],
+            "resource_id": resource_id or identity["resource_id"],
+            "require_auth": require_auth,
+            "meta": {"layer": "runtime_core", "stage": "pre_execution"},
+        },
     )
+    access = decision.get("enforcement") or {}
     return _permission_payload_from_access(action_name, access)
 
 

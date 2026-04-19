@@ -263,20 +263,28 @@ class RuntimeCoreTests(unittest.TestCase):
             return_value=orchestration,
         ), patch.object(
             runtime_core,
-            "enforce_action",
-            side_effect=lambda action_name, **kwargs: {
+            "check_permission",
+            side_effect=lambda action, session=None, context=None: {
                 "allowed": True,
-                "status": "approved",
                 "reason": "Safe action. No approval required.",
+                "required_action": "allow",
                 "trust_level": "safe",
-                "approval_type": "none",
-                "action_name": action_name,
-                "decision": {
-                    "action_name": action_name,
+                "action": action,
+                "status": "approved",
+                "enforcement": {
+                    "allowed": True,
+                    "status": "approved",
+                    "reason": "Safe action. No approval required.",
                     "trust_level": "safe",
                     "approval_type": "none",
-                    "allowed": True,
-                    "reason": "Safe action. No approval required.",
+                    "action_name": action,
+                    "decision": {
+                        "action_name": action,
+                        "trust_level": "safe",
+                        "approval_type": "none",
+                        "allowed": True,
+                        "reason": "Safe action. No approval required.",
+                    },
                 },
             },
         ) as permission_mock, patch.dict(

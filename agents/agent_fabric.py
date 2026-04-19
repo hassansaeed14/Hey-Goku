@@ -15,11 +15,35 @@ from memory.memory_controller import process_interaction_memory
 from memory.memory_stats import get_memory_stats
 from memory.semantic_memory import list_facts
 from memory.working_memory import load_working_memory, remember_reference, update_working_memory
+from config.permissions import (
+    TRUST_LEVELS as _POLICY_TRUST_LEVELS,
+    get_action_policy as _policy_for_action,
+    is_registered as _policy_is_registered,
+)
 from security.access_control import evaluate_access
 from security.auth_manager import get_auth_state, validate_login
 from security.enforcement import enforce_action, record_execution_result
 from security.pin_manager import get_pin_status, set_pin, verify_pin
 from security.trust_engine import build_permission_response
+
+
+_TRUST_RANK: Dict[str, int] = {level: index for index, level in enumerate(_POLICY_TRUST_LEVELS)}
+
+
+def _effective_trust_level(action_name: str, fallback: str) -> str:
+    """Pick the *stricter* of the registered policy and an agent's claimed level.
+
+    Prevents an agent blueprint from downgrading ``file_delete`` to
+    ``safe`` just by declaring it on its ``CATEGORY_DEFAULTS`` record.
+    """
+
+    normalized_fallback = str(fallback or "").strip().lower()
+    if normalized_fallback not in _TRUST_RANK:
+        normalized_fallback = "sensitive"
+    if not _policy_is_registered(action_name):
+        return normalized_fallback
+    registered = _policy_for_action(action_name).trust_level
+    return registered if _TRUST_RANK[registered] >= _TRUST_RANK[normalized_fallback] else normalized_fallback
 from tools import browser_tools, process_tools, system_tools
 
 
@@ -958,6 +982,7 @@ def run_generated_agent(
             "trust_level": blueprint.trust_level,
         }
 
+    effective_trust = _effective_trust_level(blueprint.id, blueprint.trust_level)
     gate = enforce_action(
         blueprint.id,
         username=username,
@@ -968,9 +993,14 @@ def run_generated_agent(
         pin=pin,
         otp=otp,
         otp_token=otp_token,
-        require_auth=blueprint.trust_level != "safe",
-        trust_level_override=blueprint.trust_level,
-        meta={"layer": "agent_fabric", "agent": blueprint.id},
+        require_auth=effective_trust != "safe",
+        trust_level_override=effective_trust,
+        meta={
+            "layer": "agent_fabric",
+            "agent": blueprint.id,
+            "declared_trust_level": blueprint.trust_level,
+            "effective_trust_level": effective_trust,
+        },
     )
     if not gate["allowed"]:
         return {
