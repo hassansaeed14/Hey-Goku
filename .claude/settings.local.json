@@ -20,7 +20,14 @@
       "Bash(python -c \"from youtube_transcript_api import YouTubeTranscriptApi; print\\(dir\\(YouTubeTranscriptApi\\)\\)\")",
       "Bash(python -m unittest tests.test_document_generation tests.test_voice_compat tests.test_voice_pipeline tests.test_runtime_core tests.test_response_engine)",
       "Bash(python -m unittest discover -s tests -p \"test_*.py\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(node --input-type=module)",
+      "Bash(node -e ' *)",
+      "Bash(python -m pytest tests/ -q --tb=no)",
+      "Bash(python tests/run_tests.py)",
+      "Bash(venv/Scripts/pip.exe show *)",
+      "Bash(venv/Scripts/python.exe -m pip install pytest -q)",
+      "Bash(venv/Scripts/python.exe -m pytest tests/ -q --tb=no)"
     ]
   }
 }

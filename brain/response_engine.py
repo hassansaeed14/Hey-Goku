@@ -117,8 +117,10 @@ DOCUMENT_NOTES_PROMPT = (
 
 DOCUMENT_ASSIGNMENT_PROMPT = (
     "Write a structured academic-style assignment in plain readable language. "
-    "Include an introduction, clear section headings, explanatory paragraphs, and a conclusion. "
-    "Do not use robotic filler or chatty phrases."
+    "Start directly with the Introduction — do NOT include a title, table of contents, abstract, or preamble. "
+    "Use plain-text section headings (no # symbols, no bold markers, no numbered headings like '1.'). "
+    "Each heading must be on its own line. Include an Introduction, 3–4 analytical body sections with informative headings, and a Conclusion. "
+    "Write coherent paragraphs under each heading. Do not use robotic filler or chatty phrases."
 )
 
 TRANSFORMATION_NOTES_PROMPT = (
@@ -1404,7 +1406,12 @@ def _build_document_generation_prompt(
     if document_type == "notes":
         return f"Create structured notes on {topic}. {style_guidance}{references_hint}"
     page_hint = f" Aim for enough detail to support about {page_target} pages." if page_target else ""
-    return f"Write a structured assignment on {topic}.{page_hint} {style_guidance}{references_hint}"
+    return (
+        f"Write a structured academic assignment on {topic}.{page_hint} {style_guidance}{references_hint} "
+        "Do NOT include a title, table of contents, abstract, or numbered headings. "
+        "Start directly with 'Introduction' as the first heading. "
+        "Use plain-text headings only — no markdown, no bold, no symbols."
+    )
 
 
 def generate_document_content_payload(

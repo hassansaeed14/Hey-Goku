@@ -98,6 +98,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
           Sharing
         </div>
+        <button class="detail-button" id="overlayToggle" type="button" title="Toggle floating orb overlay" aria-pressed="false">
+          Overlay
+        </button>
         <button class="detail-button" id="detailsToggle" type="button" aria-expanded="false" aria-controls="detailsDrawer">
           Details
         </button>
@@ -267,6 +270,15 @@
                 <label class="profile-field-label">Session</label>
                 <p class="profile-field-value" id="profileFieldSession">Active</p>
               </div>
+              <div class="profile-field profile-field--action" id="profileOtpRow">
+                <label class="profile-field-label">Two-factor auth</label>
+                <button class="profile-toggle" id="profileOtpToggle" type="button" data-enabled="false" aria-label="Toggle two-factor authentication" title="Toggle OTP / 2FA">
+                  <span class="profile-toggle__track">
+                    <span class="profile-toggle__thumb"></span>
+                  </span>
+                  <span class="profile-toggle__label" id="profileOtpLabel">Off</span>
+                </button>
+              </div>
             </div>
             <div class="profile-actions">
               <a class="panel-btn" id="profilePasswordLink" href="/forgot-password">Change password</a>
@@ -319,6 +331,17 @@
             <p class="core-status__kicker" id="stateKicker">Standby</p>
             <h2 id="stateHeadline">Ready when you are.</h2>
             <p id="stateDescription">Wake mode works while this page stays open. Say "Hey AURA" after microphone access is granted, or use the controls below.</p>
+          </div>
+
+          <!-- Idle suggestion chips — shown after 2 min inactivity -->
+          <div class="idle-suggestions" id="idleSuggestions" hidden>
+            <p class="idle-suggestions__hint">Quick actions</p>
+            <div class="idle-suggestions__row">
+              <button class="idle-chip" data-fill="Summarize this" type="button">Summarize this</button>
+              <button class="idle-chip" data-fill="Generate an assignment on " type="button">Generate assignment</button>
+              <button class="idle-chip" data-fill="Search the web for " type="button">Search the web</button>
+              <button class="idle-chip" data-fill="Explain " type="button">Ask something</button>
+            </div>
           </div>
         </section>
 

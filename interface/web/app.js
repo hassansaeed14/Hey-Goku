@@ -65,6 +65,7 @@
     orbColor: "blue",
     idleMinimized: false,
     idleTimer: null,
+    overlayMode: false,
     screenSharing: false,
     screenStream: null,
     pendingSecurityPayload: null,
@@ -154,6 +155,8 @@
       // new elements
       "orbMini",
       "navChat", "navMemory", "navTools", "navProfile", "navSettings",
+      "navBrandSub", "navNewChat", "navConversations", "navConvEmpty",
+      "navUserName", "navUserStatus",
       "chatView",
       "panelMemory", "panelTools", "panelProfile", "panelSettings",
       "colorSwatches",
@@ -162,6 +165,11 @@
       "outputList",
       "livePanels",
       "profileAuthLink", "profileRegisterLink", "profilePasswordLink", "profileSummaryText",
+      "profileGuestView", "profileUserView",
+      "profileWelcome", "profileFieldName", "profileFieldEmail", "profileFieldPhone", "profileFieldSession",
+      "profileLogoutLink",
+      "profileOtpRow", "profileOtpToggle", "profileOtpLabel",
+      "idleSuggestions", "overlayToggle",
       "settingsClearHistory", "settingsVoiceLang",
       "clearMemoryBtn",
       "toolGrid",
@@ -213,10 +221,37 @@
       }
     });
 
+    // New chat button
+    if (el.navNewChat) {
+      el.navNewChat.addEventListener("click", () => {
+        switchNav("chat");
+        clearConversationHistory();
+      });
+    }
+
     // Screen share
     if (el.screenShareButton) {
       el.screenShareButton.addEventListener("click", () => void toggleScreenShare());
     }
+
+    // Overlay toggle
+    if (el.overlayToggle) {
+      el.overlayToggle.addEventListener("click", toggleOverlayMode);
+    }
+
+    // Idle suggestion chips
+    document.addEventListener("click", (event) => {
+      const chip = event.target.closest(".idle-chip[data-fill]");
+      if (!chip) return;
+      const fill = chip.dataset.fill || "";
+      if (el.textCommandInput) {
+        restoreFromIdleMinimize();
+        el.textCommandInput.value = fill;
+        el.textCommandInput.focus();
+        // Position cursor at end
+        el.textCommandInput.selectionStart = el.textCommandInput.selectionEnd = fill.length;
+      }
+    });
 
     // Orb mini click — restore
     if (el.orbMini) {
@@ -433,6 +468,9 @@
       el.authActionLink.removeAttribute("href");
       el.authActionLink.setAttribute("aria-disabled", "true");
       el.adminLink.hidden = !Boolean(user.admin);
+      // Update sidebar user area
+      if (el.navUserName) el.navUserName.textContent = name;
+      if (el.navUserStatus) el.navUserStatus.textContent = "Signed in";
       return;
     }
 
@@ -441,6 +479,9 @@
     el.authActionLink.href = "/login";
     el.authActionLink.removeAttribute("aria-disabled");
     el.adminLink.hidden = true;
+    // Update sidebar user area
+    if (el.navUserName) el.navUserName.textContent = "Guest";
+    if (el.navUserStatus) el.navUserStatus.textContent = "Public mode";
   }
 
   function renderVoiceDiagnostics() {
@@ -534,8 +575,46 @@
     state.listening = phase === "wake_listening" || phase === "command_listening";
     state.speaking = phase === "speaking";
     state.wakeStandbyActive = phase === "wake_listening" && state.recognitionActive;
+    updateOrbForPhase(phase);
     renderWakeModeStatus();
     renderWakeControls();
+  }
+
+  // Orb state colors — temporary overlays that restore to user preference on idle
+  const ORB_STATE_PALETTE = {
+    wake_listening:    "cyan",
+    command_listening: "cyan",
+    processing:        "purple",
+    speaking:          "gold",
+    interrupted:       "red",
+  };
+
+  function updateOrbForPhase(phase) {
+    const stateName = ORB_STATE_PALETTE[phase];
+    if (stateName && ORB_COLORS[stateName]) {
+      // Apply state color without persisting — don't update state.orbColor
+      const palette = ORB_COLORS[stateName];
+      const root = document.documentElement;
+      root.style.setProperty("--orb-primary",    palette.primary);
+      root.style.setProperty("--orb-glow",       palette.glow);
+      root.style.setProperty("--orb-glow-outer", palette.outer);
+      root.style.setProperty("--orb-glow-soft",  palette.soft);
+      root.style.setProperty("--orb-border-idle",palette.border);
+    } else {
+      // Restore user preference
+      applyOrbColor(state.orbColor || "blue");
+    }
+    // Update sidebar brand subtitle
+    const phaseLabels = {
+      wake_listening:    "Listening…",
+      command_listening: "Listening…",
+      processing:        "Thinking…",
+      speaking:          "Speaking…",
+      interrupted:       "Interrupted",
+    };
+    if (el.navBrandSub) {
+      el.navBrandSub.textContent = phaseLabels[phase] || "Standby";
+    }
   }
 
   function renderWakeModeStatus() {
@@ -1398,6 +1477,8 @@
       remainingText: wakeMatch.remainingText,
     });
     addActivity("Wake detected", `AURA heard ${preferredWakePhrase()}.`, "good");
+    // Expand orb if minimized
+    if (state.idleMinimized) restoreFromIdleMinimize();
 
     if (!wakeMatch.remainingText) {
       updateLiveResponse(WAKE_ACKNOWLEDGEMENT, { provider: "local_wake", mode: "wake" });
@@ -1490,6 +1571,7 @@
         documentDelivery: assistantPayload.documentDelivery,
       });
       if (assistantPayload.documentDelivery) addOutputCard(assistantPayload.documentDelivery);
+      addConversationEntry(commandText, answer);
       addActivity("Voice request", commandText, "neutral");
       addActivity("Answer ready", answer.slice(0, 140), assistantPayload.success === false ? "warn" : "good");
       await speakAssistant(answer, { resumeWakeAfter: true });
@@ -1570,6 +1652,7 @@
         documentDelivery: assistantPayload.documentDelivery,
       });
       if (assistantPayload.documentDelivery) addOutputCard(assistantPayload.documentDelivery);
+      addConversationEntry(text, answer);
       addActivity("Text command", text, "neutral");
       addActivity("Answer ready", answer.slice(0, 140), assistantPayload.success === false ? "warn" : "good");
 
@@ -2656,6 +2739,7 @@
     if (state.idleMinimized) return;
     state.idleMinimized = true;
     el.body.classList.add("orb-minimized");
+    if (el.idleSuggestions) el.idleSuggestions.hidden = false;
     addActivity("Idle", "Orb minimized after 2 minutes of inactivity.", "neutral");
   }
 
@@ -2663,6 +2747,13 @@
     if (!state.idleMinimized) return;
     state.idleMinimized = false;
     el.body.classList.remove("orb-minimized");
+    if (el.idleSuggestions) el.idleSuggestions.hidden = true;
+    // Wake expand spring animation
+    const orbEl = document.querySelector(".core-orb");
+    if (orbEl) {
+      orbEl.classList.add("orb-awakening");
+      window.setTimeout(() => orbEl.classList.remove("orb-awakening"), 700);
+    }
     resetIdleTimer();
   }
 
@@ -2760,31 +2851,49 @@
     if (authPayload.authenticated && user) {
       const name = user.preferred_name || user.name || user.username || "there";
       const email = user.email || "—";
-      if (el.profileSummaryText) {
-        el.profileSummaryText.textContent = `Signed in as ${name}. Email: ${email}.`;
+      const phone = user.phone || user.phone_number || "";
+      // Show authenticated view, hide guest view
+      if (el.profileGuestView) el.profileGuestView.hidden = true;
+      if (el.profileUserView) el.profileUserView.hidden = false;
+      if (el.profileWelcome) el.profileWelcome.textContent = `Welcome back, ${name}`;
+      if (el.profileSummaryText) el.profileSummaryText.textContent = "Account active";
+      if (el.profileFieldName) el.profileFieldName.textContent = name;
+      if (el.profileFieldEmail) el.profileFieldEmail.textContent = email;
+      if (el.profileFieldPhone) el.profileFieldPhone.textContent = phone || "Not set";
+      if (el.profileFieldSession) el.profileFieldSession.textContent = state.sessionId || "Active";
+      if (el.profileLogoutLink) {
+        el.profileLogoutLink.href = "/logout";
+        el.profileLogoutLink.hidden = false;
       }
-      if (el.profileAuthLink) {
-        el.profileAuthLink.textContent = "Sign out";
-        el.profileAuthLink.href = "/logout";
-        el.profileAuthLink.removeAttribute("aria-disabled");
+      // Show OTP row, wire toggle if not already wired
+      if (el.profileOtpRow) el.profileOtpRow.hidden = false;
+      if (el.profileOtpToggle && !el.profileOtpToggle.dataset.wired) {
+        el.profileOtpToggle.dataset.wired = "1";
+        const otpEnabled = Boolean(user.otp_enabled || user.two_factor_enabled);
+        el.profileOtpToggle.dataset.enabled = String(otpEnabled);
+        if (el.profileOtpLabel) el.profileOtpLabel.textContent = otpEnabled ? "On" : "Off";
+        el.profileOtpToggle.addEventListener("click", async () => {
+          const nowEnabled = el.profileOtpToggle.dataset.enabled !== "true";
+          el.profileOtpToggle.dataset.enabled = String(nowEnabled);
+          if (el.profileOtpLabel) el.profileOtpLabel.textContent = nowEnabled ? "On" : "Off";
+          addActivity("Security", `Two-factor auth ${nowEnabled ? "enabled" : "disabled"}.`, "neutral");
+          try {
+            await fetch("/api/account/otp", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json", "X-AURA-Session-Id": state.sessionId },
+              body: JSON.stringify({ enabled: nowEnabled }),
+            });
+          } catch (_err) {
+            // Toggle is UI-only if endpoint doesn't exist yet
+          }
+        });
       }
-      if (el.profileRegisterLink) el.profileRegisterLink.style.display = "none";
-      if (el.profilePasswordLink) el.profilePasswordLink.style.display = "";
     } else {
-      if (el.profileSummaryText) {
-        el.profileSummaryText.textContent = "Not signed in. Create an account to access personal features and wake mode.";
-      }
-      if (el.profileAuthLink) {
-        el.profileAuthLink.textContent = "Sign in";
-        el.profileAuthLink.href = "/login";
-        el.profileAuthLink.removeAttribute("aria-disabled");
-      }
-      if (el.profileRegisterLink) {
-        el.profileRegisterLink.style.display = "";
-        el.profileRegisterLink.textContent = "Create account";
-        el.profileRegisterLink.href = "/register";
-      }
-      if (el.profilePasswordLink) el.profilePasswordLink.style.display = "none";
+      // Show guest view, hide authenticated view
+      if (el.profileGuestView) el.profileGuestView.hidden = false;
+      if (el.profileUserView) el.profileUserView.hidden = true;
+      if (el.profileOtpRow) el.profileOtpRow.hidden = true;
     }
   }
 
@@ -2867,6 +2976,21 @@
     if (el.screenPreviewVideo) el.screenPreviewVideo.srcObject = null;
     if (el.screenPreviewWrap) el.screenPreviewWrap.hidden = true;
     addActivity("Screen share", "Screen sharing stopped.", "neutral");
+  }
+
+  // ─────────────────────────────────────────────
+  // OVERLAY MODE
+  // ─────────────────────────────────────────────
+
+  function toggleOverlayMode() {
+    state.overlayMode = !state.overlayMode;
+    el.body.classList.toggle("orb-overlay", state.overlayMode);
+    if (el.overlayToggle) {
+      el.overlayToggle.classList.toggle("is-active", state.overlayMode);
+      el.overlayToggle.setAttribute("aria-pressed", String(state.overlayMode));
+      el.overlayToggle.title = state.overlayMode ? "Exit overlay mode" : "Toggle floating orb overlay";
+    }
+    addActivity("Overlay", state.overlayMode ? "Floating orb overlay enabled." : "Overlay mode off.", "neutral");
   }
 
   // ─────────────────────────────────────────────
@@ -3016,4 +3140,51 @@
       if (index >= 5) c.remove();
     });
   }
+
+  // ─────────────────────────────────────────────
+  // SIDEBAR CONVERSATION TRACKING
+  // ─────────────────────────────────────────────
+
+  function addConversationEntry(userText, answerText) {
+    if (!el.navConversations) return;
+    // Remove empty state message
+    if (el.navConvEmpty) el.navConvEmpty.hidden = true;
+
+    const item = document.createElement("button");
+    item.className = "nav-conv-item";
+    item.type = "button";
+
+    const dot = document.createElement("span");
+    dot.className = "nav-conv-item__dot";
+
+    const text = document.createElement("span");
+    text.className = "nav-conv-item__text";
+    text.textContent = String(userText || "").slice(0, 48);
+
+    const now = new Date();
+    const time = document.createElement("span");
+    time.className = "nav-conv-item__time";
+    time.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    item.append(dot, text, time);
+    item.title = String(userText || "");
+    item.addEventListener("click", () => {
+      // Clicking a history item scrolls response into view / switches to chat
+      switchNav("chat");
+    });
+
+    el.navConversations.insertBefore(item, el.navConversations.firstChild);
+    // Keep max 20 entries
+    const items = el.navConversations.querySelectorAll(".nav-conv-item");
+    items.forEach((c, i) => { if (i >= 20) c.remove(); });
+  }
+
+  function clearConversationHistory() {
+    if (!el.navConversations) return;
+    el.navConversations.querySelectorAll(".nav-conv-item").forEach((c) => c.remove());
+    if (el.navConvEmpty) el.navConvEmpty.hidden = false;
+    updateLiveTranscript("Waiting for your voice or text command.");
+    updateLiveResponse("AURA is standing by.");
+  }
+
 })();
