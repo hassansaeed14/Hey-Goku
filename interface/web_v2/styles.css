@@ -97,11 +97,13 @@ body.auth-page {
 .app-shell {
   position: relative;
   z-index: 1;
+  height: 100vh;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   gap: 18px;
   padding: 18px;
+  overflow: hidden;
 }
 
 .sidebar,
@@ -119,11 +121,13 @@ body.auth-page {
   grid-template-rows: auto auto auto 1fr auto;
   gap: 16px;
   padding: 22px;
+  height: calc(100vh - 36px);
   border-radius: var(--radius-xl);
-  min-height: calc(100vh - 36px);
+  min-height: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 22%),
     var(--bg-panel);
+  overflow: hidden;
 }
 
 .sidebar__brand h1,
@@ -406,7 +410,8 @@ body.auth-page {
 }
 
 .workspace {
-  min-height: calc(100vh - 36px);
+  height: calc(100vh - 36px);
+  min-height: 0;
   border-radius: var(--radius-xl);
   padding: 18px;
   display: grid;
@@ -415,6 +420,7 @@ body.auth-page {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 16%),
     rgba(9, 16, 30, 0.84);
+  overflow: hidden;
 }
 
 .topbar {
@@ -483,16 +489,20 @@ body.auth-page {
 
 .workspace__body {
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-width));
   gap: 18px;
+  overflow: hidden;
 }
 
 .chat-stage {
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-rows: 1fr auto;
   gap: 18px;
+  overflow: hidden;
 }
 
 .chat-scroll {
@@ -605,7 +615,7 @@ body.auth-page {
   display: grid;
   gap: 14px;
   align-content: start;
-  min-height: 100%;
+  min-height: min-content;
 }
 
 .message-row {
