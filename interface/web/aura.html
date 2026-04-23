@@ -243,10 +243,10 @@
               <h2>Profile</h2>
             </div>
             <div class="profile-guest" id="profileGuestView">
-              <p class="panel-description">Sign in to unlock protected features and persistent identity.</p>
+              <p class="panel-description">You are in public mode. Sign in to use protected account features. New accounts currently require an invitation.</p>
               <div class="profile-links">
                 <a class="panel-btn" id="profileAuthLink" href="/login">Sign in</a>
-                <a class="panel-btn" id="profileRegisterLink" href="/register">Create account</a>
+                <a class="panel-btn" id="profileRegisterLink" href="/register">Use invitation</a>
               </div>
             </div>
             <div class="profile-user" id="profileUserView" hidden>
@@ -279,17 +279,9 @@
                   <label class="profile-field-label">Session</label>
                   <p class="profile-field-value" id="profileFieldSession">Active</p>
                 </div>
-                <div class="profile-field profile-field--action" id="profileOtpRow">
-                  <label class="profile-field-label">Two-factor auth</label>
-                  <button class="profile-toggle" id="profileOtpToggle" type="button" data-enabled="false" aria-label="Toggle two-factor authentication">
-                    <span class="profile-toggle__track"><span class="profile-toggle__thumb"></span></span>
-                    <span class="profile-toggle__label" id="profileOtpLabel">Off</span>
-                  </button>
-                </div>
               </div>
               <div class="profile-actions">
                 <a class="panel-btn" id="profilePasswordLink" href="/forgot-password">Forgot password</a>
-                <a class="panel-btn" href="/security">Security settings</a>
                 <a class="panel-btn panel-btn--danger" id="profileLogoutLink" href="/logout">Sign out</a>
               </div>
             </div>

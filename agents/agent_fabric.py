@@ -75,59 +75,59 @@ GENERATED_AGENT_DIRECTORIES = {
 
 CATEGORY_DEFAULTS: Dict[str, Dict[str, str]] = {
     "advanced": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "strategy_generation_plus_runtime_context",
-        "integration_path": "Generated advanced agent using AURA memory, planning context, and bounded response generation.",
+        "integration_path": "Connect this generated advanced agent to a verified runtime workflow before enabling live routing.",
         "description_prefix": "Advanced operating support for",
     },
     "aura_core": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "private",
         "backend": "system_reflection_plus_memory",
-        "integration_path": "Generated AURA-core agent connected to logs, memory, and reflective summaries.",
+        "integration_path": "Connect this generated AURA-core agent to verified runtime hooks before enabling live routing.",
         "description_prefix": "Core AURA oversight for",
     },
     "business": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "business_brief_generation",
-        "integration_path": "Generated business agent that creates structured drafts and saved artifacts when useful.",
+        "integration_path": "Connect this generated business agent to a verified business workflow before enabling live routing.",
         "description_prefix": "Business workflow support for",
     },
     "creative": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "creative_prompt_engine",
-        "integration_path": "Generated creative agent using structured ideation and optional artifact storage.",
+        "integration_path": "Connect this generated creative agent to a verified creative workflow before enabling live routing.",
         "description_prefix": "Creative generation support for",
     },
     "data": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "data_structuring_plus_summary",
-        "integration_path": "Generated data agent with structured outputs and optional saved work artifacts.",
+        "integration_path": "Connect this generated data agent to verified data tooling before enabling live routing.",
         "description_prefix": "Data workflow support for",
     },
     "design": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "design_brief_generation",
-        "integration_path": "Generated design agent that produces briefs, component plans, and saved design notes.",
+        "integration_path": "Connect this generated design agent to verified design tooling before enabling live routing.",
         "description_prefix": "Design workflow support for",
     },
     "documents": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "document_draft_generation",
-        "integration_path": "Generated document agent that creates structured outlines and saved draft artifacts.",
+        "integration_path": "Connect this generated document agent to the verified document runtime before enabling live routing.",
         "description_prefix": "Document workflow support for",
     },
     "elite": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "private",
         "backend": "personal_analytics_plus_planning",
-        "integration_path": "Generated elite agent that combines memory context with structured recommendations.",
+        "integration_path": "Connect this generated elite agent to verified personal analytics before enabling live routing.",
         "description_prefix": "Elite productivity support for",
     },
     "experimental": {
@@ -138,24 +138,24 @@ CATEGORY_DEFAULTS: Dict[str, Dict[str, str]] = {
         "description_prefix": "Experimental exploration for",
     },
     "integration": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "integration_bridge",
-        "integration_path": "Generated integration agent using bounded tools and structured assistant output.",
+        "integration_path": "Connect this generated integration agent to a verified tool bridge before enabling live routing.",
         "description_prefix": "Integration support for",
     },
     "intelligence": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "analysis_generation_plus_memory",
-        "integration_path": "Generated intelligence agent with analysis framing and memory-aware context.",
+        "integration_path": "Connect this generated intelligence agent to verified analysis workflows before enabling live routing.",
         "description_prefix": "Intelligence support for",
     },
     "media": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "media_planning_and_briefing",
-        "integration_path": "Generated media agent that produces production plans, prompts, and saved briefs.",
+        "integration_path": "Connect this generated media agent to verified media tooling before enabling live routing.",
         "description_prefix": "Media workflow support for",
     },
     "memory": {
@@ -166,10 +166,10 @@ CATEGORY_DEFAULTS: Dict[str, Dict[str, str]] = {
         "description_prefix": "Memory management for",
     },
     "productivity": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "productivity_planning_plus_storage",
-        "integration_path": "Generated productivity agent using structured planning and local artifact storage.",
+        "integration_path": "Connect this generated productivity agent to a verified productivity workflow before enabling live routing.",
         "description_prefix": "Productivity support for",
     },
     "security": {
@@ -180,17 +180,17 @@ CATEGORY_DEFAULTS: Dict[str, Dict[str, str]] = {
         "description_prefix": "Security workflow support for",
     },
     "system": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "private",
         "backend": "system_tools_plus_summary",
-        "integration_path": "Generated system agent using real system tools with bounded summaries.",
+        "integration_path": "Connect this generated system agent to verified system tooling before enabling live routing.",
         "description_prefix": "System assistance for",
     },
     "web": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "web_planning_and_generation",
-        "integration_path": "Generated web agent that creates implementation plans, audits, and saved briefs.",
+        "integration_path": "Connect this generated web agent to verified web tooling before enabling live routing.",
         "description_prefix": "Web workflow support for",
     },
 }
@@ -246,10 +246,10 @@ STEM_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "description": "Builds browser targets, searches, and validated URLs.",
     },
     "email_agent": {
-        "capability_mode": "hybrid",
+        "capability_mode": "placeholder",
         "trust_level": "safe",
         "backend": "email_draft_generation",
-        "integration_path": "Creates structured email drafts and optional saved artifacts.",
+        "integration_path": "Connect this email agent to a verified email workflow before enabling live routing.",
         "description": "Drafts email content and stores reusable email artifacts.",
     },
     "permission_agent": {
@@ -362,7 +362,11 @@ class AgentBlueprint:
     stateful: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        payload["CAPABILITY_MODE"] = self.capability_mode
+        payload["connected"] = self.capability_mode != "placeholder"
+        payload["experimental"] = self.status == "experimental"
+        return payload
 
 
 def _title_from_stem(stem: str) -> str:
@@ -526,6 +530,8 @@ def match_generated_agent_request(
         if blueprint.module_name in AUTO_ROUTE_EXCLUDED_STEMS:
             continue
         if blueprint.capability_mode == "placeholder":
+            if text and any(kw in text for kw in blueprint.keywords):
+                print(f"[AGENT ROUTING] blocked placeholder agent: {blueprint.id}")
             continue
 
         score = 0
@@ -971,6 +977,21 @@ def run_generated_agent(
     save_artifact: Optional[bool] = None,
 ) -> Dict[str, Any]:
     blueprint = blueprint_from_identifier(identifier)
+
+    if blueprint.capability_mode == "placeholder":
+        print(f"[AGENT ROUTING] blocked placeholder agent: {blueprint.id}")
+        return {
+            "success": False,
+            "message": f"{blueprint.name} is not yet available. It is planned for a future release.",
+            "data": {},
+            "agent": blueprint.id,
+            "agent_name": blueprint.name,
+            "category": blueprint.category,
+            "mode": "placeholder",
+            "trust_level": blueprint.trust_level,
+            "status": "placeholder",
+        }
+
     text = str(request or "").strip()
     if not text:
         return {

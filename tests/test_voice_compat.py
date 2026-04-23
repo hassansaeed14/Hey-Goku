@@ -3,6 +3,7 @@ import unittest
 
 import voice.speech_to_text as speech_to_text
 import voice.text_to_speech as text_to_speech
+import voice.voice_controller as voice_controller
 import voice.voice_manager as voice_manager
 
 
@@ -17,6 +18,13 @@ class VoiceCompatibilityTests(unittest.TestCase):
     def test_main_module_imports_successfully(self):
         main_module = importlib.import_module("main")
         self.assertTrue(callable(main_module.start_goku))
+
+    def test_voice_status_marks_wake_as_beta_push_to_talk(self):
+        status = voice_controller.get_voice_status()
+
+        self.assertEqual(status["wake_word"]["mode"], "beta_single_phrase")
+        self.assertIn("push-to-talk", status["wake_word"]["continuous_listening_note"])
+        self.assertIn("always-on", status["wake_word"]["truth_note"])
 
 
 class SpeechControlTests(unittest.TestCase):

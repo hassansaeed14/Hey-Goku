@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import textwrap
 import zipfile
@@ -17,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 GENERATED_DIR = PROJECT_ROOT / "generated"
 DEFAULT_RETENTION_HOURS = 24
 SUPPORTED_EXPORT_FORMATS = {"txt", "pdf", "docx", "pptx"}
+ACCESS_MANIFEST_FILENAME = ".access_manifest.json"
 FORMAT_ALIAS_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\b(docx|word)\b", "docx"),
     (r"\b(pdf)\b", "pdf"),
@@ -89,12 +91,52 @@ def ensure_generated_dir() -> Path:
     return GENERATED_DIR
 
 
+def _access_manifest_path() -> Path:
+    return ensure_generated_dir() / ACCESS_MANIFEST_FILENAME
+
+
+def _load_access_manifest() -> dict[str, dict[str, Any]]:
+    path = _access_manifest_path()
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    manifest: dict[str, dict[str, Any]] = {}
+    for key, value in payload.items():
+        if isinstance(key, str) and isinstance(value, dict):
+            manifest[key] = dict(value)
+    return manifest
+
+
+def _save_access_manifest(payload: dict[str, dict[str, Any]]) -> None:
+    path = _access_manifest_path()
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _prune_access_manifest(payload: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    pruned: dict[str, dict[str, Any]] = {}
+    directory = ensure_generated_dir()
+    for file_name, metadata in payload.items():
+        if not isinstance(file_name, str) or not isinstance(metadata, dict):
+            continue
+        candidate = directory / file_name
+        if candidate.is_file():
+            pruned[file_name] = dict(metadata)
+    return pruned
+
+
 def cleanup_generated_documents(*, max_age_hours: int = DEFAULT_RETENTION_HOURS) -> int:
     directory = ensure_generated_dir()
     deleted = 0
     cutoff = datetime.now() - timedelta(hours=max(1, int(max_age_hours)))
     for path in directory.iterdir():
         if not path.is_file():
+            continue
+        if path.name == ACCESS_MANIFEST_FILENAME:
             continue
         try:
             modified = datetime.fromtimestamp(path.stat().st_mtime)
@@ -103,6 +145,11 @@ def cleanup_generated_documents(*, max_age_hours: int = DEFAULT_RETENTION_HOURS)
                 deleted += 1
         except Exception:
             continue
+    try:
+        manifest = _prune_access_manifest(_load_access_manifest())
+        _save_access_manifest(manifest)
+    except Exception:
+        pass
     return deleted
 
 
@@ -266,6 +313,176 @@ def _normalize_session_id(session_id: Optional[str]) -> str:
     normalized = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(session_id or "").strip())
     normalized = normalized[:120].strip("-")
     return normalized or "default"
+
+
+def _download_access_url(file_name: str, access_token: Optional[str]) -> str:
+    token = str(access_token or "").strip()
+    if not token:
+        return f"/downloads/{file_name}"
+    return f"/downloads/{file_name}?access={token}"
+
+
+def _update_generated_access_links(
+    generated: dict[str, Any],
+    access_map: dict[str, dict[str, str]],
+) -> dict[str, Any]:
+    if not generated:
+        return generated
+
+    artifacts = generated.get("artifacts") or {}
+    for format_name, artifact in list(artifacts.items()):
+        if not isinstance(artifact, dict):
+            continue
+        access_entry = access_map.get(str(artifact.get("file_name") or ""))
+        if access_entry:
+            artifact["download_url"] = access_entry["download_url"]
+            artifact["access_token"] = access_entry["access_token"]
+            artifact["access_scope"] = access_entry["access_scope"]
+            artifacts[format_name] = artifact
+
+    primary_entry = access_map.get(str(generated.get("file_name") or ""))
+    if primary_entry:
+        generated["download_url"] = primary_entry["download_url"]
+        generated["access_token"] = primary_entry["access_token"]
+        generated["access_scope"] = primary_entry["access_scope"]
+
+    updated_files = []
+    for file_entry in generated.get("files") or []:
+        if not isinstance(file_entry, dict):
+            updated_files.append(file_entry)
+            continue
+        access_entry = access_map.get(str(file_entry.get("file_name") or ""))
+        if access_entry:
+            updated_files.append(
+                {
+                    **file_entry,
+                    "download_url": access_entry["download_url"],
+                    "access_scope": access_entry["access_scope"],
+                }
+            )
+        else:
+            updated_files.append(file_entry)
+    generated["files"] = updated_files
+
+    format_links: dict[str, str] = {}
+    for format_name, link in dict(generated.get("format_links") or {}).items():
+        artifact = artifacts.get(format_name) if isinstance(artifacts, dict) else None
+        access_entry = access_map.get(str((artifact or {}).get("file_name") or ""))
+        format_links[format_name] = access_entry["download_url"] if access_entry else link
+    generated["format_links"] = format_links
+    generated["alternate_format_links"] = {
+        format_name: url
+        for format_name, url in format_links.items()
+        if format_name != generated.get("format")
+    }
+    generated["document_delivery"] = _build_document_delivery_payload(generated)
+    return generated
+
+
+def secure_generated_document_access(
+    generated: dict[str, Any],
+    *,
+    owner_session_id: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
+) -> dict[str, Any]:
+    if not generated or not generated.get("success"):
+        return generated
+
+    normalized_user_id = str(owner_user_id or "").strip() or None
+    normalized_session_id = _normalize_session_id(owner_session_id) if owner_session_id else None
+    access_scope = "authenticated_user" if normalized_user_id else ("browser_session" if normalized_session_id else "local_link")
+
+    manifest = _prune_access_manifest(_load_access_manifest())
+    access_map: dict[str, dict[str, str]] = {}
+
+    artifacts = generated.get("artifacts") or {}
+    for artifact in artifacts.values():
+        if not isinstance(artifact, dict):
+            continue
+        file_name = str(artifact.get("file_name") or "").strip()
+        if not file_name:
+            continue
+        access_token = uuid4().hex
+        manifest[file_name] = {
+            "file_name": file_name,
+            "owner_session_id": normalized_session_id,
+            "owner_user_id": normalized_user_id,
+            "access_token": access_token,
+            "access_scope": access_scope,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+        }
+        access_map[file_name] = {
+            "download_url": _download_access_url(file_name, access_token),
+            "access_token": access_token,
+            "access_scope": access_scope,
+        }
+
+    _save_access_manifest(manifest)
+    return _update_generated_access_links(generated, access_map)
+
+
+def resolve_generated_download_access(
+    file_name: str,
+    *,
+    access_token: Optional[str] = None,
+    session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> dict[str, Any]:
+    safe_name = Path(str(file_name or "")).name
+    if not safe_name or safe_name != str(file_name or ""):
+        return {"allowed": False, "status": "invalid", "reason": "Download link is invalid."}
+
+    manifest = _prune_access_manifest(_load_access_manifest())
+    if manifest != _load_access_manifest():
+        _save_access_manifest(manifest)
+
+    record = manifest.get(safe_name)
+    file_path = ensure_generated_dir() / safe_name
+    if not record or not file_path.is_file():
+        return {
+            "allowed": False,
+            "status": "missing",
+            "reason": "This document is no longer available. Generate it again if you still need it.",
+        }
+
+    normalized_user_id = str(user_id or "").strip() or None
+    normalized_session_id = _normalize_session_id(session_id) if session_id else None
+    expected_token = str(record.get("access_token") or "").strip()
+    provided_token = str(access_token or "").strip()
+    owner_user_id = str(record.get("owner_user_id") or "").strip() or None
+    owner_session_id = str(record.get("owner_session_id") or "").strip() or None
+    access_scope = str(record.get("access_scope") or "").strip() or "local_link"
+
+    allowed = False
+    reason = "Download access denied."
+
+    if owner_user_id:
+        if normalized_user_id and normalized_user_id == owner_user_id:
+            allowed = True
+        else:
+            reason = "Sign in with the account that generated this document."
+    elif owner_session_id:
+        if normalized_session_id and normalized_session_id == owner_session_id and provided_token and provided_token == expected_token:
+            allowed = True
+        else:
+            reason = "Open this download from the same browser session that generated it."
+    else:
+        if provided_token and provided_token == expected_token:
+            allowed = True
+        else:
+            reason = "This local download link has expired or is missing its access token."
+
+    if not allowed:
+        return {"allowed": False, "status": "forbidden", "reason": reason, "access_scope": access_scope}
+
+    return {
+        "allowed": True,
+        "status": "ok",
+        "file_name": safe_name,
+        "file_path": str(file_path),
+        "content_type_hint": file_path.suffix.lower(),
+        "access_scope": access_scope,
+    }
 
 
 def _make_document_request(
@@ -639,6 +856,23 @@ def _strengthen_assignment_sections(sections: list[DocumentSection], topic: str)
     return strengthened
 
 
+def _enforce_assignment_section_order(sections: list[DocumentSection]) -> list[DocumentSection]:
+    """Guarantee Introduction is first body section and Conclusion is last."""
+    if not sections:
+        return sections
+    intro_indices = [i for i, s in enumerate(sections) if s.title.strip().lower() in {"introduction", "overview"}]
+    conclusion_indices = [i for i, s in enumerate(sections) if s.title.strip().lower() == "conclusion"]
+    if intro_indices and intro_indices[0] != 0:
+        intro = sections.pop(intro_indices[0])
+        sections.insert(0, intro)
+    if conclusion_indices:
+        last_idx = conclusion_indices[-1]
+        if last_idx != len(sections) - 1:
+            conclusion = sections.pop(last_idx)
+            sections.append(conclusion)
+    return sections
+
+
 def _parse_document_sections(document_type: str, topic: str, content: str) -> list[DocumentSection]:
     cleaned_content = str(content or "").replace("\r\n", "\n").strip()
     raw_blocks = re.split(r"\n\s*\n+", cleaned_content)
@@ -661,6 +895,7 @@ def _parse_document_sections(document_type: str, topic: str, content: str) -> li
 
     sections = _append_default_summary_sections(document_type, sections, topic)
     if document_type == "assignment":
+        sections = _enforce_assignment_section_order(sections)
         sections = _strengthen_assignment_sections(sections, topic)
     return sections
 
@@ -1569,6 +1804,7 @@ def _build_document_delivery_payload(generated: dict[str, Any]) -> dict[str, Any
         "style": generated.get("style"),
         "include_references": generated.get("include_references"),
         "citation_style": generated.get("citation_style"),
+        "access_scope": generated.get("access_scope"),
         "requested_formats": list(generated.get("requested_formats") or []),
         "primary_format": generated.get("primary_format") or generated["format"],
         "files": list(generated.get("files") or []),
@@ -1576,6 +1812,40 @@ def _build_document_delivery_payload(generated: dict[str, Any]) -> dict[str, Any
         "format_links": dict(generated.get("format_links") or {}),
         "available_formats": list(generated.get("available_formats") or []),
     }
+
+
+_MIN_WORDS_PER_PAGE = 180
+
+
+def _warn_low_word_count(content: str, document_type: str, page_target: Optional[int]) -> None:
+    word_count = len(content.split())
+    pages = page_target or (2 if document_type == "assignment" else 1)
+    minimum = pages * _MIN_WORDS_PER_PAGE
+    if word_count < minimum:
+        print(
+            f"[DOCGEN] Low word count warning: {word_count} words for "
+            f"{pages}-page {document_type} (minimum {minimum}). "
+            f"Topic may be too narrow or LLM output was truncated."
+        )
+
+
+def _is_unclear_document_request(text: str) -> bool:
+    """Return True when the text looks like a document request but has no extractable topic."""
+    lowered = str(text or "").strip().lower()
+    if not lowered:
+        return False
+    has_shape = bool(
+        re.match(DOCUMENT_REQUEST_PREFIX, lowered, flags=re.IGNORECASE)
+        or re.match(rf"^(?:{FORMAT_TOKEN_PATTERN})\s+(?:notes|assignment)\b", lowered, flags=re.IGNORECASE)
+        or re.match(r"^(?:notes|assignment)\b", lowered, flags=re.IGNORECASE)
+    )
+    if not has_shape:
+        return False
+    has_type = bool(re.search(r"\b(?:notes|assignment)\b", lowered))
+    if not has_type:
+        return False
+    has_topic = bool(re.search(r"\b(?:on|about|for)\s+\S", lowered))
+    return not has_topic
 
 
 def generate_document(
@@ -1626,6 +1896,7 @@ def generate_document(
         content = _deduplicate_content(str(content_payload.get("content") or "").strip())
         if not content:
             raise RuntimeError("Document generation returned empty content.")
+        _warn_low_word_count(content, normalized_type, page_target)
 
     layout = _build_document_layout(
         normalized_type,

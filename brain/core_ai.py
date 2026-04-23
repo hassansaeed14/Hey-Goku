@@ -12,7 +12,7 @@ from agents.agent_bus import agent_bus
 from agents.agent_registry import AgentRegistry
 from agents.context import AURAContext
 from brain import runtime_core as runtime_core_module
-from brain.response_engine import clean_response, generate_response, generate_response_payload
+from brain.response_engine import FALLBACK_USER_MESSAGE, build_degraded_reply, clean_response, generate_response, generate_response_payload
 from config.settings import GROQ_API_KEY, MODEL_NAME
 from memory.chat_history import get_history
 from memory.knowledge_base import get_user_age, get_user_city, get_user_name
@@ -33,8 +33,11 @@ MAX_SESSION_EXCHANGES = 10
 JARVIS_SYSTEM_PROMPT = response_engine_module.JARVIS_SYSTEM_PROMPT
 
 UNUSABLE_RESPONSE_MARKERS = (
+    FALLBACK_USER_MESSAGE.strip().lower(),
     "i couldn't generate a useful response right now.",
     "i ran into a problem while generating a response. please try again.",
+    "is planned, but it is not available for live chat yet.",
+    "agent failed:",
 )
 
 
@@ -208,6 +211,49 @@ def _is_unusable_response(text: Optional[str]) -> bool:
     if not normalized:
         return True
     return any(marker in normalized for marker in UNUSABLE_RESPONSE_MARKERS)
+
+
+def _structured_degraded_response(command: str, providers_tried: Optional[List[Any]] = None) -> str:
+    reply = clean_response(build_degraded_reply(command, providers_tried))
+    if reply:
+        return reply
+    return "I couldn't complete that request cleanly, but the request path is still available. Please try again in a moment."
+
+
+def _ensure_meaningful_brain_response(
+    enriched: dict[str, Any],
+    *,
+    command: str,
+    session_id: str,
+) -> dict[str, Any]:
+    response_text = clean_response(enriched.get("response"))
+    if not _is_unusable_response(response_text):
+        return enriched
+
+    print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting live provider fallback.")
+    fallback = _call_live_brain_direct(command, session_id)
+    fallback_text = clean_response(fallback.get("content"))
+    if fallback.get("success") and not _is_unusable_response(fallback_text):
+        enriched["response"] = fallback_text
+        enriched["provider"] = fallback.get("provider")
+        enriched["model"] = fallback.get("model")
+        enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
+        return enriched
+
+    combined_attempts = list(enriched.get("providers_tried") or [])
+    for item in list(fallback.get("providers_tried") or []):
+        if item not in combined_attempts:
+            combined_attempts.append(item)
+
+    enriched["response"] = _structured_degraded_response(command, combined_attempts)
+    enriched["provider"] = None
+    enriched["model"] = None
+    enriched["providers_tried"] = combined_attempts
+    enriched["execution_mode"] = "degraded_assistant"
+    enriched["degraded"] = True
+    if not enriched.get("error"):
+        enriched["error"] = str(fallback.get("error") or "The live response path did not return usable content.")
+    return enriched
 
 
 def _call_live_brain_direct(command: str, session_id: str) -> dict[str, Any]:
@@ -412,20 +458,11 @@ def process_single_command_detailed(
         current_mode=current_mode,
         elapsed_ms=elapsed_ms,
     )
-    if _is_unusable_response(enriched.get("response")):
-        print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting live provider fallback.")
-        fallback = _call_live_brain_direct(command, normalized_session)
-        if fallback.get("success"):
-            enriched["response"] = clean_response(fallback.get("content"))
-            enriched["provider"] = fallback.get("provider")
-            enriched["model"] = fallback.get("model")
-            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
-        else:
-            enriched["response"] = clean_response(fallback.get("degraded_reply"))
-            enriched["provider"] = None
-            enriched["model"] = None
-            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
-            enriched["execution_mode"] = "degraded_assistant"
+    enriched = _ensure_meaningful_brain_response(
+        enriched,
+        command=command,
+        session_id=normalized_session,
+    )
     _record_exchange(normalized_session, command, enriched["response"])
     return enriched
 
@@ -464,21 +501,11 @@ def process_command_detailed(
         current_mode=current_mode,
         elapsed_ms=elapsed_ms,
     )
-    if _is_unusable_response(enriched.get("response")):
-        print("[BRAIN ERROR] Runtime pipeline produced an unusable response. Attempting live provider fallback.")
-        fallback = _call_live_brain_direct(command, normalized_session)
-        fallback_text = clean_response(fallback.get("content"))
-        if fallback.get("success") and not _is_unusable_response(fallback_text):
-            enriched["response"] = fallback_text
-            enriched["provider"] = fallback.get("provider")
-            enriched["model"] = fallback.get("model")
-            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
-        else:
-            enriched["response"] = clean_response(fallback.get("degraded_reply"))
-            enriched["provider"] = None
-            enriched["model"] = None
-            enriched["providers_tried"] = list(fallback.get("providers_tried") or [])
-            enriched["execution_mode"] = "degraded_assistant"
+    enriched = _ensure_meaningful_brain_response(
+        enriched,
+        command=command,
+        session_id=normalized_session,
+    )
     _record_exchange(normalized_session, command, enriched["response"])
     return enriched
 

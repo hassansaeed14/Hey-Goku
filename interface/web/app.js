@@ -484,7 +484,7 @@
 
     if (authPayload.authenticated && user) {
       const name = user.preferred_name || user.name || user.username || "there";
-      el.accountSummary.textContent = `Signed in as ${name}. Wake mode can stay armed while this page is open.`;
+      el.accountSummary.textContent = `Signed in as ${name}. ${formatAuthenticatedSessionLabel(authPayload)} Protected account features are available now.`;
       el.authActionLink.textContent = "Signed in";
       el.authActionLink.removeAttribute("href");
       el.authActionLink.setAttribute("aria-disabled", "true");
@@ -495,7 +495,7 @@
       return;
     }
 
-    el.accountSummary.textContent = "Public mode keeps text and one-tap voice available. Sign in if you want wake-mode-first use and protected account features.";
+    el.accountSummary.textContent = "You are in public mode. Text and one-tap voice are available now. Sign in for protected account features. New accounts currently require an invitation.";
     el.authActionLink.textContent = "Sign in";
     el.authActionLink.href = "/login";
     el.authActionLink.removeAttribute("aria-disabled");
@@ -1329,6 +1329,7 @@
   }
 
   async function startTalkCapture() {
+    console.log("[AURA Voice] Talk button clicked — voiceActionInFlight:", state.voiceActionInFlight, "recognition:", state.recognition, "phase:", state.voicePhase);
     if (state.voiceActionInFlight) {
       return;
     }
@@ -1362,7 +1363,10 @@
 
   function setupRecognition() {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    console.log("[AURA Voice] setupRecognition — SpeechRecognition available:", !!Recognition);
     if (!Recognition) {
+      const errMsg = "SpeechRecognition is not supported in this browser.";
+      console.error("[AURA Voice] FATAL:", errMsg);
       setBrowserVoiceDiagnostics({
         mode: "Browser voice is unavailable",
         permission: "Unsupported",
@@ -1379,6 +1383,7 @@
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
+      console.log("[AURA Voice] recognition.onstart — mode:", state.recognitionMode, "lang:", recognition.lang, "continuous:", recognition.continuous, "interimResults:", recognition.interimResults);
       clearRecognitionStartTimer();
       state.recognitionActive = true;
       state.recognitionStopReason = "running";
@@ -1429,8 +1434,10 @@
         .join(" ")
         .trim();
       const transcript = finalTranscript || interimTranscript;
+      console.log("[AURA Voice] recognition.onresult — final:", JSON.stringify(finalTranscript), "interim:", JSON.stringify(interimTranscript), "resultCount:", event.results.length);
 
       if (!transcript) {
+        console.warn("[AURA Voice] onresult fired but transcript is empty");
         return;
       }
 
@@ -1489,6 +1496,7 @@
       if (state.bargeInTriggered && activeMode === "command") {
         setVoicePhase("command_listening");
       }
+      console.log("[AURA Voice] Final transcript ready to send:", JSON.stringify(finalTranscript), "mode:", activeMode);
       state.recognitionHandoffPending = true;
       stopRecognition("handoff");
       if (activeMode === "wake") {
@@ -1500,6 +1508,8 @@
 
     recognition.onerror = (event) => {
       const code = String(event.error || "").trim().toLowerCase();
+      console.error("[AURA Voice] recognition.onerror — error:", code, "raw event:", event.error, "phase:", state.voicePhase, "mode:", state.recognitionMode);
+      updateWakeBanner(`Voice error: ${code}`);
       const partialTranscript = String(state.partialTranscript || "").trim();
       const phaseBeforeError = state.voicePhase;
       state.recognitionActive = false;
@@ -1580,6 +1590,7 @@
     recognition.onend = () => {
       const endedMode = state.recognitionMode;
       const stopReason = state.recognitionStopReason || "idle";
+      console.log("[AURA Voice] recognition.onend — endedMode:", endedMode, "stopReason:", stopReason, "handoffPending:", state.recognitionHandoffPending);
       state.recognitionActive = false;
       state.recognitionMode = "off";
       if (state.voicePhase === "wake_listening" || state.voicePhase === "command_listening") {
@@ -1646,10 +1657,13 @@
     state.recognition.maxAlternatives = 1;
 
     try {
+      console.log("[AURA Voice] recognition.start() called — mode:", mode, "lang:", state.recognition.lang, "continuous:", state.recognition.continuous, "interimResults:", state.recognition.interimResults);
       state.recognition.start();
       logVoiceEvent("speech_start", { mode, automatic });
       return true;
     } catch (error) {
+      console.error("[AURA Voice] recognition.start() threw:", error.message, error);
+      updateWakeBanner(`Failed to start mic: ${error.message}`);
       if (!automatic) {
         updateWakeBanner(error.message || "Voice listening could not start.");
       }
@@ -2638,6 +2652,20 @@
     return user.preferred_name || user.name || user.username || "";
   }
 
+  function formatAuthenticatedSessionLabel(authPayload) {
+    const remaining = Number(authPayload?.session_remaining_seconds);
+    if (authPayload?.session_valid && Number.isFinite(remaining) && remaining > 0) {
+      if (remaining >= 3600) {
+        return `Session active for about ${Math.max(1, Math.round(remaining / 3600))}h more.`;
+      }
+      return `Session active for about ${Math.max(1, Math.round(remaining / 60))}m more.`;
+    }
+    if (authPayload?.session_valid) {
+      return "Session active.";
+    }
+    return "Session status unavailable.";
+  }
+
   function buildWakeGreeting() {
     const name = String(currentUserName() || "").trim();
     return name ? `Hey ${name}, I'm here.` : DEFAULT_WAKE_GREETING;
@@ -3265,44 +3293,19 @@
       if (el.profileGuestView) el.profileGuestView.hidden = true;
       if (el.profileUserView) el.profileUserView.hidden = false;
       if (el.profileWelcome) el.profileWelcome.textContent = `Welcome back, ${name}`;
-      if (el.profileSummaryText) el.profileSummaryText.textContent = "Account active";
+      if (el.profileSummaryText) el.profileSummaryText.textContent = authPayload.session_valid ? "Authenticated session active" : "Signed in";
       if (el.profileFieldName) el.profileFieldName.textContent = name;
       if (el.profileFieldEmail) el.profileFieldEmail.textContent = email;
       if (el.profileFieldPhone) el.profileFieldPhone.textContent = phone || "Not set";
-      if (el.profileFieldSession) el.profileFieldSession.textContent = state.sessionId || "Active";
+      if (el.profileFieldSession) el.profileFieldSession.textContent = formatAuthenticatedSessionLabel(authPayload);
       if (el.profileLogoutLink) {
         el.profileLogoutLink.href = "/logout";
         el.profileLogoutLink.hidden = false;
-      }
-      // Show OTP row, wire toggle if not already wired
-      if (el.profileOtpRow) el.profileOtpRow.hidden = false;
-      if (el.profileOtpToggle && !el.profileOtpToggle.dataset.wired) {
-        el.profileOtpToggle.dataset.wired = "1";
-        const otpEnabled = Boolean(user.otp_enabled || user.two_factor_enabled);
-        el.profileOtpToggle.dataset.enabled = String(otpEnabled);
-        if (el.profileOtpLabel) el.profileOtpLabel.textContent = otpEnabled ? "On" : "Off";
-        el.profileOtpToggle.addEventListener("click", async () => {
-          const nowEnabled = el.profileOtpToggle.dataset.enabled !== "true";
-          el.profileOtpToggle.dataset.enabled = String(nowEnabled);
-          if (el.profileOtpLabel) el.profileOtpLabel.textContent = nowEnabled ? "On" : "Off";
-          addActivity("Security", `Two-factor auth ${nowEnabled ? "enabled" : "disabled"}.`, "neutral");
-          try {
-            await fetch("/api/account/otp", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: { "Content-Type": "application/json", "X-AURA-Session-Id": state.sessionId },
-              body: JSON.stringify({ enabled: nowEnabled }),
-            });
-          } catch (_err) {
-            // Toggle is UI-only if endpoint doesn't exist yet
-          }
-        });
       }
     } else {
       // Show guest view, hide authenticated view
       if (el.profileGuestView) el.profileGuestView.hidden = false;
       if (el.profileUserView) el.profileUserView.hidden = true;
-      if (el.profileOtpRow) el.profileOtpRow.hidden = true;
     }
   }
 

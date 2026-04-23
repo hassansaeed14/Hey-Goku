@@ -213,12 +213,31 @@ def detect_intent_with_confidence(command: str):
     # -----------------------------
 
     add("email", _score_match(text, ["write email"]))
+    add("write", _score_match(text, [
+        "write", "draft", "compose", "make a post", "create content"
+    ], starts_with=True))
+    add("write", _score_match(text, [
+        "write blog", "write article", "write post", "write caption", "write paragraph"
+    ]))
     add("content", _score_match(text, ["write blog", "write article"]))
     add("grammar", _score_match(text, ["check grammar"]))
     add("summarize", _score_match(text, ["summarize"]))
     add("quiz", _score_match(text, ["quiz", "test me"]))
     add("task", _score_match(text, ["task", "todo"]))
     add("reminder", _score_match(text, ["remind me"]))
+    document_phrases = [
+        "make notes",
+        "write assignment",
+        "generate document",
+        "create document",
+        "prepare notes",
+        "prepare assignment",
+        "notes on",
+        "assignment on",
+    ]
+    document_score = _score_match(text, document_phrases, starts_with=True)
+    document_score += _score_match(text, document_phrases)
+    add("document", document_score)
 
     # -----------------------------
     # System / Integration

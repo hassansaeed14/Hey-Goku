@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA — Sign In</title>
+  <title>AURA - Sign In</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,40 +12,42 @@
 
     :root {
       --orb-cyan: #7ed6ff;
-      --orb-glow: rgba(126, 214, 255, 0.28);
-      --orb-soft: rgba(126, 214, 255, 0.10);
       --bg-base: #09090f;
       --bg-card: rgba(14, 18, 30, 0.88);
       --border-dim: rgba(126, 214, 255, 0.12);
-      --border-mid: rgba(126, 214, 255, 0.24);
       --text-primary: #f0f4ff;
       --text-muted: #7a8aa8;
       --text-accent: #7ed6ff;
       --input-bg: rgba(10, 14, 26, 0.80);
+      --success: #6ee7b7;
+      --danger: #f87171;
     }
 
     html, body {
       height: 100%;
       background: var(--bg-base);
       color: var(--text-primary);
-      font-family: 'Manrope', sans-serif;
+      font-family: "Manrope", sans-serif;
       overflow: hidden;
     }
 
-    /* ─── Background ─────────────────────────────── */
     .scene {
-      position: fixed; inset: 0; z-index: 0;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
       background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,134,199,0.18) 0%, transparent 65%),
-        radial-gradient(ellipse 60% 40% at 20% 100%, rgba(21,148,168,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61, 134, 199, 0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 40% at 20% 100%, rgba(21, 148, 168, 0.12) 0%, transparent 60%),
         var(--bg-base);
     }
 
     .grid {
-      position: fixed; inset: 0; z-index: 1;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
       background-image:
-        linear-gradient(rgba(126,214,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(126,214,255,0.04) 1px, transparent 1px);
+        linear-gradient(rgba(126, 214, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126, 214, 255, 0.04) 1px, transparent 1px);
       background-size: 44px 44px;
     }
 
@@ -57,16 +59,17 @@
       opacity: 0;
       animation: rise linear infinite;
     }
+
     @keyframes rise {
-      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
-      8%   { opacity: 0.18; }
-      90%  { opacity: 0.12; }
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      8% { opacity: 0.18; }
+      90% { opacity: 0.12; }
       100% { transform: translateY(-80px) scale(1); opacity: 0; }
     }
 
-    /* ─── Layout ─────────────────────────────────── */
     .page {
-      position: relative; z-index: 10;
+      position: relative;
+      z-index: 10;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -76,54 +79,61 @@
 
     .shell {
       width: 100%;
-      max-width: 400px;
+      max-width: 408px;
       animation: emerge 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
+
     @keyframes emerge {
       from { opacity: 0; transform: translateY(28px) scale(0.97); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* ─── Orb ────────────────────────────────────── */
     .orb-wrap {
       position: relative;
-      width: 88px; height: 88px;
+      width: 88px;
+      height: 88px;
       margin: 0 auto 20px;
     }
 
     .orb-core {
-      position: relative; z-index: 2;
-      width: 88px; height: 88px;
+      position: relative;
+      z-index: 2;
+      width: 88px;
+      height: 88px;
       border-radius: 50%;
       background: radial-gradient(circle at 38% 32%, #b8eeff, #7ed6ff 38%, #1b5f8c 72%, #0b1a2e);
       box-shadow:
-        0 0 0 1px rgba(126,214,255,0.30),
-        0 0 24px rgba(126,214,255,0.55),
-        0 0 60px rgba(126,214,255,0.22),
-        inset 0 1px 0 rgba(255,255,255,0.18);
+        0 0 0 1px rgba(126, 214, 255, 0.30),
+        0 0 24px rgba(126, 214, 255, 0.55),
+        0 0 60px rgba(126, 214, 255, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
       animation: orbBreathe 4s ease-in-out infinite;
     }
+
     @keyframes orbBreathe {
-      0%, 100% { box-shadow: 0 0 0 1px rgba(126,214,255,0.30), 0 0 24px rgba(126,214,255,0.55), 0 0 60px rgba(126,214,255,0.22); }
-      50%       { box-shadow: 0 0 0 1px rgba(126,214,255,0.40), 0 0 36px rgba(126,214,255,0.75), 0 0 90px rgba(126,214,255,0.32); }
+      0%, 100% { box-shadow: 0 0 0 1px rgba(126, 214, 255, 0.30), 0 0 24px rgba(126, 214, 255, 0.55), 0 0 60px rgba(126, 214, 255, 0.22); }
+      50% { box-shadow: 0 0 0 1px rgba(126, 214, 255, 0.40), 0 0 36px rgba(126, 214, 255, 0.75), 0 0 90px rgba(126, 214, 255, 0.32); }
     }
 
     .orb-ring {
-      position: absolute; top: 50%; left: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
       border-radius: 50%;
-      border: 1px solid rgba(126,214,255,0.20);
+      border: 1px solid rgba(126, 214, 255, 0.20);
       transform: translate(-50%, -50%) scale(1);
       animation: ringPulse 3.6s ease-out infinite;
     }
+
     .orb-ring:nth-child(2) { width: 116px; height: 116px; animation-delay: 0.6s; }
     .orb-ring:nth-child(3) { width: 148px; height: 148px; animation-delay: 1.2s; }
     .orb-ring:nth-child(4) { width: 182px; height: 182px; animation-delay: 1.8s; }
+
     @keyframes ringPulse {
-      0%   { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-      100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.4); }
+      0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); }
     }
 
-    /* ─── Brand ──────────────────────────────────── */
     .brand { text-align: center; margin-bottom: 28px; }
     .brand-name {
       font-size: 2.4rem;
@@ -137,14 +147,13 @@
       margin-bottom: 6px;
     }
     .brand-sub {
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: "IBM Plex Mono", monospace;
       font-size: 0.60rem;
       letter-spacing: 3.5px;
       color: var(--text-muted);
       text-transform: uppercase;
     }
 
-    /* ─── Card ───────────────────────────────────── */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-dim);
@@ -152,34 +161,50 @@
       padding: 32px 28px;
       backdrop-filter: blur(24px) saturate(1.2);
       box-shadow:
-        0 0 0 1px rgba(126,214,255,0.06),
-        0 20px 60px rgba(0,0,0,0.60),
-        inset 0 1px 0 rgba(255,255,255,0.05);
+        0 0 0 1px rgba(126, 214, 255, 0.06),
+        0 20px 60px rgba(0, 0, 0, 0.60),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
     .card-heading {
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: "IBM Plex Mono", monospace;
       font-size: 0.72rem;
       letter-spacing: 3px;
       color: var(--text-muted);
       text-transform: uppercase;
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 12px;
     }
 
-    /* ─── Form ───────────────────────────────────── */
-    .form-row { margin-bottom: 18px; }
+    .card-copy {
+      margin-bottom: 22px;
+      text-align: center;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
 
+    .truth-note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(126, 214, 255, 0.16);
+      background: rgba(126, 214, 255, 0.06);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: var(--text-primary);
+    }
+
+    .form-row { margin-bottom: 18px; }
     .form-label {
       display: block;
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: "IBM Plex Mono", monospace;
       font-size: 0.64rem;
       letter-spacing: 2px;
       color: var(--text-muted);
       text-transform: uppercase;
       margin-bottom: 8px;
     }
-
     .form-input {
       width: 100%;
       padding: 12px 16px;
@@ -187,28 +212,27 @@
       border: 1px solid var(--border-dim);
       border-radius: 10px;
       color: var(--text-primary);
-      font-family: 'Manrope', sans-serif;
+      font-family: "Manrope", sans-serif;
       font-size: 0.9rem;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .form-input::placeholder { color: #3a4a60; }
     .form-input:focus {
-      border-color: rgba(126,214,255,0.40);
-      box-shadow: 0 0 0 3px rgba(126,214,255,0.10);
+      border-color: rgba(126, 214, 255, 0.40);
+      box-shadow: 0 0 0 3px rgba(126, 214, 255, 0.10);
     }
 
-    /* ─── Button ─────────────────────────────────── */
     .btn-primary {
       position: relative;
       width: 100%;
       padding: 13px 20px;
       margin-top: 6px;
       background: linear-gradient(135deg, #2a7aaa 0%, #1b5f8c 60%, #124070 100%);
-      border: 1px solid rgba(126,214,255,0.28);
+      border: 1px solid rgba(126, 214, 255, 0.28);
       border-radius: 10px;
       color: #e8f4ff;
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: "IBM Plex Mono", monospace;
       font-size: 0.78rem;
       font-weight: 500;
       letter-spacing: 2.5px;
@@ -218,40 +242,46 @@
       transition: transform 0.15s, box-shadow 0.2s;
     }
     .btn-primary::before {
-      content: '';
-      position: absolute; top: -50%; left: -60%;
-      width: 60%; height: 200%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -60%;
+      width: 60%;
+      height: 200%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.10), transparent);
       transform: skewX(-20deg);
       animation: sheen 4s ease-in-out infinite;
     }
     @keyframes sheen {
       0%, 60%, 100% { left: -60%; }
-      30%            { left: 120%; }
+      30% { left: 120%; }
     }
     .btn-primary:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(126,214,255,0.24);
+      box-shadow: 0 6px 20px rgba(126, 214, 255, 0.24);
     }
-    .btn-primary:active { transform: translateY(0); }
     .btn-primary.loading { opacity: 0.65; pointer-events: none; }
 
-    /* ─── Alerts ─────────────────────────────────── */
     .alert {
       display: none;
       margin-top: 14px;
       padding: 10px 14px;
       border-radius: 8px;
       font-size: 0.82rem;
+      line-height: 1.5;
       text-align: center;
     }
     .alert-error {
-      color: #f87171;
-      background: rgba(248,113,113,0.08);
-      border: 1px solid rgba(248,113,113,0.22);
+      color: var(--danger);
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.22);
+    }
+    .alert-success {
+      color: var(--success);
+      background: rgba(110, 231, 183, 0.08);
+      border: 1px solid rgba(110, 231, 183, 0.22);
     }
 
-    /* ─── Footer ─────────────────────────────────── */
     .card-footer {
       margin-top: 20px;
       text-align: center;
@@ -262,35 +292,32 @@
       color: var(--text-accent);
       text-decoration: none;
       font-weight: 600;
-      transition: opacity 0.15s;
     }
     .card-footer a:hover { opacity: 0.75; }
 
-    /* ─── Status line ────────────────────────────── */
     .status-line {
       margin-top: 22px;
       text-align: center;
-      font-family: 'IBM Plex Mono', monospace;
+      font-family: "IBM Plex Mono", monospace;
       font-size: 0.62rem;
       letter-spacing: 2.5px;
-      color: rgba(126,214,255,0.35);
+      color: rgba(126, 214, 255, 0.35);
       animation: statusBlink 3s ease-in-out infinite;
     }
+
     @keyframes statusBlink {
       0%, 100% { opacity: 0.6; }
-      50%       { opacity: 1; }
+      50% { opacity: 1; }
     }
   </style>
 </head>
 <body>
-
   <div class="scene"></div>
   <div class="grid"></div>
   <div class="particles" id="particles"></div>
 
   <div class="page">
     <div class="shell">
-
       <div class="brand">
         <div class="orb-wrap">
           <div class="orb-core"></div>
@@ -303,7 +330,8 @@
       </div>
 
       <div class="card">
-        <p class="card-heading">Welcome back</p>
+        <p class="card-heading">Sign in</p>
+        <p class="card-copy">Use an approved account to enter AURA. Invitation-only signup and password recovery are available below.</p>
 
         <div class="form-row">
           <label class="form-label" for="username">Username</label>
@@ -318,95 +346,136 @@
         <button class="btn-primary" id="loginBtn" type="button">Access AURA</button>
 
         <div class="alert alert-error" id="errorMsg"></div>
+        <div class="alert alert-success" id="successMsg"></div>
+
+        <div class="truth-note">
+          Account creation is not open to the public right now. You can only register with an invited email address.
+        </div>
 
         <div class="card-footer">
-          <p>No account? <a href="/register">Create one</a></p>
+          <p>Need access? <a href="/register">Use an invitation</a></p>
           <p><a href="/forgot-password">Forgot password?</a></p>
         </div>
       </div>
 
       <p class="status-line" id="statusLine">SYSTEM READY</p>
-
     </div>
   </div>
 
   <script>
-    // Particles
-    const container = document.getElementById('particles');
-    for (let i = 0; i < 22; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
+    const container = document.getElementById("particles");
+    for (let i = 0; i < 22; i += 1) {
+      const particle = document.createElement("div");
+      particle.className = "particle";
       const size = Math.random() * 5 + 1.5;
-      p.style.cssText = `
-        width:${size}px; height:${size}px;
-        left:${Math.random() * 100}%;
-        animation-duration:${12 + Math.random() * 14}s;
-        animation-delay:${Math.random() * 12}s;
-      `;
-      container.appendChild(p);
+      particle.style.cssText = [
+        `width:${size}px`,
+        `height:${size}px`,
+        `left:${Math.random() * 100}%`,
+        `animation-duration:${12 + Math.random() * 14}s`,
+        `animation-delay:${Math.random() * 12}s`,
+      ].join(";");
+      container.appendChild(particle);
     }
 
-    const loginBtn = document.getElementById('loginBtn');
-    const errorMsg = document.getElementById('errorMsg');
-    const statusLine = document.getElementById('statusLine');
+    const loginBtn = document.getElementById("loginBtn");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const errorMsg = document.getElementById("errorMsg");
+    const successMsg = document.getElementById("successMsg");
+    const statusLine = document.getElementById("statusLine");
 
-    document.getElementById('password').addEventListener('keydown', e => {
-      if (e.key === 'Enter') attemptLogin();
+    usernameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") attemptLogin();
     });
-    loginBtn.addEventListener('click', attemptLogin);
+    passwordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") attemptLogin();
+    });
+    loginBtn.addEventListener("click", attemptLogin);
+
+    function hideAlerts() {
+      errorMsg.style.display = "none";
+      successMsg.style.display = "none";
+    }
+
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.style.display = "block";
+      successMsg.style.display = "none";
+    }
+
+    function showSuccess(message) {
+      successMsg.textContent = message;
+      successMsg.style.display = "block";
+      errorMsg.style.display = "none";
+    }
+
+    function setBusy(isBusy, label = "Access AURA") {
+      loginBtn.classList.toggle("loading", isBusy);
+      loginBtn.textContent = label;
+    }
 
     async function attemptLogin() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      errorMsg.style.display = 'none';
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      hideAlerts();
 
       if (!username || !password) {
-        showError('Please fill in all fields.');
+        showError("Please fill in all fields.");
         return;
       }
 
-      loginBtn.classList.add('loading');
-      loginBtn.textContent = 'Authenticating...';
-      statusLine.textContent = 'VERIFYING IDENTITY...';
+      setBusy(true, "Authenticating...");
+      statusLine.textContent = "VERIFYING IDENTITY...";
 
       try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/login", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
         });
-        const data = await res.json();
-        if (res.ok) {
-          loginBtn.textContent = 'Access granted';
-          statusLine.textContent = 'ACCESS GRANTED';
-          setTimeout(() => { window.location.href = '/'; }, 900);
-        } else {
-          showError(data.detail || 'Authentication failed.');
-          loginBtn.classList.remove('loading');
-          loginBtn.textContent = 'Access AURA';
-          statusLine.textContent = 'ACCESS DENIED';
-          setTimeout(() => { statusLine.textContent = 'SYSTEM READY'; }, 2200);
-        }
-      } catch {
-        showError('Connection error. Please try again.');
-        loginBtn.classList.remove('loading');
-        loginBtn.textContent = 'Access AURA';
-      }
-    }
+        const payload = await response.json().catch(() => ({}));
 
-    function showError(msg) {
-      errorMsg.textContent = msg;
-      errorMsg.style.display = 'block';
+        if (!response.ok) {
+          showError(payload.detail || "Authentication failed.");
+          setBusy(false);
+          statusLine.textContent = "ACCESS DENIED";
+          window.setTimeout(() => {
+            statusLine.textContent = "SYSTEM READY";
+          }, 2200);
+          return;
+        }
+
+        showSuccess(payload.message || "Sign-in successful. Redirecting...");
+        setBusy(true, "Access granted");
+        statusLine.textContent = "ACCESS GRANTED";
+        window.setTimeout(() => {
+          window.location.href = "/";
+        }, 900);
+      } catch (_error) {
+        showError("Connection error. Please try again.");
+        setBusy(false);
+        statusLine.textContent = "SYSTEM READY";
+      }
     }
 
     async function bootstrapAuthState() {
       try {
-        const res = await fetch('/api/auth/session');
-        const data = await res.json();
-        if (data.setup_required) { window.location.href = '/setup'; return; }
-        if (data.authenticated) { window.location.href = '/'; }
-      } catch {}
+        const response = await fetch("/api/auth/session", { credentials: "same-origin" });
+        const payload = await response.json().catch(() => ({}));
+        if (payload.setup_required) {
+          window.location.href = "/setup";
+          return;
+        }
+        if (payload.authenticated) {
+          window.location.href = "/";
+        }
+      } catch (_error) {
+        // Leave the page usable even if the session check fails.
+      }
     }
+
     bootstrapAuthState();
   </script>
 </body>

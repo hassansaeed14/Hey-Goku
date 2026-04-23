@@ -1,3 +1,5 @@
+CAPABILITY_MODE = "placeholder"
+
 from agents.cognitive.planner_core import generate_plan
 from agents.cognitive.reasoning_core import reasoning_chain
 from agents.cognitive.evaluator_core import evaluate_response

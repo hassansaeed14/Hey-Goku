@@ -1,14 +1,27 @@
-import os
+from __future__ import annotations
+
 import re
+from pathlib import Path
+from typing import Iterable
+
 from groq import Groq
+
 from config.settings import GROQ_API_KEY, MODEL_NAME
 from memory.vector_memory import store_memory
 
 
-client = Groq(api_key=GROQ_API_KEY)
-
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SAFE_FILE_ROOTS: tuple[Path, ...] = (
+    PROJECT_ROOT.resolve(),
+)
 SUPPORTED_TEXT_EXTENSIONS = {".txt", ".md", ".py", ".js", ".html", ".css", ".json"}
 SUPPORTED_PDF_EXTENSIONS = {".pdf"}
+SAFE_FILE_ACCESS_MESSAGE = (
+    "AURA file access is limited to the active workspace. "
+    "Choose a file inside the current AURA project."
+)
+
+client = Groq(api_key=GROQ_API_KEY)
 
 
 def clean(text):
@@ -22,6 +35,45 @@ def clean(text):
     text = re.sub(r"`(.+?)`", r"\1", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _path_contains_traversal(raw_path: str) -> bool:
+    separators_normalized = str(raw_path or "").replace("\\", "/")
+    return any(part == ".." for part in separators_normalized.split("/"))
+
+
+def _path_within_root(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _validate_safe_path(path_value: str, *, must_exist: bool = True) -> tuple[bool, Path | None, str | None]:
+    raw = str(path_value or "").strip().strip("\"'")
+    if not raw:
+        return False, None, "Please provide a file path inside the current workspace."
+
+    if _path_contains_traversal(raw):
+        return False, None, "Path traversal is blocked. Use a direct path inside the current workspace."
+
+    candidate = Path(raw)
+    try:
+        if not candidate.is_absolute():
+            candidate = (PROJECT_ROOT / candidate).resolve(strict=False)
+        else:
+            candidate = candidate.resolve(strict=False)
+    except Exception:
+        return False, None, SAFE_FILE_ACCESS_MESSAGE
+
+    if not any(_path_within_root(candidate, root) for root in SAFE_FILE_ROOTS):
+        return False, None, SAFE_FILE_ACCESS_MESSAGE
+
+    if must_exist and not candidate.exists():
+        return False, None, f"File not found inside the current workspace: {candidate.name or raw}"
+
+    return True, candidate, None
 
 
 def summarize_content(content, file_type="Text Document"):
@@ -43,15 +95,15 @@ def summarize_content(content, file_type="Text Document"):
                         "KEY POINTS\n"
                         "CONCLUSION\n\n"
                         "Do not use markdown symbols like *, #, or backticks."
-                    )
+                    ),
                 },
                 {
                     "role": "user",
-                    "content": f"Summarize this {file_type} content:\n{content_preview}"
-                }
+                    "content": f"Summarize this {file_type} content:\n{content_preview}",
+                },
             ],
             max_tokens=900,
-            temperature=0.3
+            temperature=0.3,
         )
 
         result = response.choices[0].message.content if response.choices else ""
@@ -61,21 +113,31 @@ def summarize_content(content, file_type="Text Document"):
         return f"File summarization error: {str(e)}"
 
 
-def read_text_file(file_path):
+def _store_file_memory(message: str, metadata: dict) -> None:
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        store_memory(message, metadata)
+    except Exception:
+        return None
+
+
+def read_text_file(file_path):
+    allowed, safe_path, error = _validate_safe_path(file_path, must_exist=True)
+    if not allowed or safe_path is None:
+        return error or SAFE_FILE_ACCESS_MESSAGE
+
+    try:
+        content = safe_path.read_text(encoding="utf-8")
 
         if not content.strip():
-            return f"The file is empty: {file_path}"
+            return f"The file is empty: {safe_path.name}"
 
-        store_memory(
-            f"Text file read: {file_path}",
+        _store_file_memory(
+            f"Text file read: {safe_path}",
             {
                 "type": "file",
-                "file_path": file_path,
-                "file_kind": "text"
-            }
+                "file_path": str(safe_path),
+                "file_kind": "text",
+            },
         )
 
         if len(content) > 3000:
@@ -85,16 +147,15 @@ def read_text_file(file_path):
 
     except UnicodeDecodeError:
         try:
-            with open(file_path, "r", encoding="latin-1") as f:
-                content = f.read()
+            content = safe_path.read_text(encoding="latin-1")
 
-            store_memory(
-                f"Text file read with fallback encoding: {file_path}",
+            _store_file_memory(
+                f"Text file read with fallback encoding: {safe_path}",
                 {
                     "type": "file",
-                    "file_path": file_path,
-                    "file_kind": "text"
-                }
+                    "file_path": str(safe_path),
+                    "file_kind": "text",
+                },
             )
 
             if len(content) > 3000:
@@ -106,17 +167,21 @@ def read_text_file(file_path):
             return f"Could not decode file: {str(e)}"
 
     except FileNotFoundError:
-        return f"File not found: {file_path}"
+        return f"File not found inside the current workspace: {safe_path.name}"
     except Exception as e:
         return f"Could not read file: {str(e)}"
 
 
 def read_pdf_file(file_path):
+    allowed, safe_path, error = _validate_safe_path(file_path, must_exist=True)
+    if not allowed or safe_path is None:
+        return error or SAFE_FILE_ACCESS_MESSAGE
+
     try:
         import PyPDF2
 
         text = ""
-        with open(file_path, "rb") as f:
+        with safe_path.open("rb") as f:
             reader = PyPDF2.PdfReader(f)
 
             for page in reader.pages[:10]:
@@ -127,13 +192,13 @@ def read_pdf_file(file_path):
         if not text.strip():
             return "Could not extract readable text from the PDF."
 
-        store_memory(
-            f"PDF file read: {file_path}",
+        _store_file_memory(
+            f"PDF file read: {safe_path}",
             {
                 "type": "file",
-                "file_path": file_path,
-                "file_kind": "pdf"
-            }
+                "file_path": str(safe_path),
+                "file_kind": "pdf",
+            },
         )
 
         return summarize_content(text, "PDF Document")
@@ -141,59 +206,75 @@ def read_pdf_file(file_path):
     except ImportError:
         return "PDF reading requires PyPDF2. Run: pip install PyPDF2"
     except FileNotFoundError:
-        return f"File not found: {file_path}"
+        return f"File not found inside the current workspace: {safe_path.name}"
     except Exception as e:
         return f"Could not read PDF: {str(e)}"
 
 
-def list_files(directory="."):
+def _render_directory_listing(directory: Path, files: Iterable[Path]) -> str:
+    folders = sorted(path for path in files if path.is_dir())
+    file_list = sorted(path for path in files if path.is_file())
+
     try:
-        files = os.listdir(directory)
+        relative_dir = directory.relative_to(PROJECT_ROOT)
+        display_dir = f".\\{relative_dir}" if str(relative_dir) != "." else "."
+    except ValueError:
+        display_dir = str(directory)
 
-        folders = sorted([f for f in files if os.path.isdir(os.path.join(directory, f))])
-        file_list = sorted([f for f in files if os.path.isfile(os.path.join(directory, f))])
+    result = f"FILES IN {display_dir}\n\n"
 
-        result = f"FILES IN {directory}\n\n"
+    if folders:
+        result += "FOLDERS:\n"
+        for folder in folders:
+            result += f"  {folder.name}/\n"
+        result += "\n"
 
-        if folders:
-            result += "FOLDERS:\n"
-            for folder in folders:
-                result += f"  {folder}/\n"
-            result += "\n"
+    if file_list:
+        result += "FILES:\n"
+        for file_name in file_list:
+            size = file_name.stat().st_size
+            result += f"  {file_name.name} ({size} bytes)\n"
 
-        if file_list:
-            result += "FILES:\n"
-            for file_name in file_list:
-                full_path = os.path.join(directory, file_name)
-                size = os.path.getsize(full_path)
-                result += f"  {file_name} ({size} bytes)\n"
+    if not folders and not file_list:
+        result += "No files or folders found."
 
-        if not folders and not file_list:
-            result += "No files or folders found."
+    return result.strip()
 
-        store_memory(
-            f"Files listed in: {directory}",
+
+def list_files(directory="."):
+    allowed, safe_path, error = _validate_safe_path(directory, must_exist=True)
+    if not allowed or safe_path is None:
+        return error or SAFE_FILE_ACCESS_MESSAGE
+
+    if not safe_path.is_dir():
+        return "Please provide a folder path inside the current workspace."
+
+    try:
+        files = list(safe_path.iterdir())
+
+        _store_file_memory(
+            f"Files listed in: {safe_path}",
             {
                 "type": "file_list",
-                "directory": directory
-            }
+                "directory": str(safe_path),
+            },
         )
 
-        return result.strip()
+        return _render_directory_listing(safe_path, files)
 
     except Exception as e:
         return f"Could not list files: {str(e)}"
 
 
 def extract_file_path(command):
-    command = command.strip()
+    command = str(command or "").strip()
 
     prefixes = [
         "read file",
         "open file",
         "analyze file",
         "read pdf",
-        "read document"
+        "read document",
     ]
 
     lowered = command.lower()
@@ -205,14 +286,14 @@ def extract_file_path(command):
 
 
 def analyze_file(file_path):
-    file_path = extract_file_path(file_path)
-    ext = os.path.splitext(file_path)[1].lower()
+    normalized_file_path = extract_file_path(file_path)
+    ext = Path(normalized_file_path).suffix.lower()
 
     if ext in SUPPORTED_PDF_EXTENSIONS:
-        return read_pdf_file(file_path)
+        return read_pdf_file(normalized_file_path)
 
     if ext in SUPPORTED_TEXT_EXTENSIONS:
-        return read_text_file(file_path)
+        return read_text_file(normalized_file_path)
 
     if not ext:
         return (

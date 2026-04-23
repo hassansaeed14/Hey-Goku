@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA — Create Account</title>
+  <title>AURA - Invitation Signup</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,225 +15,303 @@
       --bg-base: #09090f;
       --bg-card: rgba(14, 18, 30, 0.88);
       --border-dim: rgba(126, 214, 255, 0.12);
-      --border-mid: rgba(126, 214, 255, 0.24);
       --text-primary: #f0f4ff;
       --text-muted: #7a8aa8;
       --text-accent: #7ed6ff;
       --input-bg: rgba(10, 14, 26, 0.80);
+      --success: #6ee7b7;
+      --danger: #f87171;
     }
 
     html, body {
       background: var(--bg-base);
       color: var(--text-primary);
-      font-family: 'Manrope', sans-serif;
+      font-family: "Manrope", sans-serif;
     }
 
     .scene {
-      position: fixed; inset: 0; z-index: 0;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
       background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61,134,199,0.18) 0%, transparent 65%),
-        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(21,148,168,0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(61, 134, 199, 0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(21, 148, 168, 0.10) 0%, transparent 60%),
         var(--bg-base);
     }
 
     .grid {
-      position: fixed; inset: 0; z-index: 1;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
       background-image:
-        linear-gradient(rgba(126,214,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(126,214,255,0.04) 1px, transparent 1px);
+        linear-gradient(rgba(126, 214, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126, 214, 255, 0.04) 1px, transparent 1px);
       background-size: 44px 44px;
     }
 
     .particles { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
     .particle {
-      position: absolute; border-radius: 50%;
-      background: var(--orb-cyan); opacity: 0;
+      position: absolute;
+      border-radius: 50%;
+      background: var(--orb-cyan);
+      opacity: 0;
       animation: rise linear infinite;
     }
+
     @keyframes rise {
-      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
-      8%   { opacity: 0.18; }
-      90%  { opacity: 0.10; }
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      8% { opacity: 0.18; }
+      90% { opacity: 0.10; }
       100% { transform: translateY(-80px) scale(1); opacity: 0; }
     }
 
     .page {
-      position: relative; z-index: 10;
+      position: relative;
+      z-index: 10;
       min-height: 100vh;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 24px 16px;
     }
 
     .shell {
-      width: 100%; max-width: 420px;
+      width: 100%;
+      max-width: 436px;
       animation: emerge 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
+
     @keyframes emerge {
       from { opacity: 0; transform: translateY(28px) scale(0.97); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* ─── Orb ────────────────────────────────────── */
     .orb-wrap {
-      position: relative; width: 72px; height: 72px;
+      position: relative;
+      width: 72px;
+      height: 72px;
       margin: 0 auto 16px;
     }
+
     .orb-core {
-      position: relative; z-index: 2;
-      width: 72px; height: 72px; border-radius: 50%;
+      position: relative;
+      z-index: 2;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
       background: radial-gradient(circle at 38% 32%, #b8eeff, #7ed6ff 38%, #1b5f8c 72%, #0b1a2e);
       box-shadow:
-        0 0 0 1px rgba(126,214,255,0.28),
-        0 0 20px rgba(126,214,255,0.50),
-        0 0 50px rgba(126,214,255,0.18),
-        inset 0 1px 0 rgba(255,255,255,0.16);
+        0 0 0 1px rgba(126, 214, 255, 0.28),
+        0 0 20px rgba(126, 214, 255, 0.50),
+        0 0 50px rgba(126, 214, 255, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
       animation: orbBreathe 4s ease-in-out infinite;
     }
+
     @keyframes orbBreathe {
-      0%, 100% { box-shadow: 0 0 0 1px rgba(126,214,255,0.28), 0 0 20px rgba(126,214,255,0.50), 0 0 50px rgba(126,214,255,0.18); }
-      50%       { box-shadow: 0 0 0 1px rgba(126,214,255,0.38), 0 0 32px rgba(126,214,255,0.70), 0 0 76px rgba(126,214,255,0.28); }
+      0%, 100% { box-shadow: 0 0 0 1px rgba(126, 214, 255, 0.28), 0 0 20px rgba(126, 214, 255, 0.50), 0 0 50px rgba(126, 214, 255, 0.18); }
+      50% { box-shadow: 0 0 0 1px rgba(126, 214, 255, 0.38), 0 0 32px rgba(126, 214, 255, 0.70), 0 0 76px rgba(126, 214, 255, 0.28); }
     }
+
     .orb-ring {
-      position: absolute; top: 50%; left: 50%;
-      border-radius: 50%; border: 1px solid rgba(126,214,255,0.18);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border-radius: 50%;
+      border: 1px solid rgba(126, 214, 255, 0.18);
       transform: translate(-50%, -50%);
       animation: ringPulse 3.6s ease-out infinite;
     }
-    .orb-ring:nth-child(2) { width: 96px;  height: 96px;  animation-delay: 0.6s; }
+
+    .orb-ring:nth-child(2) { width: 96px; height: 96px; animation-delay: 0.6s; }
     .orb-ring:nth-child(3) { width: 124px; height: 124px; animation-delay: 1.2s; }
+
     @keyframes ringPulse {
-      0%   { opacity: 0.5; transform: translate(-50%,-50%) scale(1); }
-      100% { opacity: 0;   transform: translate(-50%,-50%) scale(1.4); }
+      0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); }
     }
 
     .brand { text-align: center; margin-bottom: 24px; }
     .brand-name {
-      font-size: 2.1rem; font-weight: 800; letter-spacing: 14px;
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: 14px;
       background: linear-gradient(135deg, #e8f4ff 0%, #7ed6ff 55%, #4db8e8 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      line-height: 1; margin-bottom: 5px;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 5px;
     }
     .brand-sub {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.58rem; letter-spacing: 3px;
-      color: var(--text-muted); text-transform: uppercase;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.58rem;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-transform: uppercase;
     }
 
-    /* ─── Card ───────────────────────────────────── */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-dim);
-      border-radius: 20px; padding: 28px 26px;
+      border-radius: 20px;
+      padding: 28px 26px;
       backdrop-filter: blur(24px) saturate(1.2);
-      box-shadow: 0 0 0 1px rgba(126,214,255,0.05), 0 20px 60px rgba(0,0,0,0.58),
-                  inset 0 1px 0 rgba(255,255,255,0.05);
+      box-shadow:
+        0 0 0 1px rgba(126, 214, 255, 0.05),
+        0 20px 60px rgba(0, 0, 0, 0.58),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
     .card-heading {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.70rem; letter-spacing: 3px;
-      color: var(--text-muted); text-transform: uppercase;
-      text-align: center; margin-bottom: 22px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.70rem;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .card-copy {
+      margin-bottom: 18px;
+      text-align: center;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .truth-note {
+      margin-bottom: 20px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(126, 214, 255, 0.16);
+      background: rgba(126, 214, 255, 0.06);
+      font-size: 0.84rem;
+      line-height: 1.55;
+      color: var(--text-primary);
     }
 
     .form-row { margin-bottom: 16px; }
     .form-label {
       display: block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.62rem; letter-spacing: 2px;
-      color: var(--text-muted); text-transform: uppercase; margin-bottom: 7px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.62rem;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 7px;
     }
     .form-input {
-      width: 100%; padding: 11px 14px;
+      width: 100%;
+      padding: 11px 14px;
       background: var(--input-bg);
       border: 1px solid var(--border-dim);
-      border-radius: 10px; color: var(--text-primary);
-      font-family: 'Manrope', sans-serif; font-size: 0.88rem;
-      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-family: "Manrope", sans-serif;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .form-input::placeholder { color: #3a4a60; }
     .form-input:focus {
-      border-color: rgba(126,214,255,0.38);
-      box-shadow: 0 0 0 3px rgba(126,214,255,0.09);
+      border-color: rgba(126, 214, 255, 0.38);
+      box-shadow: 0 0 0 3px rgba(126, 214, 255, 0.09);
     }
 
-    /* ─── Plan selector ──────────────────────────── */
-    .plan-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.62rem; letter-spacing: 2px;
-      color: var(--text-muted); text-transform: uppercase;
-      margin-bottom: 10px; display: block;
-    }
-    .plans {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-      margin-bottom: 18px;
-    }
-    .plan-card {
-      padding: 11px 10px; border-radius: 10px;
-      border: 1px solid var(--border-dim);
-      cursor: pointer; text-align: center;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .plan-card:hover { border-color: rgba(126,214,255,0.28); background: rgba(126,214,255,0.06); }
-    .plan-card.selected { border-color: rgba(126,214,255,0.40); background: rgba(126,214,255,0.10); }
-    .plan-name { font-size: 0.82rem; font-weight: 700; color: var(--text-accent); margin-bottom: 2px; }
-    .plan-price { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; }
-    .plan-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 8px;
-      font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 1px;
-      background: rgba(126,214,255,0.12); color: rgba(126,214,255,0.70);
-    }
-
-    /* ─── Button ─────────────────────────────────── */
     .btn-primary {
-      position: relative; width: 100%; padding: 12px 20px;
+      position: relative;
+      width: 100%;
+      padding: 12px 20px;
       background: linear-gradient(135deg, #2a7aaa 0%, #1b5f8c 60%, #124070 100%);
-      border: 1px solid rgba(126,214,255,0.26);
-      border-radius: 10px; color: #e8f4ff;
-      font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem;
-      font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase;
-      cursor: pointer; overflow: hidden;
+      border: 1px solid rgba(126, 214, 255, 0.26);
+      border-radius: 10px;
+      color: #e8f4ff;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.76rem;
+      font-weight: 500;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      overflow: hidden;
       transition: transform 0.15s, box-shadow 0.2s;
     }
     .btn-primary::before {
-      content: ''; position: absolute; top: -50%; left: -60%;
-      width: 60%; height: 200%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.09), transparent);
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -60%;
+      width: 60%;
+      height: 200%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
       transform: skewX(-20deg);
       animation: sheen 4.5s ease-in-out infinite;
     }
-    @keyframes sheen { 0%, 60%, 100% { left: -60%; } 30% { left: 120%; } }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(126,214,255,0.22); }
-    .btn-primary:active { transform: translateY(0); }
+    @keyframes sheen {
+      0%, 60%, 100% { left: -60%; }
+      30% { left: 120%; }
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(126, 214, 255, 0.22); }
     .btn-primary.loading { opacity: 0.65; pointer-events: none; }
 
-    .alert { display: none; margin-top: 14px; padding: 9px 14px; border-radius: 8px; font-size: 0.80rem; text-align: center; }
-    .alert-error { color: #f87171; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.20); }
-    .alert-success { color: #6ee7b7; background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.20); }
+    .alert {
+      display: none;
+      margin-top: 14px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.80rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+    .alert-error {
+      color: var(--danger);
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.20);
+    }
+    .alert-success {
+      color: var(--success);
+      background: rgba(110, 231, 183, 0.08);
+      border: 1px solid rgba(110, 231, 183, 0.20);
+    }
 
-    .card-footer { margin-top: 18px; text-align: center; font-size: 0.80rem; color: var(--text-muted); }
-    .card-footer a { color: var(--text-accent); text-decoration: none; font-weight: 600; }
+    .card-footer {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 0.80rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .card-footer a {
+      color: var(--text-accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
     .card-footer a:hover { opacity: 0.75; }
 
     .status-line {
-      margin-top: 20px; text-align: center;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.60rem; letter-spacing: 2.5px;
-      color: rgba(126,214,255,0.32);
+      margin-top: 20px;
+      text-align: center;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.60rem;
+      letter-spacing: 2.5px;
+      color: rgba(126, 214, 255, 0.32);
       animation: statusBlink 3s ease-in-out infinite;
     }
-    @keyframes statusBlink { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+    @keyframes statusBlink {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
   </style>
 </head>
 <body>
-
   <div class="scene"></div>
   <div class="grid"></div>
   <div class="particles" id="particles"></div>
 
   <div class="page">
     <div class="shell">
-
       <div class="brand">
         <div class="orb-wrap">
           <div class="orb-core"></div>
@@ -245,7 +323,12 @@
       </div>
 
       <div class="card">
-        <p class="card-heading">Create your account</p>
+        <p class="card-heading">Invitation required</p>
+        <p class="card-copy">Account creation is available only for invited email addresses. If your email has already been approved, finish this form to activate your account.</p>
+
+        <div class="truth-note">
+          This is not open public signup. AURA will only create the account if the email address has already been invited.
+        </div>
 
         <div class="form-row">
           <label class="form-label" for="name">Full name</label>
@@ -258,7 +341,7 @@
         </div>
 
         <div class="form-row">
-          <label class="form-label" for="email">Email</label>
+          <label class="form-label" for="email">Invited email</label>
           <input class="form-input" type="email" id="email" placeholder="you@example.com" autocomplete="email">
         </div>
 
@@ -272,110 +355,130 @@
           <input class="form-input" type="password" id="confirmPassword" placeholder="Confirm your password" autocomplete="new-password">
         </div>
 
-        <label class="plan-label">Select plan</label>
-        <div class="plans">
-          <div class="plan-card selected" id="planFree" onclick="selectPlan('free')">
-            <div class="plan-name">Basic</div>
-            <div class="plan-price">Free</div>
-            <div class="plan-badge">20 msg/day</div>
-          </div>
-          <div class="plan-card" id="planPro" onclick="selectPlan('pro')">
-            <div class="plan-name">Pro</div>
-            <div class="plan-price">$12/month</div>
-            <div class="plan-badge">Unlimited</div>
-          </div>
-        </div>
-
-        <button class="btn-primary" id="registerBtn" type="button">Create account</button>
+        <button class="btn-primary" id="registerBtn" type="button">Create invited account</button>
 
         <div class="alert alert-error" id="errorMsg"></div>
         <div class="alert alert-success" id="successMsg"></div>
 
         <div class="card-footer">
-          Already have an account? <a href="/login">Sign in</a>
+          <p>Already have access? <a href="/login">Sign in</a></p>
+          <p>Need to recover an existing account? <a href="/forgot-password">Forgot password</a></p>
         </div>
       </div>
 
       <p class="status-line" id="statusLine">SYSTEM READY</p>
-
     </div>
   </div>
 
   <script>
-    const container = document.getElementById('particles');
-    for (let i = 0; i < 22; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
+    const container = document.getElementById("particles");
+    for (let i = 0; i < 22; i += 1) {
+      const particle = document.createElement("div");
+      particle.className = "particle";
       const size = Math.random() * 5 + 1.5;
-      p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;animation-duration:${12+Math.random()*14}s;animation-delay:${Math.random()*12}s;`;
-      container.appendChild(p);
+      particle.style.cssText = [
+        `width:${size}px`,
+        `height:${size}px`,
+        `left:${Math.random() * 100}%`,
+        `animation-duration:${12 + Math.random() * 14}s`,
+        `animation-delay:${Math.random() * 12}s`,
+      ].join(";");
+      container.appendChild(particle);
     }
 
-    let selectedPlan = 'free';
-    function selectPlan(plan) {
-      selectedPlan = plan;
-      document.getElementById('planFree').classList.toggle('selected', plan === 'free');
-      document.getElementById('planPro').classList.toggle('selected', plan === 'pro');
-    }
+    const nameInput = document.getElementById("name");
+    const usernameInput = document.getElementById("username");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
+    const registerBtn = document.getElementById("registerBtn");
+    const errorMsg = document.getElementById("errorMsg");
+    const successMsg = document.getElementById("successMsg");
+    const statusLine = document.getElementById("statusLine");
 
-    document.getElementById('confirmPassword').addEventListener('keydown', e => {
-      if (e.key === 'Enter') attemptRegister();
+    confirmPasswordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") attemptRegister();
     });
-    document.getElementById('registerBtn').addEventListener('click', attemptRegister);
+    registerBtn.addEventListener("click", attemptRegister);
+
+    function hideAlerts() {
+      errorMsg.style.display = "none";
+      successMsg.style.display = "none";
+    }
+
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.style.display = "block";
+      successMsg.style.display = "none";
+    }
+
+    function showSuccess(message) {
+      successMsg.textContent = message;
+      successMsg.style.display = "block";
+      errorMsg.style.display = "none";
+    }
+
+    function setBusy(isBusy, label = "Create invited account") {
+      registerBtn.classList.toggle("loading", isBusy);
+      registerBtn.textContent = label;
+    }
 
     async function attemptRegister() {
-      const name = document.getElementById('name').value.trim();
-      const username = document.getElementById('username').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const confirmPassword = document.getElementById('confirmPassword').value.trim();
-      const errorMsg = document.getElementById('errorMsg');
-      const successMsg = document.getElementById('successMsg');
-      const btn = document.getElementById('registerBtn');
-      const statusLine = document.getElementById('statusLine');
+      const name = nameInput.value.trim();
+      const username = usernameInput.value.trim();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      const confirmPassword = confirmPasswordInput.value.trim();
 
-      errorMsg.style.display = 'none';
-      successMsg.style.display = 'none';
+      hideAlerts();
 
-      if (!name || !username || !email || !password || !confirmPassword) { showError('Please fill in all fields.'); return; }
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { showError('Please enter a valid email address.'); return; }
-      if (password !== confirmPassword) { showError('Passwords do not match.'); return; }
-      if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+      if (!name || !username || !email || !password || !confirmPassword) {
+        showError("Please fill in all fields.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError("Please enter a valid invited email address.");
+        return;
+      }
+      if (password.length < 8) {
+        showError("Password must be at least 8 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        showError("Passwords do not match.");
+        return;
+      }
 
-      btn.classList.add('loading');
-      btn.textContent = 'Creating account...';
-      statusLine.textContent = 'INITIALIZING YOUR AURA...';
+      setBusy(true, "Creating account...");
+      statusLine.textContent = "VERIFYING INVITATION...";
 
       try {
-        const res = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/register", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, name, email }),
         });
-        const data = await res.json();
-        if (res.ok) {
-          successMsg.textContent = 'Account created. Redirecting to sign in...';
-          successMsg.style.display = 'block';
-          btn.textContent = 'Welcome to AURA';
-          statusLine.textContent = 'ACCOUNT ACTIVATED';
-          setTimeout(() => { window.location.href = '/login'; }, 1800);
-        } else {
-          showError(data.detail || 'Registration failed.');
-          btn.classList.remove('loading');
-          btn.textContent = 'Create account';
-          statusLine.textContent = 'SYSTEM READY';
-        }
-      } catch {
-        showError('Connection error. Please try again.');
-        btn.classList.remove('loading');
-        btn.textContent = 'Create account';
-      }
-    }
+        const payload = await response.json().catch(() => ({}));
 
-    function showError(msg) {
-      const errorMsg = document.getElementById('errorMsg');
-      errorMsg.textContent = msg;
-      errorMsg.style.display = 'block';
+        if (!response.ok) {
+          showError(payload.detail || "Registration failed.");
+          setBusy(false);
+          statusLine.textContent = "INVITATION REQUIRED";
+          return;
+        }
+
+        showSuccess(payload.message || "Account created. Redirecting to sign in...");
+        setBusy(true, "Account ready");
+        statusLine.textContent = "ACCOUNT ACTIVATED";
+        window.setTimeout(() => {
+          window.location.href = "/login";
+        }, 1600);
+      } catch (_error) {
+        showError("Connection error. Please try again.");
+        setBusy(false);
+        statusLine.textContent = "SYSTEM READY";
+      }
     }
   </script>
 </body>

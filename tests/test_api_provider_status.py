@@ -106,6 +106,73 @@ class ApiProviderStatusTests(unittest.TestCase):
         self.assertEqual(payload["routing_order"], ["gemini", "openai", "groq"])
         self.assertEqual(payload["assistant_runtime"]["active_provider"], "gemini")
 
+    def test_system_health_reports_browser_only_tts_and_truth_notes(self):
+        with patch.object(api_server, "_provider_health_snapshot", return_value={"items": [], "providers": {}, "routing_order": [], "assistant_runtime": {}}), patch.object(
+            api_server,
+            "get_voice_status",
+            return_value={
+                "stt": {"available": False},
+                "tts": {"available": True, "status": "browser_only"},
+            },
+        ), patch.object(
+            api_server,
+            "_chat_requests_today",
+            return_value=0,
+        ):
+            payload = api_server._system_health_payload()
+
+        self.assertEqual(payload["voice_tts"], "browser_only")
+        self.assertIn("push-to-talk", payload["truth_notes"]["voice"])
+        self.assertIn("rate-limited", payload["truth_notes"]["providers"])
+
+    def test_agents_endpoint_exposes_truth_note(self):
+        with patch.object(api_server, "list_agents", return_value=[]), patch.object(
+            api_server,
+            "list_generated_agent_cards",
+            return_value=[],
+        ), patch.object(
+            api_server,
+            "summarize_provider_statuses",
+            return_value={},
+        ), patch.object(
+            api_server,
+            "get_agent_summary",
+            return_value={"capability_modes": {"real": 1, "hybrid": 2, "placeholder": 3}},
+        ), patch.object(
+            api_server,
+            "requires_first_run_setup",
+            return_value=False,
+        ), patch.object(
+            api_server,
+            "_current_user",
+            return_value={"id": "owner", "username": "owner", "admin": True},
+        ):
+            response = self.client.get("/api/agents")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("truth_note", payload)
+        self.assertIn("real, hybrid, and placeholder", payload["truth_note"])
+
+    def test_provider_endpoint_exposes_truth_note(self):
+        provider_snapshot = {
+            "checked_at": "2026-04-22T10:00:00",
+            "routing_order": ["groq"],
+            "healthy": [],
+            "configured": ["groq"],
+            "items": [{"provider": "groq", "status": "rate_limited"}],
+            "providers": {"groq": "rate_limited"},
+            "assistant_runtime": {"status": "rate_limited", "preferred_provider": "groq"},
+        }
+
+        with patch.object(api_server, "_provider_health_snapshot", return_value=provider_snapshot):
+            response = self.client.get("/api/providers")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("truth_note", payload)
+        self.assertIn("rate-limit", payload["truth_note"])
+
     def test_forge_report_endpoint_requires_admin_and_returns_real_report(self):
         forge_report = {"status": "ok", "audit": {"findings": []}, "repair_plan": []}
 

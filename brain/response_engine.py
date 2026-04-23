@@ -1235,10 +1235,6 @@ def _build_local_assignment_section_body(
             f"Implementation barriers — including legacy systems, skills gaps, regulatory constraints, and change management challenges — must be addressed systematically to realise the full potential of the approach.{page_hint}"
         ),
         "comparative perspective": (
-            f"A comparative perspective helps the reader understand {topic} more clearly by setting it beside related methods, approaches, or alternatives. "
-            f"This creates a sharper academic evaluation of where {title_topic} is strongest and where other options may perform better.{page_hint}"
-        ),
-        "comparative perspective": (
             f"Placing {topic} in comparative context reveals where it excels relative to alternatives and where other methods or frameworks may be better suited. "
             f"Comparative analysis considers criteria such as performance, cost, accessibility, interpretability, and suitability for specific problem types. "
             f"This perspective is valuable for decision-makers who must choose between {title_topic} and competing approaches in constrained or specialised environments.{page_hint}"
@@ -2125,7 +2121,15 @@ def generate_response_payload(
         payload["success"] = False
         payload["error"] = payload.get("error") or "Provider returned empty content."
         payload["content"] = None
-    payload["degraded_reply"] = build_degraded_reply(user_input=user_input, providers_tried=payload.get("providers_tried"))
+
+    providers_tried = payload.get("providers_tried") or []
+    print(
+        f"[RESPONSE ENGINE] All providers failed or returned empty content. "
+        f"providers_tried={providers_tried}  "
+        f"error={payload.get('error')!r}  "
+        f"input={repr(user_input[:80])}"
+    )
+    payload["degraded_reply"] = build_degraded_reply(user_input=user_input, providers_tried=providers_tried)
     payload["explanation_mode"] = explanation_mode
     return payload
 
@@ -2144,6 +2148,11 @@ def get_ai_response(
     )
     if payload.get("success") and is_meaningful_text(payload.get("content")):
         return clean_response(payload.get("content"))
+    print(
+        f"[RESPONSE ENGINE] get_ai_response returning FALLBACK. "
+        f"success={payload.get('success')}  error={payload.get('error')!r}  "
+        f"input={repr(str(user_input)[:80])}"
+    )
     return FALLBACK_USER_MESSAGE
 
 
@@ -2161,6 +2170,12 @@ def generate_response(
     )
     if payload.get("success") and is_meaningful_text(payload.get("content")):
         return clean_response(payload.get("content"))
+    user_input_repr = repr(str(user_input_or_messages)[:80]) if isinstance(user_input_or_messages, str) else repr(f"<{len(user_input_or_messages)} messages>")
+    print(
+        f"[RESPONSE ENGINE] generate_response returning FALLBACK. "
+        f"success={payload.get('success')}  error={payload.get('error')!r}  "
+        f"input={user_input_repr}"
+    )
     return FALLBACK_USER_MESSAGE
 
 

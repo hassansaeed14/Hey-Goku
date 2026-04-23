@@ -10,19 +10,20 @@ import re
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 import uvicorn
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-WEB_DIR = PROJECT_ROOT / "interface" / "web"
-APP_HTML = WEB_DIR / "aura.html"
-LOGIN_HTML = WEB_DIR / "login.html"
-REGISTER_HTML = WEB_DIR / "register.html"
-FORGOT_PASSWORD_HTML = WEB_DIR / "forgot-password.html"
-SETUP_HTML = WEB_DIR / "setup.html"
-ADMIN_HTML = WEB_DIR / "admin.html"
+LEGACY_WEB_DIR = PROJECT_ROOT / "interface" / "web"
+WEB_V2_DIR = PROJECT_ROOT / "interface" / "web_v2"
+APP_HTML = WEB_V2_DIR / "aura.html"
+LOGIN_HTML = WEB_V2_DIR / "login.html"
+REGISTER_HTML = WEB_V2_DIR / "register.html"
+FORGOT_PASSWORD_HTML = WEB_V2_DIR / "forgot-password.html"
+SETUP_HTML = LEGACY_WEB_DIR / "setup.html"
+ADMIN_HTML = LEGACY_WEB_DIR / "admin.html"
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -111,13 +112,16 @@ from voice.voice_manager import load_user_profile, save_user_profile
 from tools.document_generator import (
     GENERATED_DIR,
     cleanup_generated_documents,
+    detect_document_retrieval_followup,
     generate_document,
+    resolve_generated_download_access,
     normalize_citation_style,
     normalize_document_format,
     normalize_document_formats,
     normalize_document_style,
     resolve_document_request,
-    detect_document_retrieval_followup,
+    _is_unclear_document_request,
+    secure_generated_document_access,
 )
 from tools.content_extractor import extract_content
 from brain.response_engine import generate_transformation_content_payload
@@ -134,10 +138,13 @@ PROVIDER_HEALTH_CACHE: dict[str, Any] = {
     "assistant_runtime": {},
 }
 PROVIDER_REFRESH_INTERVAL_SECONDS = 300
+DOCUMENT_RATE_LIMIT_WINDOW_SECONDS = 300
+DOCUMENT_RATE_LIMIT_MAX_REQUESTS = 6
+DOCUMENT_RATE_LIMIT_STATE: dict[str, list[float]] = {}
 
-app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+app.mount("/static", StaticFiles(directory=str(LEGACY_WEB_DIR)), name="static")
+app.mount("/static-v2", StaticFiles(directory=str(WEB_V2_DIR)), name="static-v2")
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/downloads", StaticFiles(directory=str(GENERATED_DIR)), name="downloads")
 
 
 class Command(BaseModel):
@@ -363,13 +370,6 @@ def _cors_headers() -> dict[str, str]:
 def _provider_health_snapshot(*, force: bool = False) -> dict[str, Any]:
     now = time.time()
     cache_age = now - float(PROVIDER_HEALTH_CACHE["checked_at_ts"] or 0.0)
-    if (
-        not force
-        and PROVIDER_HEALTH_CACHE["items"]
-        and cache_age < 55
-    ):
-        return PROVIDER_HEALTH_CACHE
-
     should_probe = force or not PROVIDER_HEALTH_CACHE["items"] or cache_age >= PROVIDER_REFRESH_INTERVAL_SECONDS
     summary = summarize_provider_statuses(fresh=should_probe)
     runtime_summary = get_runtime_provider_summary(fresh=should_probe)
@@ -457,16 +457,21 @@ def _system_health_payload() -> dict[str, Any]:
     provider_snapshot = _provider_health_snapshot(force=False)
     voice_status = get_voice_status()
     requests_today = _chat_requests_today()
+    voice_tts_status = str((voice_status.get("tts") or {}).get("status") or "").strip().lower()
     return {
         "brain": _brain_health_label(provider_snapshot),
         "memory": _memory_health_label(),
         "vector_memory": _vector_memory_health_label(),
         "voice_stt": "working" if voice_status.get("stt", {}).get("available") else "unavailable",
-        "voice_tts": "working" if voice_status.get("tts", {}).get("available") else "unavailable",
+        "voice_tts": "browser_only" if voice_tts_status == "browser_only" else ("working" if voice_status.get("tts", {}).get("available") else "unavailable"),
         "providers": dict(provider_snapshot.get("providers", {})),
         "provider_details": provider_snapshot.get("items", []),
         "routing_order": list(provider_snapshot.get("routing_order", [])),
         "assistant_runtime": dict(provider_snapshot.get("assistant_runtime") or {}),
+        "truth_notes": {
+            "voice": "Voice output is browser-managed, and reliable browser wake remains push-to-talk or beta single-phrase capture.",
+            "providers": "Provider status reflects the latest runtime snapshot. Configured providers can still be degraded or rate-limited during live requests.",
+        },
         "uptime_seconds": round(time.time() - SERVER_STARTED_AT, 2),
         "total_requests": int(REQUEST_METRICS["total_requests"]),
         "failed_requests": int(REQUEST_METRICS["failed_requests"]),
@@ -482,12 +487,107 @@ def _normalize_session_id(session_id: Optional[str]) -> str:
     return value[:120] or "default"
 
 
+def _generate_local_session_id() -> str:
+    return _normalize_session_id(f"local-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{time.time_ns() % 1000000}")
+
+
 def _resolve_session_id(request: Optional[Request], explicit: Optional[str] = None) -> str:
     if explicit:
         return _normalize_session_id(explicit)
     if request is not None:
-        return _normalize_session_id(request.headers.get("X-AURA-Session-Id"))
+        raw_session = (
+            request.headers.get("X-AURA-Session-Id")
+            or request.cookies.get("aura_local_session")
+        )
+        return _normalize_session_id(raw_session)
     return "default"
+
+
+def _ensure_document_session_id(request: Optional[Request]) -> str:
+    resolved = _resolve_session_id(request)
+    if resolved != "default":
+        return resolved
+    return _generate_local_session_id()
+
+
+def _document_rate_limit_identity(
+    request: Optional[Request],
+    user: Optional[dict[str, Any]],
+    *,
+    session_id: Optional[str] = None,
+) -> str:
+    if user and user.get("id"):
+        return f"user:{user['id']}"
+    normalized_session_id = _normalize_session_id(session_id) if session_id else _resolve_session_id(request)
+    if normalized_session_id != "default":
+        return f"session:{normalized_session_id}"
+    client_host = request.client.host if request and request.client else "unknown"
+    return f"ip:{client_host}"
+
+
+def _consume_document_rate_limit(
+    *,
+    request: Optional[Request],
+    user: Optional[dict[str, Any]],
+    channel: str,
+    session_id: Optional[str] = None,
+) -> Optional[dict[str, Any]]:
+    now = time.time()
+    key = f"{channel}:{_document_rate_limit_identity(request, user, session_id=session_id)}"
+    recent = [
+        stamp
+        for stamp in DOCUMENT_RATE_LIMIT_STATE.get(key, [])
+        if now - stamp < DOCUMENT_RATE_LIMIT_WINDOW_SECONDS
+    ]
+    if len(recent) >= DOCUMENT_RATE_LIMIT_MAX_REQUESTS:
+        retry_after = max(1, int(DOCUMENT_RATE_LIMIT_WINDOW_SECONDS - (now - recent[0])))
+        return {
+            "success": False,
+            "status": "rate_limited",
+            "error": "Document generation is temporarily busy. Please wait a moment and try again.",
+            "retry_after_seconds": retry_after,
+            "kind": "error",
+        }
+    recent.append(now)
+    DOCUMENT_RATE_LIMIT_STATE[key] = recent
+    return None
+
+
+_CHAT_DOCUMENT_RATE_LIMIT_RE = re.compile(
+    r"\b(?:make|create|generate|write|prepare|convert|transform|turn|summari[sz]e)\b.{0,80}\b(?:notes|assignment|slides?|presentation|pdf|docx|txt|pptx)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _should_rate_limit_document_request(context: dict[str, Any]) -> bool:
+    if context.get("document_request") is not None:
+        return True
+    cleaned = str(context.get("cleaned_message") or "")
+    if detect_document_retrieval_followup(cleaned):
+        return False
+    return bool(_CHAT_DOCUMENT_RATE_LIMIT_RE.search(cleaned))
+
+
+def _attach_local_session_cookie(
+    response: Response,
+    *,
+    session_id: Optional[str],
+    user: Optional[dict[str, Any]],
+) -> None:
+    if user:
+        return
+    normalized = _normalize_session_id(session_id)
+    if normalized == "default":
+        return
+    response.set_cookie(
+        key="aura_local_session",
+        value=normalized,
+        max_age=60 * 60 * 24 * 7,
+        httponly=False,
+        samesite="lax",
+        secure=False,
+        path="/",
+    )
 
 
 def _normalize_chat_mode(requested_mode: Optional[str], execution_mode: Optional[str], permission: Optional[dict[str, Any]] = None) -> str:
@@ -766,6 +866,12 @@ def _prepare_chat_context(
 
     normalized_session_id = _normalize_session_id(session_id)
     document_request = resolve_document_request(cleaned_message, session_id=normalized_session_id)
+    if document_request is None and _is_unclear_document_request(cleaned_message):
+        print(f"[CHAT] Unclear document request detected — returning clarification. input={repr(cleaned_message[:120])}")
+        return {
+            "clarification_reply": "What topic would you like the document to cover? For example: \"notes on machine learning\" or \"assignment on the French Revolution\".",
+            "session_id": normalized_session_id,
+        }
     retrieval_followup = None
     if document_request is None:
         retrieval_followup = detect_document_retrieval_followup(cleaned_message)
@@ -822,6 +928,7 @@ def _prepare_chat_context(
         "session_id": normalized_session_id,
         "cleaned_message": cleaned_message,
         "document_request": document_request,
+        "document_retrieval_followup": retrieval_followup,
         "detected_intent": detected_intent,
         "confidence": confidence,
         "decision": decision,
@@ -857,14 +964,65 @@ def _build_blocked_chat_payload(context: dict[str, Any], permission: Optional[di
     return payload
 
 
+UNUSABLE_CHAT_REPLY_MARKERS = (
+    FALLBACK_USER_MESSAGE.strip().lower(),
+    "couldn't generate a useful response",
+    "is planned, but it is not available for live chat yet.",
+    "agent failed:",
+)
+
+
+def _emit_chat_log(message: str, *, fallback: Optional[str] = None) -> None:
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(fallback or message.encode("ascii", "replace").decode("ascii"))
+
+
+def _chat_log_preview(value: Any, limit: int = 140) -> str:
+    text = clean_response(str(value or ""))
+    if len(text) > limit:
+        return text[:limit]
+    return text
+
+
+def _log_chat_trace(
+    *,
+    raw_input: str,
+    intent: str,
+    agent: str,
+    provider: Optional[str],
+    output: str,
+    execution_mode: Optional[str] = None,
+    status: Optional[str] = None,
+) -> None:
+    input_preview = _chat_log_preview(raw_input, limit=120)
+    output_preview = _chat_log_preview(output, limit=160)
+    provider_label = str(provider or "none").strip().lower() or "none"
+    intent_label = str(intent or "general").strip().lower() or "general"
+    agent_label = str(agent or "general").strip().lower() or "general"
+    extra = []
+    if execution_mode:
+        extra.append(f"mode={execution_mode}")
+    if status:
+        extra.append(f"status={status}")
+    suffix = f" ({', '.join(extra)})" if extra else ""
+    unicode_message = (
+        f"[CHAT TRACE] input={input_preview} → intent={intent_label} → agent={agent_label} "
+        f"→ provider={provider_label} → output={output_preview}{suffix}"
+    )
+    ascii_message = (
+        f"[CHAT TRACE] input={input_preview} -> intent={intent_label} -> agent={agent_label} "
+        f"-> provider={provider_label} -> output={output_preview}{suffix}"
+    )
+    _emit_chat_log(unicode_message, fallback=ascii_message)
+
+
 def _is_unusable_reply_text(text: Optional[str]) -> bool:
     normalized = clean_response(text).strip().lower()
     if not normalized:
         return True
-    if normalized == FALLBACK_USER_MESSAGE.strip().lower():
-        return True
-    return "couldn't generate a useful response" in normalized
-
+    return any(marker in normalized for marker in UNUSABLE_CHAT_REPLY_MARKERS)
 
 def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
     result = process_command_detailed(
@@ -875,8 +1033,25 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
         security_context=context.get("security_context") or {},
     )
     execution_mode = result.get("execution_mode")
+    _chat_intent = result.get("detected_intent") or result.get("intent")
+    print(
+        f"[CHAT] Agent selected: {result.get('used_agents')}  "
+        f"execution_mode={execution_mode!r}  "
+        f"intent={_chat_intent!r}  "
+        f"confidence={result.get('confidence', 0):.2f}"
+    )
+
     if result.get("intent") == "error" or execution_mode == "error":
-        raise RuntimeError(str(result.get("response") or "Brain execution failed."))
+        print(f"[CHAT FALLBACK] Brain returned error intent: {result.get('response')!r}")
+        result["response"] = clean_response(result.get("response")) or build_degraded_reply(
+            context["cleaned_message"],
+            result.get("providers_tried") or [],
+        )
+        result["execution_mode"] = "degraded_assistant"
+        result["degraded"] = True
+        result["provider"] = None
+        result["model"] = None
+        execution_mode = "degraded_assistant"
 
     runtime_permission = result.get("permission")
     if runtime_permission and not runtime_permission.get("success", True):
@@ -890,26 +1065,53 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
         delivery_message = clean_response(document_delivery.get("delivery_message"))
         if delivery_message:
             reply_text = delivery_message
+
     if _is_unusable_reply_text(reply_text):
+        _raw_reply_preview = repr(str(result.get("response") or ""))[:80]
+        print(
+            f"[CHAT FALLBACK] Initial reply unusable — "
+            f"raw={_raw_reply_preview}  "
+            f"execution_mode={execution_mode!r}. "
+            f"Attempting generate_response_payload fallback."
+        )
         fallback_payload = generate_response_payload(context["cleaned_message"])
         if fallback_payload.get("success"):
             reply_text = clean_response(fallback_payload.get("content"))
             result["provider"] = fallback_payload.get("provider")
             result["model"] = fallback_payload.get("model")
             result["providers_tried"] = fallback_payload.get("providers_tried") or []
+            print(f"[CHAT FALLBACK] Fallback succeeded via provider={result['provider']!r}")
         else:
+            providers_tried = fallback_payload.get("providers_tried") or []
+            error_msg = fallback_payload.get("error") or "All configured providers failed."
+            print(
+                f"[CHAT FALLBACK] All providers failed. "
+                f"providers_tried={providers_tried}  error={error_msg!r}. "
+                f"Using degraded reply."
+            )
             reply_text = clean_response(
                 fallback_payload.get("degraded_reply")
-                or build_degraded_reply(context["cleaned_message"], fallback_payload.get("providers_tried"))
+                or build_degraded_reply(context["cleaned_message"], providers_tried)
             )
             result["provider"] = None
             result["model"] = None
-            result["providers_tried"] = fallback_payload.get("providers_tried") or []
+            result["providers_tried"] = providers_tried
             result["degraded"] = True
-            result["error"] = fallback_payload.get("error") or "All configured providers failed."
+            result["error"] = error_msg
+            execution_mode = "degraded_assistant"
 
     if _is_unusable_reply_text(reply_text):
-        raise RuntimeError(reply_text)
+        print(f"[CHAT FALLBACK] Reply still unusable after all fallbacks — raising RuntimeError.")
+        providers_tried = list(result.get("providers_tried") or [])
+        error_message = str(result.get("error") or "The response path returned unusable content.").strip()
+        _emit_chat_log("[CHAT FALLBACK] Reply still unusable after all fallbacks. Using structured degraded reply.")
+        reply_text = clean_response(build_degraded_reply(context["cleaned_message"], providers_tried))
+        result["provider"] = None
+        result["model"] = None
+        result["providers_tried"] = providers_tried
+        result["degraded"] = True
+        result["error"] = error_message
+        execution_mode = "degraded_assistant"
 
     agent_used = _derive_agent_used(result, context["detected_intent"], context["decision"])
     response_mode = _normalize_chat_mode(context["requested_mode"], execution_mode, runtime_permission)
@@ -939,6 +1141,14 @@ def _execute_chat_pipeline(context: dict[str, Any]) -> dict[str, Any]:
     payload["model"] = result.get("model")
     payload["providers_tried"] = result.get("providers_tried", [])
     payload["degraded"] = degraded
+    payload["routing_trace"] = {
+        "input": clean_response(context["raw_message"]),
+        "intent": str(result.get("detected_intent") or result.get("intent") or context["detected_intent"] or "general"),
+        "agent": agent_used,
+        "provider": provider_name or "none",
+        "output": reply_text,
+        "execution_mode": execution_mode or "unknown",
+    }
     return _append_document_payload_fields(payload, result)
 
 
@@ -1048,6 +1258,8 @@ def _require_admin_user(request: Request) -> dict[str, Any]:
 PUBLIC_PATHS = {
     "/",
     "/login",
+    "/register",
+    "/forgot-password",
     "/setup",
     "/api/login",
     "/api/register",
@@ -1152,8 +1364,26 @@ async def register_page(request: Request):
     return HTMLResponse(_read_html(REGISTER_HTML))
 
 
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_page(request: Request):
+    if requires_first_run_setup():
+        return RedirectResponse("/setup", status_code=302)
+    if _current_user(request):
+        return RedirectResponse("/", status_code=302)
+    return HTMLResponse(_read_html(REGISTER_HTML))
+
+
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page(request: Request):
+    if requires_first_run_setup():
+        return RedirectResponse("/setup", status_code=302)
+    if _current_user(request):
+        return RedirectResponse("/", status_code=302)
+    return HTMLResponse(_read_html(FORGOT_PASSWORD_HTML))
+
+
+@app.get("/reset", response_class=HTMLResponse)
+async def reset_page(request: Request):
     if requires_first_run_setup():
         return RedirectResponse("/setup", status_code=302)
     if _current_user(request):
@@ -1224,6 +1454,14 @@ async def setup_owner(data: SetupData):
 async def logout_endpoint(request: Request):
     logout_request(request)
     response = JSONResponse({"success": True, "message": "Session secured."})
+    clear_session_cookie(response, secure=_is_secure_request(request))
+    return response
+
+
+@app.get("/logout")
+async def logout_page(request: Request):
+    logout_request(request)
+    response = RedirectResponse("/login", status_code=302)
     clear_session_cookie(response, secure=_is_secure_request(request))
     return response
 
@@ -1344,21 +1582,47 @@ async def chat(command: Command):
 @app.post("/api/chat")
 async def api_chat(payload: ChatApiRequest, request: Request):
     try:
-        if not str(payload.message or "").strip():
-            return JSONResponse(
-                status_code=400,
-                content={
+        user = _current_user(request)
+        session_id = _resolve_session_id(request)
+
+        def _json_response(content: dict[str, Any], *, status_code: int = 200) -> JSONResponse:
+            response = JSONResponse(content=content, status_code=status_code, headers=_cors_headers())
+            _attach_local_session_cookie(
+                response,
+                session_id=content.get("session_id") or session_id,
+                user=user,
+            )
+            return response
+
+        raw_msg = str(payload.message or "").strip()
+        if not raw_msg:
+            reply = "Please send a message so I can help."
+            _log_chat_trace(
+                raw_input="",
+                intent="validation",
+                agent="api_chat",
+                provider=None,
+                output=reply,
+                execution_mode="validation_error",
+                status="error",
+            )
+            return _json_response(
+                {
                     "success": False,
-                    "content": "",
+                    "content": reply,
                     "provider": None,
-                    "reply": "",
+                    "reply": reply,
+                    "intent": "validation",
+                    "agent_used": "api_chat",
+                    "mode": payload.mode or "hybrid",
                     "status": "error",
                     "error": "No message provided",
                 },
-                headers=_cors_headers(),
+                status_code=400,
             )
-        user = _current_user(request)
-        session_id = _resolve_session_id(request)
+
+        print(f"[CHAT] Incoming message: {repr(raw_msg[:160])}")
+
         session_token = request.cookies.get("aura_session") if user else None
         context = _prepare_chat_context(
             payload.message,
@@ -1372,8 +1636,61 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             otp_token=payload.otp_token,
             session_token=session_token,
         )
+        if not user and _normalize_session_id(context.get("session_id")) == "default":
+            context["session_id"] = _generate_local_session_id()
+
+        if "clarification_reply" in context:
+            clarification_payload = _build_chat_success_payload(
+                reply=context["clarification_reply"],
+                intent="document",
+                agent_used="document_clarification",
+                mode="clarification",
+                provider="local",
+            )
+            clarification_payload["session_id"] = context.get("session_id", session_id)
+            _log_chat_trace(
+                raw_input=context["raw_message"],
+                intent="document",
+                agent="document_clarification",
+                provider="local",
+                output=clarification_payload["reply"],
+                execution_mode="clarification",
+                status=clarification_payload.get("status"),
+            )
+            return _json_response(clarification_payload)
+
+        if _should_rate_limit_document_request(context):
+            rate_limited = _consume_document_rate_limit(
+                request=request,
+                user=user,
+                channel="chat_document",
+                session_id=context.get("session_id"),
+            )
+            if rate_limited is not None:
+                rate_limited["reply"] = rate_limited["error"]
+                rate_limited["content"] = rate_limited["error"]
+                rate_limited["session_id"] = context.get("session_id", session_id)
+                _log_chat_trace(
+                    raw_input=context["raw_message"],
+                    intent="document",
+                    agent="document_generator",
+                    provider=None,
+                    output=rate_limited["reply"],
+                    execution_mode="rate_limited",
+                    status=rate_limited.get("status"),
+                )
+                return _json_response(rate_limited, status_code=429)
+
+        print(
+            f"[CHAT] Intent: {context['detected_intent']!r}  "
+            f"confidence={context['confidence']:.2f}  "
+            f"permission={'ALLOWED' if context['permission'].get('success') else 'BLOCKED'}  "
+            f"user={'auth' if user else 'public'}"
+        )
+
         casual_payload = _build_casual_chat_payload(context)
         if casual_payload is not None:
+            print(f"[CHAT] Path: casual_local shortcut  reply={repr(casual_payload['reply'][:80])}")
             casual_payload["history_status"] = _attempt_persist_chat_turn(
                 context,
                 casual_payload["reply"],
@@ -1381,8 +1698,20 @@ async def api_chat(payload: ChatApiRequest, request: Request):
                 casual_payload.get("agent_used"),
                 casual_payload.get("mode"),
             )
-            return JSONResponse(content=casual_payload, headers=_cors_headers())
+            _log_chat_trace(
+                raw_input=context["raw_message"],
+                intent=casual_payload["intent"],
+                agent=str(casual_payload.get("agent_used") or "general"),
+                provider=casual_payload.get("provider"),
+                output=casual_payload["reply"],
+                execution_mode=casual_payload.get("execution_mode"),
+                status=casual_payload.get("status"),
+            )
+            return _json_response(casual_payload)
+
         if not context["permission"].get("success", False):
+            perm_reason = (context["permission"].get("permission") or {}).get("reason", "no reason")
+            print(f"[CHAT] Path: permission_blocked  reason={perm_reason!r}")
             blocked_payload = _build_blocked_chat_payload(context)
             blocked_payload["history_status"] = _attempt_persist_chat_turn(
                 context,
@@ -1391,8 +1720,18 @@ async def api_chat(payload: ChatApiRequest, request: Request):
                 blocked_payload.get("agent_used"),
                 blocked_payload.get("mode"),
             )
-            return JSONResponse(content=blocked_payload, headers=_cors_headers())
+            _log_chat_trace(
+                raw_input=context["raw_message"],
+                intent=blocked_payload["intent"],
+                agent=str(blocked_payload.get("agent_used") or "policy"),
+                provider=blocked_payload.get("provider"),
+                output=blocked_payload["reply"],
+                execution_mode=blocked_payload.get("execution_mode"),
+                status=blocked_payload.get("status"),
+            )
+            return _json_response(blocked_payload)
 
+        print(f"[CHAT] Path: pipeline  mode={payload.mode!r}")
         response_payload = _execute_chat_pipeline(context)
         response_payload["history_status"] = _attempt_persist_chat_turn(
             context,
@@ -1401,34 +1740,72 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             response_payload.get("agent_used"),
             response_payload.get("mode"),
         )
-
-        return JSONResponse(
-            content=response_payload,
-            headers=_cors_headers(),
+        print(
+            f"[CHAT] Final response: agent={response_payload.get('agent_used')!r}  "
+            f"provider={response_payload.get('provider')!r}  "
+            f"degraded={response_payload.get('degraded')}  "
+            f"reply={repr(str(response_payload.get('reply') or '')[:120])}"
         )
+        _log_chat_trace(
+            raw_input=context["raw_message"],
+            intent=str(response_payload.get("intent") or context["detected_intent"] or "general"),
+            agent=str(response_payload.get("agent_used") or "general"),
+            provider=response_payload.get("provider"),
+            output=str(response_payload.get("reply") or ""),
+            execution_mode=response_payload.get("execution_mode"),
+            status=response_payload.get("status"),
+        )
+
+        return _json_response(response_payload)
     except ValueError as error:
-        print(f"[API CHAT VALIDATION] {error}")
+        print(f"[CHAT ERROR] Validation: {error}")
+        reply = "I couldn't process that message cleanly. Please check the request and try again."
+        _log_chat_trace(
+            raw_input=str(payload.message or ""),
+            intent="validation",
+            agent="api_chat",
+            provider=None,
+            output=reply,
+            execution_mode="validation_error",
+            status="error",
+        )
         return JSONResponse(
             status_code=400,
             content={
                 "success": False,
-                "content": "",
+                "content": reply,
                 "provider": None,
-                "reply": "",
+                "reply": reply,
+                "intent": "validation",
+                "agent_used": "api_chat",
+                "mode": payload.mode or "hybrid",
                 "error": str(error),
                 "status": "error",
             },
             headers=_cors_headers(),
         )
     except Exception as error:
-        print(f"[API CHAT ERROR] {error}")
+        print(f"[CHAT ERROR] Unhandled: {type(error).__name__}: {error}")
+        reply = "I couldn't complete that request cleanly, but the chat path is still available. Please try again."
+        _log_chat_trace(
+            raw_input=str(payload.message or ""),
+            intent="error",
+            agent="api_chat",
+            provider=None,
+            output=reply,
+            execution_mode="server_error",
+            status="error",
+        )
         return JSONResponse(
             status_code=500,
             content={
                 "success": False,
-                "content": "Something went wrong on my side. Try again.",
+                "content": reply,
                 "provider": None,
-                "reply": "Something went wrong on my side. Try again.",
+                "reply": reply,
+                "intent": "error",
+                "agent_used": "api_chat",
+                "mode": payload.mode or "hybrid",
                 "error": str(error),
                 "status": "error",
             },
@@ -1437,8 +1814,21 @@ async def api_chat(payload: ChatApiRequest, request: Request):
 
 
 @app.post("/api/generate/document")
-async def api_generate_document(payload: DocumentGenerateRequest):
+async def api_generate_document(payload: DocumentGenerateRequest, request: Request):
     try:
+        user = _current_user(request)
+        owner_session_id = _ensure_document_session_id(request)
+        rate_limited = _consume_document_rate_limit(
+            request=request,
+            user=user,
+            channel="api_document",
+            session_id=owner_session_id,
+        )
+        if rate_limited is not None:
+            response = JSONResponse(status_code=429, content=rate_limited, headers=_cors_headers())
+            _attach_local_session_cookie(response, session_id=owner_session_id, user=user)
+            return response
+
         cleanup_generated_documents()
         requested_formats = normalize_document_formats(payload.formats or [payload.format])
         generated = generate_document(
@@ -1450,6 +1840,11 @@ async def api_generate_document(payload: DocumentGenerateRequest):
             style=normalize_document_style(payload.style),
             include_references=payload.include_references,
             citation_style=normalize_citation_style(payload.citation_style),
+        )
+        generated = secure_generated_document_access(
+            generated,
+            owner_session_id=owner_session_id,
+            owner_user_id=user.get("id") if user else None,
         )
         response_payload = {
             "success": True,
@@ -1470,6 +1865,7 @@ async def api_generate_document(payload: DocumentGenerateRequest):
             "style": generated.get("style"),
             "include_references": generated.get("include_references"),
             "citation_style": generated.get("citation_style"),
+            "access_scope": generated.get("access_scope"),
             "available_formats": generated.get("available_formats") or [],
             "format_links": generated.get("format_links") or {},
             "alternate_format_links": generated.get("alternate_format_links") or {},
@@ -1478,10 +1874,12 @@ async def api_generate_document(payload: DocumentGenerateRequest):
             "content": generated.get("message"),
             "status": "ok",
         }
-        return JSONResponse(
+        response = JSONResponse(
             content=response_payload,
             headers=_cors_headers(),
         )
+        _attach_local_session_cookie(response, session_id=owner_session_id, user=user)
+        return response
     except ValueError as error:
         return JSONResponse(
             status_code=400,
@@ -1516,6 +1914,7 @@ def _build_transform_response(generated: dict[str, Any]) -> dict[str, Any]:
         "style": generated.get("style"),
         "include_references": generated.get("include_references"),
         "citation_style": generated.get("citation_style"),
+        "access_scope": generated.get("access_scope"),
         "available_formats": generated.get("available_formats") or [],
         "format_links": generated.get("format_links") or {},
         "alternate_format_links": generated.get("alternate_format_links") or {},
@@ -1527,9 +1926,22 @@ def _build_transform_response(generated: dict[str, Any]) -> dict[str, Any]:
 
 
 @app.post("/api/transform")
-async def api_transform(payload: TransformRequest):
+async def api_transform(payload: TransformRequest, request: Request):
     """Transform pasted text or a YouTube URL into a structured document."""
     try:
+        user = _current_user(request)
+        owner_session_id = _ensure_document_session_id(request)
+        rate_limited = _consume_document_rate_limit(
+            request=request,
+            user=user,
+            channel="api_document",
+            session_id=owner_session_id,
+        )
+        if rate_limited is not None:
+            response = JSONResponse(status_code=429, content=rate_limited, headers=_cors_headers())
+            _attach_local_session_cookie(response, session_id=owner_session_id, user=user)
+            return response
+
         cleanup_generated_documents()
         extracted = extract_content(payload.content.strip())
         if not extracted.success or not extracted.text.strip():
@@ -1571,8 +1983,14 @@ async def api_transform(payload: TransformRequest):
             citation_style=normalized_citation,
             prebuilt_content=structured_content,
         )
-
-        return JSONResponse(content=_build_transform_response(generated), headers=_cors_headers())
+        generated = secure_generated_document_access(
+            generated,
+            owner_session_id=owner_session_id,
+            owner_user_id=user.get("id") if user else None,
+        )
+        response = JSONResponse(content=_build_transform_response(generated), headers=_cors_headers())
+        _attach_local_session_cookie(response, session_id=owner_session_id, user=user)
+        return response
 
     except ValueError as error:
         return JSONResponse(
@@ -1590,6 +2008,7 @@ async def api_transform(payload: TransformRequest):
 
 @app.post("/api/transform/file")
 async def api_transform_file(
+    request: Request,
     file: UploadFile = File(...),
     document_type: str = Form("notes"),
     topic: str = Form(""),
@@ -1602,6 +2021,19 @@ async def api_transform_file(
 ):
     """Transform an uploaded file (.txt, .pdf, .docx, or image) into a structured document."""
     try:
+        user = _current_user(request)
+        owner_session_id = _ensure_document_session_id(request)
+        rate_limited = _consume_document_rate_limit(
+            request=request,
+            user=user,
+            channel="api_document",
+            session_id=owner_session_id,
+        )
+        if rate_limited is not None:
+            response = JSONResponse(status_code=429, content=rate_limited, headers=_cors_headers())
+            _attach_local_session_cookie(response, session_id=owner_session_id, user=user)
+            return response
+
         cleanup_generated_documents()
         file_bytes = await file.read()
         filename = file.filename or ""
@@ -1647,11 +2079,18 @@ async def api_transform_file(
             citation_style=normalized_citation,
             prebuilt_content=structured_content,
         )
+        generated = secure_generated_document_access(
+            generated,
+            owner_session_id=owner_session_id,
+            owner_user_id=user.get("id") if user else None,
+        )
 
         response_payload = _build_transform_response(generated)
         response_payload["source_file"] = filename
         response_payload["source_type"] = extracted.source_type
-        return JSONResponse(content=response_payload, headers=_cors_headers())
+        response = JSONResponse(content=response_payload, headers=_cors_headers())
+        _attach_local_session_cookie(response, session_id=owner_session_id, user=user)
+        return response
 
     except ValueError as error:
         return JSONResponse(
@@ -1665,6 +2104,30 @@ async def api_transform_file(
             content={"success": False, "error": str(error), "status": "error"},
             headers=_cors_headers(),
         )
+
+
+@app.get("/downloads/{file_name}")
+async def download_generated_document(file_name: str, request: Request):
+    user = _current_user(request)
+    access = resolve_generated_download_access(
+        file_name,
+        access_token=request.query_params.get("access"),
+        session_id=_resolve_session_id(request),
+        user_id=user.get("id") if user else None,
+    )
+    if not access.get("allowed"):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "success": False,
+                "status": access.get("status") or "forbidden",
+                "error": access.get("reason") or "Download access denied.",
+            },
+            headers=_cors_headers(),
+        )
+    response = FileResponse(access["file_path"], filename=access["file_name"])
+    _attach_local_session_cookie(response, session_id=_resolve_session_id(request), user=user)
+    return response
 
 
 @app.get("/history")
@@ -2109,6 +2572,7 @@ async def system_status(request: Request):
         None,
     )
     profile = load_user_profile()
+    voice_status = get_voice_status()
     return {
         "status": "online",
         "version": "1.0.0",
@@ -2126,6 +2590,11 @@ async def system_status(request: Request):
         "memory_backend": memory_status,
         "providers": provider_summary,
         "assistant_runtime": assistant_runtime,
+        "truth_notes": {
+            "agents": "Agent listings include real, hybrid, and placeholder entries. Capability mode is the source of truth for how live each agent really is.",
+            "providers": "Provider health reflects the latest runtime snapshot. Live requests can still degrade when a configured provider is rate-limited or unavailable.",
+            "voice": "Browser voice is real, but continuous ambient wake is not guaranteed. Treat wake mode as beta single-phrase listening while the page is open.",
+        },
         "security": {
             "pin": get_pin_status(),
             "auth": {"authenticated": True, "user": user},
@@ -2137,13 +2606,18 @@ async def system_status(request: Request):
             "orchestrator": {"status": "available", "mode": "real", "source": "rule_based"},
             "reasoning": {"status": "available", "mode": "hybrid"},
             "planner": {"status": "available", "mode": "hybrid"},
-            "voice": {"status": "available" if get_voice_status()["settings"]["enabled"] else "standby", "mode": "hybrid"},
+            "voice": {
+                "status": "available" if voice_status["settings"]["enabled"] else "standby",
+                "mode": "browser_push_to_talk_beta",
+                "summary": "Browser voice is available, but continuous ambient wake is not guaranteed.",
+            },
             "providers": {
                 "status": assistant_runtime.get("status") or ("healthy" if provider_summary["healthy"] else "degraded"),
                 "mode": "real" if assistant_runtime.get("active_provider") else "hybrid",
                 "available": provider_summary["healthy"],
                 "routing_order": provider_summary["routing_order"],
                 "summary": assistant_runtime.get("message") or "Provider routing data is not available yet.",
+                "truth_note": "Healthy means the latest provider snapshot looked usable. Live requests can still degrade on rate limits or upstream failures.",
                 "active_provider": assistant_runtime.get("active_provider"),
             },
             "memory": {
@@ -2169,6 +2643,7 @@ async def get_agents():
         "generated_agents": list_generated_agent_cards(),
         "providers": summarize_provider_statuses(fresh=False),
         "summary": get_agent_summary(),
+        "truth_note": "This registry includes real, hybrid, and placeholder entries. Use capability_mode to judge how live each agent actually is.",
         "doctrine": {
             "capability_labels": list(CAPABILITY_LABELS),
             "hybrid_order": list(HYBRID_IMPLEMENTATION_ORDER),
@@ -2201,6 +2676,7 @@ async def get_provider_status(request: Request):
         "providers": snapshot.get("providers", {}),
         "checked_at": snapshot.get("checked_at"),
         "assistant_runtime": snapshot.get("assistant_runtime", {}),
+        "truth_note": "Provider health reflects the latest runtime snapshot. A configured provider can still degrade or rate-limit live requests.",
     }
 
 

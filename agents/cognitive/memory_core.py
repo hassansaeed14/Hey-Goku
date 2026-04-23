@@ -1,3 +1,5 @@
+CAPABILITY_MODE = "placeholder"
+
 import json
 import os
 import datetime

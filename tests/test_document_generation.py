@@ -3,6 +3,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 
@@ -636,6 +637,49 @@ class CoreAiDocumentDeliveryTests(unittest.TestCase):
         self.assertEqual(result["response"], "Done. Your assignment is ready.")
         self.assertEqual(result["document_delivery"]["download_url"], "/downloads/assignment-ai.pdf")
 
+    def test_core_ai_replaces_placeholder_like_response_with_meaningful_degraded_reply(self):
+        with patch.object(core_ai, "_sync_context_into_response_engine"), patch.object(
+            core_ai.runtime_core_module,
+            "process_command_detailed",
+            return_value={
+                "intent": "write",
+                "detected_intent": "write",
+                "confidence": 0.92,
+                "response": "I ran into a problem while generating a response. Please try again.",
+                "provider": None,
+                "model": None,
+                "providers_tried": [{"provider": "groq", "status": "rate_limited"}],
+                "used_agents": ["writing_runtime"],
+                "execution_mode": "single_agent",
+                "decision": {"intent": "write"},
+                "orchestration": {"primary_agent": "writing_runtime"},
+                "permission_action": "general",
+                "permission": build_permission_response("general"),
+            },
+        ), patch.object(
+            core_ai,
+            "_call_live_brain_direct",
+            return_value={
+                "success": False,
+                "degraded_reply": "",
+                "providers_tried": [{"provider": "groq", "status": "rate_limited"}],
+                "error": "Groq rate limited",
+            },
+        ), patch.object(core_ai, "_record_exchange"), patch.object(
+            core_ai.agent_bus,
+            "publish",
+        ):
+            result = core_ai.process_command_detailed(
+                "write a short post about AI",
+                session_id="session-doc",
+                user_profile={"proactive_suggestions": True},
+            )
+
+        self.assertEqual(result["execution_mode"], "degraded_assistant")
+        self.assertTrue(result["degraded"])
+        self.assertNotEqual(result["response"].strip(), "")
+        self.assertNotEqual(result["response"], core_ai.FALLBACK_USER_MESSAGE)
+
 
 class ContentExtractorTests(unittest.TestCase):
     def test_extract_text_passthrough(self):
@@ -925,6 +969,220 @@ class TransformationRoutingTests(unittest.TestCase):
 
         topic = _extract_transformation_topic("summarize this", "pasted text")
         self.assertEqual(topic, "Source Material")
+
+
+class DocumentAccessAndRateLimitTests(unittest.TestCase):
+    def setUp(self):
+        api_server.DOCUMENT_RATE_LIMIT_STATE.clear()
+        self.client = TestClient(api_server.app)
+
+    def _content_payload(self):
+        return {
+            "success": True,
+            "content": (
+                "Introduction\n"
+                "Artificial intelligence includes systems that learn from data and perform useful tasks.\n\n"
+                "Core Concepts\n"
+                "Machine learning, pattern recognition, and automation give the topic real structure."
+            ),
+            "provider": "local",
+            "model": "template",
+            "source": "local_template",
+            "degraded": False,
+            "providers_tried": [],
+        }
+
+    def test_generated_download_requires_same_browser_session(self):
+        with tempfile.TemporaryDirectory() as tmp_dir, patch.object(
+            document_generator,
+            "GENERATED_DIR",
+            Path(tmp_dir),
+        ), patch.object(
+            document_generator,
+            "generate_document_content_payload",
+            return_value=self._content_payload(),
+        ), patch.object(
+            api_server,
+            "_current_user",
+            return_value=None,
+        ):
+            response = self.client.post(
+                "/api/generate/document",
+                json={"type": "notes", "topic": "artificial intelligence", "format": "txt"},
+            )
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["access_scope"], "browser_session")
+            self.assertIn("access=", payload["download_url"])
+            self.assertIn("aura_local_session", self.client.cookies)
+
+            allowed = self.client.get(payload["download_url"])
+            self.assertEqual(allowed.status_code, 200)
+
+            other_client = TestClient(api_server.app)
+            blocked = other_client.get(payload["download_url"])
+            self.assertEqual(blocked.status_code, 403)
+            self.assertIn("same browser session", blocked.json()["error"])
+
+    def test_generated_download_requires_same_authenticated_user(self):
+        owner = {"id": "owner-1", "username": "owner"}
+        stranger = {"id": "owner-2", "username": "other"}
+
+        with tempfile.TemporaryDirectory() as tmp_dir, patch.object(
+            document_generator,
+            "GENERATED_DIR",
+            Path(tmp_dir),
+        ), patch.object(
+            document_generator,
+            "generate_document_content_payload",
+            return_value=self._content_payload(),
+        ):
+            with patch.object(api_server, "_current_user", return_value=owner):
+                response = self.client.post(
+                    "/api/generate/document",
+                    json={"type": "assignment", "topic": "artificial intelligence", "format": "pdf"},
+                )
+                self.assertEqual(response.status_code, 200)
+                payload = response.json()
+
+            self.assertEqual(payload["access_scope"], "authenticated_user")
+            self.assertIn("access=", payload["download_url"])
+
+            with patch.object(api_server, "_current_user", return_value=owner):
+                allowed = self.client.get(payload["download_url"])
+            self.assertEqual(allowed.status_code, 200)
+
+            with patch.object(api_server, "_current_user", return_value=stranger):
+                blocked = self.client.get(payload["download_url"])
+            self.assertEqual(blocked.status_code, 403)
+            self.assertIn("Sign in with the account", blocked.json()["error"])
+
+    def test_document_endpoint_is_rate_limited(self):
+        with patch.object(api_server, "DOCUMENT_RATE_LIMIT_MAX_REQUESTS", 1), patch.object(
+            api_server,
+            "_current_user",
+            return_value=None,
+        ), patch.object(
+            api_server,
+            "generate_document",
+            return_value={
+                "success": True,
+                "message": "Done. Your notes are ready.",
+                "download_url": "/downloads/AI-Notes.txt?access=test-token",
+                "file_name": "AI-Notes.txt",
+                "document_type": "notes",
+                "format": "txt",
+                "topic": "artificial intelligence",
+                "title": "Artificial Intelligence",
+                "subtitle": "Study Notes",
+                "preview_text": "Introduction: Artificial intelligence overview.",
+                "style": "professional",
+                "include_references": False,
+                "citation_style": None,
+                "access_scope": "browser_session",
+                "requested_formats": ["txt"],
+                "available_formats": ["txt"],
+                "files": [{"format": "txt", "file_name": "AI-Notes.txt", "download_url": "/downloads/AI-Notes.txt?access=test-token", "primary": True}],
+                "format_links": {"txt": "/downloads/AI-Notes.txt?access=test-token"},
+                "alternate_format_links": {},
+                "document_delivery": {"kind": "document_delivery", "download_url": "/downloads/AI-Notes.txt?access=test-token"},
+            },
+        ), patch.object(
+            api_server,
+            "secure_generated_document_access",
+            side_effect=lambda generated, **_: generated,
+        ):
+            first = self.client.post(
+                "/api/generate/document",
+                json={"type": "notes", "topic": "artificial intelligence", "format": "txt"},
+            )
+            second = self.client.post(
+                "/api/generate/document",
+                json={"type": "notes", "topic": "artificial intelligence", "format": "txt"},
+            )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+        self.assertEqual(second.json()["status"], "rate_limited")
+
+    def test_chat_routed_document_generation_is_rate_limited(self):
+        context = {
+            "raw_message": "make notes on ai",
+            "requested_mode": "hybrid",
+            "session_id": "chat-doc-session",
+            "cleaned_message": "make notes on ai",
+            "detected_intent": "document",
+            "confidence": 1.0,
+            "decision": {"agent": "document_generator"},
+            "permission": {"success": True, "status": "approved", "permission": {"trust_level": "safe"}},
+            "user": None,
+            "user_profile": {},
+            "confirmation_required": False,
+            "confirmation_ok": False,
+            "document_request": {"document_type": "notes"},
+            "document_retrieval_followup": None,
+        }
+        response_payload = {
+            "success": True,
+            "reply": "Done. Your notes are ready.",
+            "content": "Done. Your notes are ready.",
+            "intent": "document",
+            "execution_mode": "document_generation",
+            "agent_used": "document_generator",
+            "provider": "local",
+            "mode": "document_generation",
+        }
+
+        with patch.object(api_server, "DOCUMENT_RATE_LIMIT_MAX_REQUESTS", 1), patch.object(
+            api_server,
+            "requires_first_run_setup",
+            return_value=False,
+        ), patch.object(
+            api_server,
+            "_current_user",
+            return_value=None,
+        ), patch.object(
+            api_server,
+            "_prepare_chat_context",
+            return_value=context,
+        ), patch.object(
+            api_server,
+            "_execute_chat_pipeline",
+            return_value=response_payload,
+        ) as execute_mock, patch.object(
+            api_server,
+            "_attempt_persist_chat_turn",
+            return_value={"saved": True},
+        ):
+            first = self.client.post("/api/chat", json={"message": "make notes on ai", "mode": "hybrid"})
+            second = self.client.post("/api/chat", json={"message": "make notes on ai", "mode": "hybrid"})
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+        self.assertEqual(second.json()["status"], "rate_limited")
+        self.assertEqual(execute_mock.call_count, 1)
+
+    def test_secured_download_url_contains_access_token(self):
+        with tempfile.TemporaryDirectory() as tmp_dir, patch.object(
+            document_generator,
+            "GENERATED_DIR",
+            Path(tmp_dir),
+        ), patch.object(
+            document_generator,
+            "generate_document_content_payload",
+            return_value=self._content_payload(),
+        ):
+            generated = document_generator.generate_document("notes", "artificial intelligence", "txt")
+            secured = document_generator.secure_generated_document_access(
+                generated,
+                owner_session_id="browser-session-1",
+            )
+
+        parsed = urlparse(secured["download_url"])
+        query = parse_qs(parsed.query)
+        self.assertEqual(parsed.path, f"/downloads/{secured['file_name']}")
+        self.assertTrue(query.get("access"))
+        self.assertEqual(secured["access_scope"], "browser_session")
 
 
 if __name__ == "__main__":

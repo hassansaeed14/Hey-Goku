@@ -1,3 +1,5 @@
+CAPABILITY_MODE = "hybrid"
+
 import requests
 from groq import Groq
 from config.settings import GROQ_API_KEY, MODEL_NAME

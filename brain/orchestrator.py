@@ -15,6 +15,7 @@ client = Groq(api_key=GROQ_API_KEY)
 
 SUPPORTED_ORCHESTRATION_AGENTS = {
     "general",
+    "write",
     "weather",
     "news",
     "math",
@@ -22,7 +23,6 @@ SUPPORTED_ORCHESTRATION_AGENTS = {
     "research",
     "study",
     "code",
-    "content",
     "email",
     "summarize",
     "grammar",
@@ -54,6 +54,7 @@ SUPPORTED_ORCHESTRATION_AGENTS = {
 
 
 AGENT_HINTS = {
+    "write": ["write", "draft", "compose", "article", "blog post", "caption"],
     "compare": ["compare", "difference", "better", " vs ", "versus"],
     "research": ["research", "investigate", "find information"],
     "summarize": ["summarize", "summary", "short version"],
@@ -122,6 +123,10 @@ class SynthesisResult:
 class MasterOrchestrator:
     def normalize_primary_agent(self, intent: Optional[str]) -> str:
         safe_intent = str(intent or "").strip().lower()
+        if safe_intent == "content":
+            safe_intent = "write"
+        if safe_intent == "document":
+            return "write"
         if safe_intent in SUPPORTED_ORCHESTRATION_AGENTS:
             return safe_intent
         return "general"

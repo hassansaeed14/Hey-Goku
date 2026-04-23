@@ -24,6 +24,16 @@ class IntentEngineTests(unittest.TestCase):
         self.assertEqual(intent, "currency")
         self.assertGreaterEqual(confidence, 0.6)
 
+    def test_detects_write_request(self):
+        intent, confidence = detect_intent_with_confidence("write a short blog post about AI")
+        self.assertEqual(intent, "write")
+        self.assertGreaterEqual(confidence, 0.35)
+
+    def test_detects_document_generation_request(self):
+        intent, confidence = detect_intent_with_confidence("write assignment on artificial intelligence")
+        self.assertEqual(intent, "document")
+        self.assertGreaterEqual(confidence, 0.35)
+
 
 if __name__ == "__main__":
     unittest.main()

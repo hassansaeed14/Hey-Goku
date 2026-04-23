@@ -1,3 +1,5 @@
+CAPABILITY_MODE = "placeholder"
+
 from agents.cognitive.memory_core import load_memory, save_memory
 from groq import Groq
 from config.settings import GROQ_API_KEY, MODEL_NAME

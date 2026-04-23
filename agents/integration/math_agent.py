@@ -1,3 +1,5 @@
+CAPABILITY_MODE = "hybrid"
+
 import math
 import re
 from groq import Groq

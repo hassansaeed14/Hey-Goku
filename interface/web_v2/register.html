@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA - Create Account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static-v2/styles.css">
+</head>
+<body class="auth-page" data-auth-view="register">
+  <div class="page-backdrop" aria-hidden="true"></div>
+  <div class="page-grid" aria-hidden="true"></div>
+  <div class="page-ambient" aria-hidden="true"></div>
+
+  <main class="auth-shell">
+    <div class="auth-brand">
+      <div class="auth-orb" aria-hidden="true"></div>
+      <h1>AURA</h1>
+      <p class="auth-copy">Autonomous Universal Responsive Assistant</p>
+    </div>
+
+    <section class="auth-card">
+      <p class="eyebrow">Create account</p>
+      <h2>Join AURA</h2>
+      <p class="auth-copy">Create your account to access AURA's full workspace.</p>
+
+      <div class="auth-alert auth-alert--error" id="errorBox"></div>
+      <div class="auth-alert auth-alert--success" id="successBox"></div>
+
+      <form class="auth-form" id="registerForm">
+        <label class="auth-field">
+          <span>Full name</span>
+          <input id="name" type="text" autocomplete="name" placeholder="Your full name">
+        </label>
+
+        <label class="auth-field">
+          <span>Username</span>
+          <input id="username" type="text" autocomplete="username" placeholder="Choose a username">
+        </label>
+
+        <label class="auth-field">
+          <span>Email</span>
+          <input id="email" type="email" autocomplete="email" placeholder="you@example.com">
+        </label>
+
+        <label class="auth-field">
+          <span>Password</span>
+          <input id="password" type="password" autocomplete="new-password" placeholder="At least 8 characters">
+        </label>
+
+        <label class="auth-field">
+          <span>Confirm password</span>
+          <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter your password">
+        </label>
+
+        <button class="auth-button" id="submitButton" type="submit">Create account</button>
+      </form>
+
+      <div class="auth-links">
+        <a href="/login">Back to sign in</a>
+        <a href="/forgot-password">Forgot password?</a>
+      </div>
+
+      <p class="auth-status" id="statusLine">Ready when you are</p>
+    </section>
+  </main>
+
+  <script src="/static-v2/auth.js"></script>
+</body>
+</html>

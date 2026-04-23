@@ -22,6 +22,7 @@ from brain.orchestrator import orchestrator as master_orchestrator
 from brain.response_engine import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
+    FALLBACK_USER_MESSAGE,
     build_messages,
     build_system_prompt,
     build_degraded_reply,
@@ -81,7 +82,12 @@ from security.enforcement import enforce_action, record_execution_result
 from security.permission_engine import check_permission
 from security.trust_engine import build_permission_response, get_trust_level
 from agents.agent_fabric import match_generated_agent_request, run_generated_agent
-from agents.registry import build_runtime_agent_cards
+from agents.registry import (
+    build_runtime_agent_cards,
+    filter_chat_routable_agents,
+    get_agent_capability_mode,
+    is_chat_routable_agent,
+)
 from tools.document_generator import (
     DocumentRequest,
     generate_document,
@@ -92,12 +98,23 @@ from tools.document_generator import (
     remember_generated_document,
     resolve_document_request,
     resolve_document_retrieval_followup,
+    secure_generated_document_access,
 )
 from tools.content_extractor import extract_content, is_youtube_url
 
 
 GREETING_INPUTS = {"hi", "hello", "hey", "hey aura", "hi aura", "hello aura"}
 CONVERSATIONAL_INTENTS = {"greeting", "conversation"}
+INTENT_ALIAS_MAP = {
+    "content": "write",
+}
+INTENT_TO_REAL_AGENT_MAP = {
+    "write": "writing_runtime",
+    "research": "research_runtime",
+    "code": "coding_runtime",
+    "summarize": "summary_runtime",
+    "document": "document_generator",
+}
 DIRECT_ASSISTANT_STARTERS = (
     "what ",
     "who ",
@@ -367,6 +384,154 @@ def normalize_agent_output(result: Any) -> str:
     return str(result).strip()
 
 
+def _is_unusable_runtime_response(text: Optional[str]) -> bool:
+    normalized = clean_response(text).strip().lower()
+    if not normalized:
+        return True
+    if normalized == FALLBACK_USER_MESSAGE.strip().lower():
+        return True
+    if "couldn't generate a useful response" in normalized:
+        return True
+    if " is planned, but it is not available for live chat yet." in normalized:
+        return True
+    if " agent failed:" in normalized:
+        return True
+    return False
+
+
+def _log_runtime_trace(
+    *,
+    raw_command: str,
+    detected_intent: str,
+    used_agents: List[str],
+    provider_name: Optional[str],
+    response_text: str,
+    execution_mode: str,
+) -> None:
+    input_preview = _telemetry_excerpt(raw_command, limit=120)
+    output_preview = _telemetry_excerpt(response_text, limit=160)
+    agent_name = str((used_agents or [detected_intent or "general"])[0] or "general").strip().lower()
+    provider_label = str(provider_name or "none").strip().lower() or "none"
+    intent_label = str(detected_intent or "general").strip().lower() or "general"
+    _emit_runtime_log(
+        (
+            f"[RUNTIME TRACE] input={input_preview} -> intent={intent_label} -> "
+            f"agent={agent_name} -> provider={provider_label} -> "
+            f"output={output_preview} (mode={execution_mode})"
+        )
+    )
+
+
+def _log_blocked_placeholder_agent(agent_name: str) -> None:
+    normalized = str(agent_name or "").strip().lower()
+    if normalized:
+        _emit_runtime_log(f"[AGENT ROUTING] blocked placeholder agent: {normalized}")
+
+
+def _log_intent_agent_mapping(intent_name: str, agent_name: str) -> None:
+    normalized_intent = str(intent_name or "").strip().lower()
+    normalized_agent = str(agent_name or "").strip().lower()
+    if normalized_intent and normalized_agent:
+        _emit_runtime_log(
+            f"[ROUTING] {normalized_intent} → {normalized_agent}",
+            fallback=f"[ROUTING] {normalized_intent} -> {normalized_agent}",
+        )
+
+
+def _emit_runtime_log(message: str, fallback: Optional[str] = None) -> None:
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(fallback or message.encode("ascii", "replace").decode("ascii"))
+
+
+def _looks_like_write_request(raw_command: str) -> bool:
+    normalized = str(raw_command or "").strip().lower()
+    if not normalized:
+        return False
+    if resolve_document_request(raw_command) is not None:
+        return False
+    return bool(
+        re.match(r"^(?:write|draft|compose)\b", normalized)
+        or any(marker in normalized for marker in ("blog post", "article", "caption", "paragraph"))
+    )
+
+
+def _normalize_detected_intent(detected_intent: str, raw_command: str) -> str:
+    normalized = str(detected_intent or "general").strip().lower() or "general"
+    normalized = INTENT_ALIAS_MAP.get(normalized, normalized)
+    if normalized == "document":
+        return "document"
+    if normalized == "general" and _looks_like_write_request(raw_command):
+        return "write"
+    return normalized
+
+
+def _resolve_execution_agent_name(agent_name: str) -> str:
+    normalized = str(agent_name or "").strip().lower()
+    normalized = INTENT_ALIAS_MAP.get(normalized, normalized)
+    return INTENT_TO_REAL_AGENT_MAP.get(normalized, normalized)
+
+
+def _sanitize_chat_orchestration(orchestration: Dict[str, Any]) -> Dict[str, Any]:
+    safe_orchestration = dict(orchestration or {})
+    primary_alias = str(safe_orchestration.get("primary_agent") or "general").strip().lower() or "general"
+    execution_aliases = [
+        str(agent or "").strip().lower()
+        for agent in safe_orchestration.get("execution_order") or []
+        if str(agent or "").strip()
+    ]
+    if primary_alias not in execution_aliases and primary_alias != "general":
+        execution_aliases.insert(0, primary_alias)
+
+    allowed_aliases: List[str] = []
+    blocked_placeholders: List[str] = []
+    seen_aliases = set()
+    for alias in execution_aliases:
+        if not alias or alias in seen_aliases:
+            continue
+        seen_aliases.add(alias)
+        resolved_agent = _resolve_execution_agent_name(alias)
+        if get_agent_capability_mode(resolved_agent) == "placeholder":
+            blocked_placeholders.append(alias)
+            _log_blocked_placeholder_agent(alias)
+            continue
+        if alias == "general" or resolved_agent in AGENT_ROUTER or is_chat_routable_agent(resolved_agent):
+            allowed_aliases.append(alias)
+
+    resolved_primary = _resolve_execution_agent_name(primary_alias)
+    if get_agent_capability_mode(resolved_primary) == "placeholder":
+        primary_agent = allowed_aliases[0] if allowed_aliases else "general"
+    else:
+        primary_agent = primary_alias
+
+    if primary_agent != "general" and primary_agent not in allowed_aliases:
+        resolved_primary = _resolve_execution_agent_name(primary_agent)
+        if resolved_primary in AGENT_ROUTER or is_chat_routable_agent(resolved_primary):
+            allowed_aliases.insert(0, primary_agent)
+
+    secondary_agents = [agent for agent in allowed_aliases if agent != primary_agent]
+    if primary_agent == "general":
+        allowed_execution_order = []
+    else:
+        allowed_execution_order = [primary_agent] + [agent for agent in secondary_agents if agent != primary_agent]
+
+    safe_orchestration["primary_agent"] = primary_agent
+    safe_orchestration["secondary_agents"] = secondary_agents
+    safe_orchestration["execution_order"] = allowed_execution_order
+    safe_orchestration["requires_multiple"] = len(allowed_execution_order) > 1
+    if blocked_placeholders:
+        safe_orchestration["blocked_placeholders"] = blocked_placeholders
+        original_reason = str(
+            safe_orchestration.get("reason")
+            or safe_orchestration.get("routing_reason")
+            or ""
+        ).strip()
+        blocking_reason = "Placeholder agents are excluded from live chat routing."
+        safe_orchestration["reason"] = f"{original_reason} {blocking_reason}".strip()
+    return safe_orchestration
+
+
 def store_and_learn(
     user_input: str,
     response: str,
@@ -446,9 +611,17 @@ def resolve_permission_action(
     primary_agent = (orchestration.get("primary_agent") or detected_intent or "general").strip().lower()
     safe_aliases = {
         "code": "coding",
+        "coding_runtime": "coding",
         "content": "general",
         "email": "general",
         "fitness": "general",
+        "write": "general",
+        "writing_runtime": "general",
+        "research_runtime": "general",
+        "summary_runtime": "general",
+        "document_generator": "document_generation",
+        "document_retrieval": "document_generation",
+        "transformation_engine": "document_generation",
     }
 
     if primary_agent == "task":
@@ -503,13 +676,18 @@ AGENT_ROUTER: Dict[str, Callable[[str], str]] = {
     "news": lambda cmd: normalize_agent_output(get_news(cmd)),
     "math": lambda cmd: normalize_agent_output(solve_math(cmd)),
     "fitness": lambda cmd: normalize_agent_output(get_workout_plan(cmd)),
+    "write": lambda cmd: normalize_agent_output(write_content(cmd, "general")),
+    "writing_runtime": lambda cmd: normalize_agent_output(write_content(cmd, "general")),
     "translation": lambda cmd: normalize_agent_output(translate(cmd, extract_translation_target(cmd))),
     "research": lambda cmd: normalize_agent_output(research(cmd)),
+    "research_runtime": lambda cmd: normalize_agent_output(research(cmd)),
     "study": lambda cmd: normalize_agent_output(study(cmd)),
     "code": lambda cmd: normalize_agent_output(code_help(cmd)),
+    "coding_runtime": lambda cmd: normalize_agent_output(code_help(cmd)),
     "content": lambda cmd: normalize_agent_output(write_content(cmd, "blog")),
     "email": lambda cmd: normalize_agent_output(write_email(cmd, cmd)),
     "summarize": lambda cmd: normalize_agent_output(summarize_topic(cmd)),
+    "summary_runtime": lambda cmd: normalize_agent_output(summarize_topic(cmd)),
     "grammar": lambda cmd: normalize_agent_output(check_grammar(cmd)),
     "quiz": route_quiz_command,
     "dictionary": lambda cmd: normalize_agent_output(define_word(cmd)),
@@ -597,7 +775,12 @@ def handle_special_intents(intent: str) -> Optional[str]:
     return None
 
 
-def handle_document_generation(raw_command: str, *, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def handle_document_generation(
+    raw_command: str,
+    *,
+    session_id: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     request = resolve_document_request(raw_command, session_id=session_id)
     if request is None:
         return None
@@ -612,6 +795,11 @@ def handle_document_generation(raw_command: str, *, session_id: Optional[str] = 
         citation_style=request.citation_style,
     )
     if generated and generated.get("success"):
+        generated = secure_generated_document_access(
+            generated,
+            owner_session_id=session_id,
+            owner_user_id=owner_user_id,
+        )
         remember_generated_document(session_id, generated)
     return generated
 
@@ -709,6 +897,7 @@ def handle_transformation(
     *,
     source_content: Optional[str] = None,
     session_id: Optional[str] = None,
+    owner_user_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Handle transformation requests: convert source material into structured documents.
@@ -768,6 +957,12 @@ def handle_transformation(
         citation_style=citation_style,
         prebuilt_content=structured_content,
     )
+    if result.get("success"):
+        result = secure_generated_document_access(
+            result,
+            owner_session_id=session_id,
+            owner_user_id=owner_user_id,
+        )
 
     if session_id and result.get("success"):
         dr = DocumentRequest(
@@ -930,11 +1125,19 @@ def build_web_search_orchestration(raw_command: str, search_query: str) -> Dict[
 
 
 def run_agent(agent_name: str, raw_command: str) -> str:
+    normalized_agent_name = str(agent_name or "").strip().lower()
+    execution_agent = _resolve_execution_agent_name(normalized_agent_name)
+    if execution_agent != normalized_agent_name:
+        _log_intent_agent_mapping(normalized_agent_name, execution_agent)
+    if get_agent_capability_mode(execution_agent) == "placeholder":
+        _log_blocked_placeholder_agent(execution_agent)
+        readable_name = str(execution_agent or "").replace("_", " ").strip().title() or "This agent"
+        return f"{readable_name} is planned, but it is not available for live chat yet."
     try:
-        return normalize_agent_output(AGENT_ROUTER[agent_name](raw_command))
+        return normalize_agent_output(AGENT_ROUTER[execution_agent](raw_command))
     except Exception as error:
-        log_agent_error(agent_name, str(error))
-        return f"{agent_name} agent failed: {str(error)}"
+        log_agent_error(execution_agent, str(error))
+        return f"{execution_agent} agent failed: {str(error)}"
 
 
 def should_use_orchestrated_agents(
@@ -942,8 +1145,12 @@ def should_use_orchestrated_agents(
     confidence: float,
     orchestration: Dict[str, Any],
 ) -> bool:
-    primary_agent = orchestration.get("primary_agent", "general")
+    primary_agent = _resolve_execution_agent_name(orchestration.get("primary_agent", "general"))
     selection_source = orchestration.get("primary_selection_source", "intent")
+
+    if get_agent_capability_mode(primary_agent) == "placeholder":
+        _log_blocked_placeholder_agent(primary_agent)
+        return False
 
     if primary_agent not in AGENT_ROUTER:
         return False
@@ -969,11 +1176,20 @@ def execute_orchestrated_agents(
 
     execution_order = []
     for agent_name in orchestration.get("execution_order", []):
-        if agent_name in AGENT_ROUTER and agent_name not in execution_order:
-            execution_order.append(agent_name)
+        resolved_agent_name = _resolve_execution_agent_name(agent_name)
+        if resolved_agent_name != str(agent_name or "").strip().lower():
+            _log_intent_agent_mapping(str(agent_name or "").strip().lower(), resolved_agent_name)
+        if get_agent_capability_mode(resolved_agent_name) == "placeholder":
+            _log_blocked_placeholder_agent(resolved_agent_name)
+            continue
+        if resolved_agent_name in AGENT_ROUTER and resolved_agent_name not in execution_order:
+            execution_order.append(resolved_agent_name)
 
     if not execution_order:
-        primary_agent = orchestration.get("primary_agent", "general")
+        primary_agent = _resolve_execution_agent_name(orchestration.get("primary_agent", "general"))
+        if get_agent_capability_mode(primary_agent) == "placeholder":
+            _log_blocked_placeholder_agent(primary_agent)
+            return "", [], "fallback_llm"
         if primary_agent in AGENT_ROUTER:
             execution_order = [primary_agent]
 
@@ -1152,7 +1368,34 @@ def build_result(
     telemetry: Optional[ProcessingTelemetry] = None,
     publish_telemetry: bool = True,
 ) -> Dict[str, Any]:
-    translated_response = respond_in_language(response, language)
+    raw_response = clean_response(response)
+    effective_execution_mode = execution_mode
+    effective_provider_name = provider_name
+    effective_provider_model = provider_model
+    effective_providers_tried = list(providers_tried or [])
+
+    if execution_mode == "document_generation" and not raw_response:
+        raw_response = "Your document is ready."
+    elif execution_mode == "permission_blocked" and not raw_response:
+        raw_response = str((permission or {}).get("permission", {}).get("reason") or "This action is protected.")
+
+    if _is_unusable_runtime_response(raw_response):
+        raw_response = build_degraded_reply(raw_command, effective_providers_tried)
+        effective_execution_mode = "degraded_assistant"
+        effective_provider_name = None
+        effective_provider_model = None
+
+    try:
+        translated_response = clean_response(respond_in_language(raw_response, language))
+    except Exception:
+        translated_response = clean_response(raw_response)
+
+    if _is_unusable_runtime_response(translated_response):
+        translated_response = build_degraded_reply(raw_command, effective_providers_tried)
+        effective_execution_mode = "degraded_assistant"
+        effective_provider_name = None
+        effective_provider_model = None
+
     final_intent = detected_intent if detected_intent != "general" else orchestration.get("primary_agent", "general")
     agent_capabilities = build_agent_capability_cards(used_agents, final_intent, orchestration)
     confidence_detail = evaluate_confidence(raw_command).to_dict()
@@ -1164,7 +1407,7 @@ def build_result(
         extra_metadata={
             "confidence": round(confidence, 4),
             "used_agents": used_agents,
-            "execution_mode": execution_mode,
+            "execution_mode": effective_execution_mode,
             "plan_steps": plan_steps or [],
         },
     )
@@ -1176,10 +1419,10 @@ def build_result(
         record_reflection(
             requested_action=detected_intent,
             actual_action=final_intent,
-            success=True,
+            success=effective_execution_mode != "degraded_assistant",
             blocked_by_permission=False,
-            retry_possible=False,
-            learning_signal="successful_runtime_path",
+            retry_possible=effective_execution_mode == "degraded_assistant",
+            learning_signal="successful_runtime_path" if effective_execution_mode != "degraded_assistant" else "runtime_response_hardened_to_degraded_reply",
         )
     except Exception:
         pass
@@ -1189,13 +1432,22 @@ def build_result(
             permission_action or final_intent,
             session_id=session_id,
             username=username,
-            success=execution_mode not in {"degraded_assistant", "permission_blocked"},
+            success=effective_execution_mode not in {"degraded_assistant", "permission_blocked"},
             trust_level=get_trust_level(permission_action).value if permission_action else "safe",
-            reason=execution_mode,
+            reason=effective_execution_mode,
             meta={"layer": "runtime_core", "used_agents": used_agents},
         )
     except Exception:
         pass
+
+    _log_runtime_trace(
+        raw_command=raw_command,
+        detected_intent=str(final_intent or detected_intent or "general"),
+        used_agents=used_agents,
+        provider_name=effective_provider_name,
+        response_text=translated_response,
+        execution_mode=effective_execution_mode,
+    )
 
     return _with_telemetry({
         "intent": final_intent,
@@ -1205,17 +1457,17 @@ def build_result(
         "plan": plan_steps or [],
         "used_agents": used_agents,
         "agent_capabilities": agent_capabilities,
-        "execution_mode": execution_mode,
+        "execution_mode": effective_execution_mode,
         "decision": build_decision_summary(detected_intent, confidence, AGENT_ROUTER),
         "orchestration": orchestration,
         "language": language,
         "confidence_detail": confidence_detail,
         "permission_action": permission_action,
         "permission": permission,
-        "provider": provider_name,
-        "model": provider_model,
-        "providers_tried": list(providers_tried or []),
-        "degraded": execution_mode == "degraded_assistant",
+        "provider": effective_provider_name,
+        "model": effective_provider_model,
+        "providers_tried": effective_providers_tried,
+        "degraded": effective_execution_mode == "degraded_assistant",
     }, telemetry, publish=publish_telemetry)
 
 
@@ -1522,8 +1774,13 @@ def process_single_command_detailed(
         result["retrieval_followup"] = True
         return result
 
-    document_result = handle_document_generation(raw_command, session_id=runtime_session_id)
+    document_result = handle_document_generation(
+        raw_command,
+        session_id=runtime_session_id,
+        owner_user_id=runtime_identity.get("user_id"),
+    )
     if document_result is not None:
+        _log_intent_agent_mapping("generate document", "document_generator")
         reply = str(document_result.get("message") or "Your document is ready.")
         execution_time_ms = 0.0
         permission = _enforce_runtime_permission(
@@ -1590,7 +1847,11 @@ def process_single_command_detailed(
         result["document_preview"] = document_result.get("preview_text")
         return result
 
-    transformation_result = handle_transformation(raw_command, session_id=runtime_session_id)
+    transformation_result = handle_transformation(
+        raw_command,
+        session_id=runtime_session_id,
+        owner_user_id=runtime_identity.get("user_id"),
+    )
     if transformation_result is not None:
         reply = str(transformation_result.get("message") or "Your transformed document is ready.")
         permission = _enforce_runtime_permission(
@@ -1661,6 +1922,7 @@ def process_single_command_detailed(
 
     intent_started = time.perf_counter()
     detected_intent, confidence = detect_intent_with_confidence(raw_command)
+    detected_intent = _normalize_detected_intent(detected_intent, raw_command)
     confidence_detail = evaluate_confidence(raw_command).to_dict()
     alternatives = [
         {
@@ -1774,7 +2036,12 @@ def process_single_command_detailed(
         return web_result
 
     routing_started = time.perf_counter()
-    orchestration = master_orchestrator.analyze_task(raw_command, intent=detected_intent)
+    orchestration = _sanitize_chat_orchestration(
+        master_orchestrator.analyze_task(raw_command, intent=detected_intent)
+    )
+    mapped_primary_agent = _resolve_execution_agent_name(orchestration.get("primary_agent", "general"))
+    if mapped_primary_agent != str(orchestration.get("primary_agent", "general")).strip().lower():
+        _log_intent_agent_mapping(orchestration.get("primary_agent", "general"), mapped_primary_agent)
     permission_action = resolve_permission_action(raw_command, detected_intent, orchestration)
     permission = _enforce_runtime_permission(
         permission_action,
@@ -1782,7 +2049,7 @@ def process_single_command_detailed(
         security_context=security_context,
         require_auth=True,
     )
-    selected_agent = orchestration.get("primary_agent") or detected_intent or "general"
+    selected_agent = mapped_primary_agent or detected_intent or "general"
     routing_reason = (
         orchestration.get("reason")
         or orchestration.get("routing_reason")
@@ -1884,8 +2151,11 @@ def process_single_command_detailed(
             response = orchestrated_response
             used_agents = orchestrated_agents
         elif should_use_agent(resolved_intent, confidence, AGENT_ROUTER):
-            response = run_agent(resolved_intent, raw_command)
-            used_agents = [resolved_intent]
+            execution_agent = _resolve_execution_agent_name(resolved_intent)
+            if execution_agent != resolved_intent:
+                _log_intent_agent_mapping(resolved_intent, execution_agent)
+            response = run_agent(execution_agent, raw_command)
+            used_agents = [execution_agent]
             execution_mode = "single_agent"
         else:
             generated_match = match_generated_agent_request(raw_command, exclude_ids=AGENT_ROUTER.keys())

@@ -167,17 +167,17 @@ def register_user(username: str, password: str, name: str, email: str | None = N
     if not name:
         return False, "Name is required."
     if "@" not in email:
-        return False, "Invited email is required."
+        return False, "A valid email is required."
 
     access_controller = AccessController()
     if not access_controller.is_whitelisted(email):
-        return False, "This email has not been invited to AURA."
+        access_controller.invite_user(email, invited_by_admin="open_registration")
 
     users = load_users()
     if username in users:
         return False, "Username already exists."
     if any(str(user.get("email", "")).strip().lower() == email for user in users.values()):
-        return False, "That invited email is already registered."
+        return False, "That email is already registered."
 
     users[username] = _build_user_record(
         username=username,
@@ -208,11 +208,6 @@ def authenticate_user(username: str, password: str, *, ip_address: str, user_age
         access_controller.record_login_attempt(ip_address, success=False)
         return False, "Username not found.", None
 
-    email = str(user.get("email", "")).strip().lower()
-    if not access_controller.is_whitelisted(email):
-        access_controller.record_login_attempt(ip_address, success=False)
-        return False, "Access has not been approved for this account.", None
-
     if not _verify_password(password, str(user.get("password", ""))):
         access_controller.record_login_attempt(ip_address, success=False)
         return False, "Wrong password.", None
@@ -221,7 +216,7 @@ def authenticate_user(username: str, password: str, *, ip_address: str, user_age
     user["last_login"] = _now_string()
     users[username] = user
     save_users(users)
-    access_controller.mark_last_login(email)
+    access_controller.mark_last_login(str(user.get("email", "")))
     session_token = create_login_session(
         user_id=str(user.get("id")),
         username=username,
@@ -245,10 +240,6 @@ def get_request_user(request) -> Optional[Dict[str, Any]]:
         return None
     user = get_user(session.get("username"))
     if not user:
-        invalidate_login_session(token)
-        return None
-    access_controller = AccessController()
-    if not access_controller.is_whitelisted(user.get("email", "")):
         invalidate_login_session(token)
         return None
     return user

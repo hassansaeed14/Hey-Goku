@@ -1,3 +1,5 @@
+CAPABILITY_MODE = "hybrid"
+
 import re
 import requests
 from groq import Groq

@@ -232,15 +232,58 @@ class RuntimeCoreTests(unittest.TestCase):
             runtime_core,
             "respond_in_language",
             side_effect=lambda response, language: response,
-        ), patch.object(runtime_core, "store_and_learn"):
+        ), patch.object(runtime_core, "store_and_learn"), patch("builtins.print") as print_mock:
             result = runtime_core.process_single_command_detailed("research and summarize AI agents")
 
         self.assertEqual(result["intent"], "research")
-        self.assertEqual(result["used_agents"], ["research", "summarize"])
+        self.assertEqual(result["used_agents"], ["research_runtime", "summary_runtime"])
         self.assertEqual(result["execution_mode"], "multi_agent")
         self.assertEqual(result["response"], "Synthesized research summary")
         self.assertTrue(result["plan"])
         self.assertEqual(result["orchestration"]["execution_order"], ["research", "summarize"])
+        print_mock.assert_any_call("[ROUTING] research → research_runtime")
+        print_mock.assert_any_call("[ROUTING] summarize → summary_runtime")
+
+    def test_write_intent_routes_to_real_writing_runtime(self):
+        orchestration = {
+            "primary_agent": "write",
+            "secondary_agents": [],
+            "execution_order": ["write"],
+            "requires_multiple": False,
+            "primary_selection_source": "intent",
+            "top_score": 2,
+            "mode": "real",
+        }
+
+        with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
+            runtime_core,
+            "detect_intent_with_confidence",
+            return_value=("write", 0.91),
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "analyze_task",
+            return_value=orchestration,
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "synthesize_responses",
+            return_value={"response": "Draft ready"},
+        ), patch.object(
+            runtime_core,
+            "write_content",
+            return_value="Draft ready",
+        ), patch.object(
+            runtime_core,
+            "respond_in_language",
+            side_effect=lambda response, language: response,
+        ), patch.object(runtime_core, "store_and_learn"), patch("builtins.print") as print_mock:
+            result = runtime_core.process_single_command_detailed("write a short post about AI safety")
+
+        self.assertEqual(result["intent"], "write")
+        self.assertEqual(result["detected_intent"], "write")
+        self.assertEqual(result["used_agents"], ["writing_runtime"])
+        self.assertEqual(result["execution_mode"], "single_agent")
+        self.assertEqual(result["response"], "Draft ready")
+        print_mock.assert_any_call("[ROUTING] write → writing_runtime")
 
     def test_task_add_request_uses_action_specific_permission(self):
         orchestration = {
@@ -346,6 +389,46 @@ class RuntimeCoreTests(unittest.TestCase):
         self.assertTrue(result["degraded"])
         self.assertIsNone(result["provider"])
         self.assertIn("can't answer it reliably", result["response"].lower())
+
+    def test_agent_failure_is_hardened_into_meaningful_degraded_reply(self):
+        orchestration = {
+            "primary_agent": "write",
+            "secondary_agents": [],
+            "execution_order": ["write"],
+            "requires_multiple": False,
+            "primary_selection_source": "intent",
+            "top_score": 2,
+            "mode": "real",
+        }
+
+        with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
+            runtime_core,
+            "detect_intent_with_confidence",
+            return_value=("write", 0.92),
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "analyze_task",
+            return_value=orchestration,
+        ), patch.object(
+            runtime_core,
+            "write_content",
+            side_effect=RuntimeError("provider offline"),
+        ), patch.object(
+            runtime_core,
+            "respond_in_language",
+            side_effect=lambda response, language: response,
+        ), patch.object(runtime_core, "store_and_learn"), patch("builtins.print") as print_mock:
+            result = runtime_core.process_single_command_detailed("write a short post about AI")
+
+        self.assertEqual(result["execution_mode"], "degraded_assistant")
+        self.assertTrue(result["degraded"])
+        self.assertEqual(result["used_agents"], ["writing_runtime"])
+        self.assertIsNone(result["provider"])
+        self.assertNotIn("agent failed:", result["response"].lower())
+        self.assertNotEqual(result["response"].strip(), "")
+        self.assertTrue(
+            any("[RUNTIME TRACE]" in str(call.args[0]) for call in print_mock.call_args_list if call.args)
+        )
 
 
 if __name__ == "__main__":
