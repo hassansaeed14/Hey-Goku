@@ -43,7 +43,7 @@ class PasswordResetFlowTests(unittest.TestCase):
     """End-to-end assertions for request -> verify -> confirm."""
 
     def _run_happy_path(self, identifier: str) -> None:
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
@@ -124,7 +124,7 @@ class PasswordResetFlowTests(unittest.TestCase):
     def test_unknown_identifier_still_returns_reset_token(self):
         """No account enumeration — unknown identifier must not leak."""
 
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
@@ -151,7 +151,7 @@ class PasswordResetFlowTests(unittest.TestCase):
                 self.assertEqual(failed["status"], "incorrect")
 
     def test_phantom_locks_after_five_attempts(self):
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
@@ -171,7 +171,7 @@ class PasswordResetFlowTests(unittest.TestCase):
                 self.assertEqual(final["status"], "too_many_attempts")
 
     def test_rate_limit_per_identifier(self):
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
@@ -192,7 +192,7 @@ class PasswordResetFlowTests(unittest.TestCase):
                 self.assertEqual(blocked["status"], "rate_limited")
 
     def test_weak_password_rejected_at_confirm(self):
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
@@ -216,7 +216,7 @@ class PasswordResetFlowTests(unittest.TestCase):
                 self.assertEqual(weak["status"], "weak_password")
 
     def test_confirm_requires_valid_confirm_token(self):
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
@@ -241,7 +241,7 @@ class PasswordResetFlowTests(unittest.TestCase):
                 self.assertEqual(bad["status"], "invalid_confirm_token")
 
     def test_confirm_without_otp_verify_is_blocked(self):
-        with TemporaryDirectory(dir=r"D:\HeyGoku") as tmp:
+        with TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             users_file = _make_user_file(tmp_dir)
             reset_state = tmp_dir / "password_reset_state.json"
