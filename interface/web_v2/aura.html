@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static-v2/styles.css">
+</head>
+<body class="aura-page" data-assistant-state="idle" data-orb-layout="topbar" data-task-scope="none">
+  <div class="page-backdrop" aria-hidden="true"></div>
+  <div class="page-grid" aria-hidden="true"></div>
+  <div class="page-ambient" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="AURA sidebar">
+      <div class="sidebar__brand">
+        <p class="eyebrow">Personal AI workspace</p>
+        <h1>AURA</h1>
+        <p class="sidebar__state" id="sidebarState">Ready</p>
+      </div>
+
+      <button class="primary-action" id="newChatButton" type="button" aria-label="Start new chat">
+        <span class="primary-action__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"></path></svg>
+        </span>
+        <span>New chat</span>
+      </button>
+
+      <label class="search-field" for="chatSearch">
+        <input id="chatSearch" type="search" placeholder="Search chats">
+      </label>
+
+      <section class="sidebar__section">
+        <div class="sidebar__section-head">
+          <p class="sidebar__section-title">Chat history</p>
+        </div>
+        <div class="session-list" id="chatList" role="list"></div>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="workspace__scroll-container">
+        
+        <header class="topbar">
+          <button class="sidebar-toggle-btn" id="sidebarToggle" type="button" aria-label="Toggle Sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <div class="topbar__headline">
+            <h2>AURA</h2>
+            <span class="access-chip" id="accessChip">Authenticated</span>
+          </div>
+          <div class="topbar__status">
+            <div class="mode-chip" id="assistantModeChip" title="Current assistant mode">
+              <span id="assistantModeLabel">Text mode</span>
+            </div>
+            <div class="mode-chip mode-chip--voice" id="voiceRuntimeChip" title="Desktop voice runtime status">
+              <span id="voiceRuntimeLabel">Desktop voice inactive</span>
+            </div>
+          </div>
+        </header>
+
+        <main class="chat-stage">
+          <div class="chat-scroll" id="chatScroll">
+            <section class="conversation-thread" id="conversationThread" aria-live="polite"></section>
+          </div>
+        </main>
+      </div>
+
+      <form class="composer" id="composerForm">
+        <div class="composer__main-input-row">
+          
+          <button class="mic-visual-btn" type="button" aria-label="Toggle Voice Mode" onclick="document.getElementById('speechToggleButton').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+            </svg>
+          </button>
+
+          <label class="composer__input-shell" for="messageInput">
+            <textarea id="messageInput" rows="1" placeholder="Message AURA..."></textarea>
+          </label>
+          
+          <button class="send-button" id="sendButton" type="submit">
+            <span class="send-button__text">Send</span>
+          </button>
+        </div>
+        
+        <div style="display:none;">
+          <button id="speechToggleButton" type="button" aria-pressed="false"></button>
+          <button id="talkButton"></button>
+          <button id="desktopVoiceButton"></button>
+          <button id="interruptButton"></button>
+          <p id="voiceTranscript"></p>
+          <p id="composerStatus"></p>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script src="/static-v2/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. SIDEBAR TOGGLE LOGIC
+      const toggleBtn = document.getElementById('sidebarToggle');
+      const appShell = document.querySelector('.app-shell');
+      if (toggleBtn && appShell) {
+        toggleBtn.addEventListener('click', () => {
+          appShell.classList.toggle('sidebar-collapsed');
+        });
+      }
+
+      // 2. SMART HEADER GLIDE LOGIC
+      const chatScroll = document.getElementById('chatScroll');
+      const topbar = document.querySelector('.topbar');
+      let lastScrollTop = 0;
+
+      if (chatScroll && topbar) {
+        chatScroll.addEventListener('scroll', () => {
+          let scrollTop = chatScroll.scrollTop;
+          
+          // If scrolling down and passed the header height, glide it up
+          if (scrollTop > lastScrollTop && scrollTop > 60) {
+            topbar.classList.add('topbar--hidden');
+          } 
+          // If scrolling up, glide it back down instantly
+          else {
+            topbar.classList.remove('topbar--hidden');
+          }
+          
+          lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+        });
+      }
+    });
+  </script>
+
+  <section class="presence-stage" id="presenceStage" hidden aria-live="polite">
+    <div class="presence-stage__glow" aria-hidden="true"></div>
+    <div class="presence-stage__card">
+      <p class="eyebrow" id="presenceEyebrow">AURA presence</p>
+      <h3 id="presenceTitle">AURA is here.</h3>
+      <p id="presenceText">Calm, present, and ready when you are.</p>
+    </div>
+  </section>
+</body>
+</html>
