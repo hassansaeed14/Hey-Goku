@@ -2147,6 +2147,82 @@ async def api_chat(payload: ChatApiRequest, request: Request):
 
 @app.post("/api/chat/stream")
 async def api_chat_stream(payload: ChatApiRequest, request: Request):
+    """Direct streaming highway connected to the unrestricted Groq brain."""
+    try:
+        import asyncio
+        import os
+        import sys
+        from fastapi.responses import StreamingResponse
+
+        # Force the server to recognize the root folder path for imports
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        if root_dir not in sys.path:
+            sys.path.append(root_dir)
+
+        from interface.web_v2.voris_brain import VorisBrain
+        local_brain = VorisBrain()
+
+        # Extract incoming user text safely
+        user_text = payload.message.strip() if hasattr(payload, 'message') and payload.message else ""
+        if not user_text:
+            user_text = payload.text.strip() if hasattr(payload, 'text') and payload.text else ""
+
+        print(f"[VORIS STREAM] Processing raw query: {user_text}")
+
+        # Send query straight to Groq, bypassing all local filters
+        reply_text = local_brain.generate_response(user_text)
+        request_id = str(new_request_id("stream"))
+
+        response_payload = {
+            "reply": reply_text,
+            "response": reply_text,
+            "agent": "Voris_Direct",
+            "status": "ok",
+            "intent": "general",
+            "request_id": request_id
+        }
+
+        async def _events():
+            yield _sse_event(
+                "start",
+                {
+                    "request_id": request_id,
+                    "status": "started",
+                    "streaming": True,
+                },
+            )
+            
+            # Use the server's native chunk loader to feed text to your UI
+            for index, chunk in enumerate(_chunk_stream_text(reply_text), start=1):
+                if await request.is_disconnected():
+                    break
+                yield _sse_event(
+                    "chunk",
+                    {
+                        "request_id": request_id,
+                        "index": index,
+                        "text": chunk,
+                    },
+                )
+                await asyncio.sleep(0.012)
+                
+            yield _sse_event("final", response_payload)
+
+        return StreamingResponse(
+            _events(),
+            media_type="text/event-stream",
+            headers={
+                **_cors_headers(),
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except Exception as e:
+        print(f"[VORIS STREAM ERROR] {str(e)}")
+        async def _error_events():
+            yield _sse_event("error", {"message": f"Voris Stream Engine Failure: {str(e)}"})
+        return StreamingResponse(_error_events(), media_type="text/event-stream", headers=_cors_headers())
     """SSE wrapper around the trusted chat path.
 
     This prepares ChatGPT-style progressive rendering without depending on any
