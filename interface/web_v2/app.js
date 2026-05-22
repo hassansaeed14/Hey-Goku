@@ -683,53 +683,101 @@
     }
   }
 
-  async function handleComposerSubmit(event) {
+ async function handleComposerSubmit(event) {
     event.preventDefault();
-    if (state.requestInFlight) {
-      return;
-    }
+    
+    // Lock the gate instantly
+    if (state.requestInFlight) return;
 
     const rawText = String(el.messageInput?.value || "").trim();
-    if (!rawText) {
-      return;
-    }
+    const hasFile = window.vorisAttachedFile !== null && window.vorisAttachedFile !== undefined;
 
+    if (!rawText && !hasFile) return;
+
+    state.requestInFlight = true;
     el.messageInput.value = "";
     autoResizeTextarea();
 
-    const userMessage = appendMessage({
-      role: "user",
-      text: rawText,
-      badge: "You",
-      timestamp: new Date().toISOString(),
-    });
-    void userMessage;
-    rememberSessionTitle(rawText);
+    let fileName = null;
+    let fileTextContext = "";
+    let attachmentUIHtml = "";
 
-    const wakeMatch = detectWakePhrase(rawText);
-    let commandText = rawText;
-    if (wakeMatch.detected) {
-      await runWakeSequence();
-      if (!wakeMatch.remainingText) {
-        await delay(1600);
-        settleToIdleLayout();
-        return;
-      }
-      commandText = wakeMatch.remainingText;
+    try {
+        if (hasFile) {
+          const file = window.vorisAttachedFile;
+          fileName = file.name;
+          
+          fileTextContext = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = error => reject(error);
+              reader.readAsText(file);
+          });
+
+          // Truncate to 2000 chars to protect the connection
+          const maxChars = 2000;
+          if (fileTextContext.length > maxChars) {
+              fileTextContext = fileTextContext.substring(0, maxChars) + "\n\n... [WARNING: FILE TRUNCATED TO SAVE MEMORY. SHOWING FIRST FEW ROWS ONLY.]";
+          }
+
+          window.vorisAttachedFile = null;
+          const fileInputHtml = document.getElementById("file-upload-input");
+          if (fileInputHtml) fileInputHtml.value = "";
+          const previewChip = document.getElementById("voris-file-preview");
+          if (previewChip) previewChip.remove();
+
+          attachmentUIHtml = `\n\n📎 [Attached: ${fileName}]`;
+        }
+
+        const userMessage = appendMessage({
+          role: "user",
+          text: rawText + attachmentUIHtml,
+          badge: "You",
+          timestamp: new Date().toISOString(),
+        });
+        void userMessage;
+        
+        rememberSessionTitle(rawText || "Sent an attachment");
+
+        let commandText = rawText;
+        const wakeMatch = detectWakePhrase(commandText);
+        if (wakeMatch.detected && commandText) {
+          await runWakeSequence();
+          if (!wakeMatch.remainingText) {
+            await delay(1600);
+            settleToIdleLayout();
+            state.requestInFlight = false;
+            return;
+          }
+          commandText = wakeMatch.remainingText;
+        }
+
+        // 1. BLINDFOLD THE COP: Only classify the short text the user typed
+        const classification = classifyCommand(commandText);
+
+        // 2. STAPLE THE CSV AFTER CLASSIFICATION: Now we attach the heavy file
+        let finalPayloadText = commandText;
+        if (hasFile) {
+            finalPayloadText = `${commandText}\n\n--- ATTACHED FILE CONTEXT: ${fileName} ---\n${fileTextContext}\n--- END OF FILE ---`;
+        }
+
+        setAssistantState("analyzing", "chat:input_received");
+        setComposerStatus(hasFile ? "Reading your file context..." : "I hear you. Let me route that.");
+        updateWorkspaceSummary("Routing request.");
+        await delay(120);
+
+        // 3. FORCE INTERNAL ROUTING: If a file is attached, never open new tabs.
+        if (classification.kind === "external" && !hasFile) {
+          await handleExternalCommand(finalPayloadText, classification);
+        } else {
+          // Fire the massive combined string to the Python brain
+          await handleInternalCommand(finalPayloadText, classification);
+        }
+        
+    } catch (error) {
+        console.error("Error in submit:", error);
+        state.requestInFlight = false;
     }
-
-    setAssistantState("analyzing", "chat:input_received");
-    setComposerStatus("I hear you. Let me route that.");
-    updateWorkspaceSummary("VORIS is choosing the cleanest path for this request.");
-    await delay(120);
-
-    const classification = classifyCommand(commandText);
-    if (classification.kind === "external") {
-      await handleExternalCommand(commandText, classification);
-      return;
-    }
-
-    await handleInternalCommand(commandText, classification);
   }
 
   async function runWakeSequence() {
@@ -3079,339 +3127,61 @@
   }
 
   async function startSpeechCapture(mode) {
-    if (!RecognitionCtor || !state.voiceSupported) {
-      logVoiceError("SpeechRecognition unavailable", {
-        recognitionCtor: Boolean(RecognitionCtor),
-        voiceSupported: state.voiceSupported,
-        secureContext: window.isSecureContext,
-        mode,
-      });
-      surfaceVoiceFailure(
-        "SpeechRecognition is not available in this browser.",
-        {
-          event: "voice:unsupported_browser",
-          workspaceSummary: "VORIS can't start voice input in this browser.",
-          title: "Voice input is unavailable.",
-          resetMs: 1600,
-        },
-      );
-      return;
-    }
+    console.log("[VORIS Voice] Mic Triggered — Activating Python Core Backend");
 
+    // Prevent listening if VORIS is already thinking/talking
     if (state.requestInFlight) {
-      const reason = "Talk is unavailable until the current request finishes.";
-      logVoiceError("Talk blocked while request in flight", { mode });
-      setComposerStatus(reason);
-      updateWorkspaceSummary("VORIS is still finishing the current request before it can listen again.");
-      showPresence({
-        mode: "docked",
-        eyebrow: "Voice input",
-        title: "I'm still working on the last request.",
-        text: reason,
-        duration: 1800,
-      });
-      return;
+        console.log("[VORIS Voice] Blocked: Request already in flight.");
+        return;
     }
 
-    if (state.recognitionActive) {
-      logVoiceError("Talk blocked because recognition is already active", {
-        mode,
-        recognitionMode: state.recognitionMode,
-      });
-      setComposerStatus("Voice capture is already active.");
-      return;
+    // Grab the chat input and send button
+    const chatInput = document.querySelector("#chat-input") || (typeof el !== 'undefined' ? el.chatInput : null);
+    const sendBtn = document.querySelector("#send-btn") || (typeof el !== 'undefined' ? el.sendButton : null);
+    const originalPlaceholder = chatInput ? chatInput.placeholder : "Message VORIS...";
+
+    // Update UI to show it's listening
+    if (chatInput) {
+        chatInput.placeholder = "Listening (Speak into laptop mic)...";
     }
-
-    clearVoiceTranscript();
-
-    const micPermissionState = await getMicrophonePermissionState();
-    if (micPermissionState === "denied") {
-      logVoiceError("Microphone permission denied before recognition.start()", {
-        mode,
-        permissionState: micPermissionState,
-      });
-      surfaceVoiceFailure(
-        "Mic permission denied.",
-        {
-          event: "voice:permission_denied",
-          workspaceSummary: "VORIS can't listen until microphone access is allowed.",
-          title: "Mic permission denied.",
-          resetMs: 1600,
-        },
-      );
-      return;
-    }
-
-    setComposerStatus("Click accepted. Waiting for microphone access.");
-
-    const recognition = new RecognitionCtor();
-    if (!recognition) {
-      logVoiceError("SpeechRecognition instance is null", { mode });
-      surfaceVoiceFailure(
-        "SpeechRecognition could not be created.",
-        {
-          event: "voice:recognition_instance_failed",
-          workspaceSummary: "VORIS could not create a browser recognition session.",
-          title: "I couldn't start listening.",
-          resetMs: 1600,
-        },
-      );
-      return;
-    }
-    state.recognition = recognition;
-    state.recognitionMode = mode;
-    recognition.lang = state.voiceStatus?.settings?.language || "en-US";
-    recognition.interimResults = mode === "talk";
-    recognition.continuous = false;
-    recognition.maxAlternatives = 1;
-    let handledFinalResult = false;
-    let heardSpeech = false;
-    let startWatchdogId = 0;
-    const clearStartWatchdog = () => {
-      if (startWatchdogId) {
-        window.clearTimeout(startWatchdogId);
-        startWatchdogId = 0;
-      }
-    };
-    logVoiceDebug("recognition.start() about to run", {
-      mode,
-      lang: recognition.lang,
-      interimResults: recognition.interimResults,
-      continuous: recognition.continuous,
-      maxAlternatives: recognition.maxAlternatives,
-      permissionState: micPermissionState,
-    });
-
-    recognition.onstart = () => {
-      logVoiceDebug("recognition.onstart", { mode });
-      clearStartWatchdog();
-      state.recognitionStopReason = "";
-      state.recognitionActive = true;
-      setOrbLayout("center");
-      setAssistantState("listening", "voice:recognition_started");
-      if (mode === "talk") {
-        setComposerStatus("I'm listening. Speak when you're ready.");
-        updateWorkspaceSummary("Microphone is active. VORIS is listening for your voice input.");
-        showPresence({
-          mode: "center",
-          eyebrow: "Voice input",
-          title: "I'm listening.",
-          text: "Speak when you're ready.",
-        });
-      }
-      syncVoiceControls();
-    };
-
-    recognition.onerror = (event) => {
-      clearStartWatchdog();
-      logVoiceError("recognition.onerror", {
-        mode,
-        error: event?.error || "",
-        message: event?.message || "",
-      });
-      state.recognitionActive = false;
-      state.recognition = null;
-      state.recognitionMode = "";
-      state.recognitionStopReason = "";
-      state.speechCommandInFlight = false;
-      if (mode === "wake") {
-        state.wakeModeEnabled = false;
-      }
-      syncVoiceControls();
-      surfaceVoiceFailure(
-        formatSpeechErrorDetail(event),
-        {
-          event: "voice:recognition_error",
-          workspaceSummary: "The browser voice path returned an explicit recognition error.",
-          eyebrow: "Voice path",
-          title: "I couldn't hear that cleanly.",
-          resetMs: 1500,
-        },
-      );
-    };
-
-    recognition.onresult = async (event) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
-      for (let index = event.resultIndex || 0; index < (event.results?.length || 0); index += 1) {
-        const result = event.results[index];
-        const text = String(result?.[0]?.transcript || "").trim();
-        if (!text) {
-          continue;
-        }
-        if (result.isFinal) {
-          finalTranscript += `${text} `;
-        } else {
-          interimTranscript += `${text} `;
-        }
-      }
-
-      interimTranscript = interimTranscript.trim();
-      finalTranscript = finalTranscript.trim();
-      logVoiceDebug("recognition.onresult", {
-        mode,
-        interimTranscript,
-        finalTranscript,
-        resultCount: event.results?.length || 0,
-      });
-
-      if (mode === "talk" && interimTranscript) {
-        heardSpeech = true;
-        updateVoiceTranscript(interimTranscript, { final: false });
-        setComposerStatus("I'm listening. Finish when you're ready.");
-      }
-
-      if (!finalTranscript || handledFinalResult) {
-        return;
-      }
-
-      handledFinalResult = true;
-      heardSpeech = true;
-      updateVoiceTranscript(finalTranscript, { final: true });
-      logVoiceDebug("Final transcript before chat", {
-        mode,
-        transcript: finalTranscript,
-      });
-      state.speechCommandInFlight = true;
-      try {
-        await processRecognizedTranscript(finalTranscript, mode);
-      } catch (error) {
-        logVoiceError("Voice transcript failed before chat completed", {
-          mode,
-          message: error?.message || String(error || ""),
-          transcript: finalTranscript,
-        });
-        surfaceVoiceFailure(
-          voiceFailureMessageFromError(error, "The voice request failed before chat completed."),
-          {
-            event: "api:voice_handoff_failed",
-            workspaceSummary: "VORIS captured your words, but the handoff to chat failed.",
-            eyebrow: "Voice handoff",
-            title: "I couldn't complete that yet.",
-            keepTranscript: true,
-            resetMs: 1800,
-          },
-        );
-      } finally {
-        state.speechCommandInFlight = false;
-        window.setTimeout(() => {
-          if (!state.recognitionActive) {
-            clearVoiceTranscript();
-          }
-        }, 2200);
-      }
-    };
-
-    recognition.onend = () => {
-      clearStartWatchdog();
-      logVoiceDebug("recognition.onend", {
-        mode,
-        heardSpeech,
-        handledFinalResult,
-        stopReason: state.recognitionStopReason,
-        requestInFlight: state.requestInFlight,
-        speechCommandInFlight: state.speechCommandInFlight,
-      });
-      const stopReason = state.recognitionStopReason;
-      state.recognitionActive = false;
-      state.recognition = null;
-      state.recognitionMode = "";
-      state.recognitionStopReason = "";
-      syncVoiceControls();
-      if (stopReason === "manual") {
-        hidePresence();
-        setAssistantState("idle", "voice:recognition_stopped_manually");
-        settleToIdleLayout();
-        return;
-      }
-      if (heardSpeech && !handledFinalResult && mode === "talk" && !state.requestInFlight && !state.speechCommandInFlight) {
-        const reason = "The browser heard audio, but it never returned a final transcript.";
-        logVoiceError("recognition.onend without final transcript", { mode, reason });
-        surfaceVoiceFailure(
-          reason,
-          {
-            event: "voice:no_final_transcript",
-            workspaceSummary: "VORIS heard audio, but the browser never delivered final speech text.",
-            title: "I couldn't capture the full transcript.",
-            keepTranscript: true,
-            resetMs: 1700,
-          },
-        );
-        return;
-      }
-      if (!heardSpeech && mode === "talk" && !state.requestInFlight && !state.speechCommandInFlight) {
-        surfaceVoiceFailure(
-          "I didn't catch any speech. Try Talk again.",
-          {
-            event: "voice:no_speech_detected",
-            workspaceSummary: "The microphone opened, but no usable speech came through.",
-            title: "I didn't catch anything.",
-            resetMs: 1400,
-          },
-        );
-        return;
-      }
-      if (!state.requestInFlight && !state.speechCommandInFlight) {
-        clearVoiceTranscript();
-        hidePresence();
-        setAssistantState("idle", "voice:recognition_completed");
-        settleToIdleLayout();
-      }
-    };
 
     try {
-      logVoiceDebug("recognition.start() call", { mode });
-      recognition.start();
-      startWatchdogId = window.setTimeout(() => {
-        if (state.recognition === recognition && !state.recognitionActive) {
-          logVoiceError("recognition.onstart timeout", { mode });
-          try {
-            recognition.abort();
-          } catch (_error) {
-            // Ignore browser abort errors after timeout.
-          }
-          state.recognition = null;
-          state.recognitionMode = "";
-          state.recognitionStopReason = "";
-          state.speechCommandInFlight = false;
-          syncVoiceControls();
-          surfaceVoiceFailure(
-            "The microphone did not start in time.",
-            {
-              event: "voice:start_timeout",
-              workspaceSummary: "VORIS asked the browser to start listening, but the microphone session never became active.",
-              title: "I couldn't start listening.",
-              resetMs: 1700,
-            },
-          );
+        // Ping the jarvis_core.py Python engine
+        const response = await fetch('/api/voice/listen');
+        const data = await response.json();
+        
+        if (data.status === "ok" && data.text) {
+            console.log("[VORIS Voice] Engine Heard:", data.text);
+            
+            // Drop the text into the chat box
+            if (chatInput) {
+                chatInput.value = data.text;
+            }
+            
+            // Auto-send the message to the brain
+            if (sendBtn) {
+                sendBtn.click();
+            }
+        } else {
+            console.log("[VORIS Voice] No speech detected or backend timeout.");
+            if (chatInput) {
+                chatInput.placeholder = "Didn't catch that. Try again.";
+                setTimeout(() => { chatInput.placeholder = originalPlaceholder; }, 2000);
+            }
         }
-      }, 4000);
-    } catch (_error) {
-      clearStartWatchdog();
-      logVoiceError("recognition.start() threw", {
-        mode,
-        message: _error?.message || String(_error || ""),
-      });
-      state.recognitionActive = false;
-      state.recognition = null;
-      state.recognitionMode = "";
-      state.recognitionStopReason = "";
-      state.wakeModeEnabled = false;
-      state.speechCommandInFlight = false;
-      syncVoiceControls();
-      surfaceVoiceFailure(
-        voiceFailureMessageFromError(_error, "Speech recognition could not start in this browser."),
-        {
-          event: "voice:start_threw",
-          workspaceSummary: "The browser rejected the SpeechRecognition start request.",
-          eyebrow: "Voice path",
-          title: "I couldn't start listening.",
-          resetMs: false,
-        },
-      );
-      settleToIdleLayout();
+    } catch (err) {
+        console.error("[VORIS Voice] API Connection Error:", err);
+        if (chatInput) {
+            chatInput.placeholder = "Error connecting to Python mic backend.";
+            setTimeout(() => { chatInput.placeholder = originalPlaceholder; }, 2000);
+        }
+    } finally {
+        // Reset the input box if nothing was typed/heard
+        if (chatInput && chatInput.value === "") {
+            chatInput.placeholder = originalPlaceholder;
+        }
     }
-  }
+}
 
   function stopRecognition(statusMessage) {
     logVoiceDebug("stopRecognition()", {
@@ -3874,3 +3644,114 @@
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 })();
+
+
+// ==========================================
+// VORIS NUCLEAR MIC OVERRIDE
+// ==========================================
+setTimeout(() => {
+    // 1. Hunt down the mic button using every possible ID/Class your UI might use
+    const micBtn = document.querySelector("#talk-btn") || document.querySelector(".mic-btn") || document.querySelector("#voice-btn") || document.querySelector("button[title*='voice']") || (typeof el !== 'undefined' ? el.talkButton : null);
+
+    if (micBtn) {
+        console.log("[VORIS Override] Mic Button successfully hijacked and wired to Python Engine.");
+        
+        // 2. Clone the button to strip away any old, broken JavaScript attached to it
+        const newMicBtn = micBtn.cloneNode(true);
+        micBtn.parentNode.replaceChild(newMicBtn, micBtn);
+
+        // 3. Forcefully attach our working backend logic
+        newMicBtn.addEventListener("click", async (e) => {
+            e.preventDefault();
+            console.log("[VORIS Voice] Button clicked! Pinging Python backend...");
+
+            const chatInput = document.querySelector("#chat-input") || document.querySelector(".chat-input") || document.querySelector("textarea") || (typeof el !== 'undefined' ? el.chatInput : null);
+            const sendBtn = document.querySelector("#send-btn") || document.querySelector(".send-btn") || (typeof el !== 'undefined' ? el.sendButton : null);
+
+            if (chatInput) chatInput.placeholder = "Listening (Speak into laptop mic)...";
+            newMicBtn.style.color = "#ff4444"; // Turn red
+
+            try {
+                const response = await fetch('/api/voice/listen');
+                const data = await response.json();
+
+                if (data.status === "ok" && data.text) {
+                    console.log("[VORIS Voice] Heard:", data.text);
+                    if (chatInput) chatInput.value = data.text;
+                    if (sendBtn) sendBtn.click();
+                } else {
+                    if (chatInput) chatInput.placeholder = "Didn't catch that.";
+                }
+            } catch (err) {
+                console.error("[VORIS Voice] Connection Error:", err);
+                if (chatInput) chatInput.placeholder = "Error connecting to Python.";
+            } finally {
+                setTimeout(() => {
+                    if (chatInput && chatInput.value === "") chatInput.placeholder = "Message VORIS...";
+                    newMicBtn.style.color = "";
+                }, 2000);
+            }
+        });
+    } else {
+        console.error("[VORIS Override ERROR] Could not find the Mic button in the HTML!");
+    }
+}, 1500); // Wait 1.5 seconds for the UI to fully load before hijacking it
+
+// ==========================================
+// VORIS FILE ATTACHMENT SYSTEM
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    const fileInput = document.getElementById("file-upload-input");
+    const composerForm = document.getElementById("composerForm");
+    const inputRow = document.querySelector(".composer__main-input-row");
+    const messageInput = document.getElementById("messageInput");
+
+    // Global variable to hold our file until the user clicks Send
+    window.vorisAttachedFile = null;
+
+    if (fileInput && composerForm && inputRow) {
+        fileInput.addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            console.log("[VORIS RAG] File grabbed:", file.name, "Size:", file.size);
+            window.vorisAttachedFile = file;
+
+            // 1. Wipe out any old previews if they attach a new file
+            const oldPreview = document.getElementById("voris-file-preview");
+            if (oldPreview) oldPreview.remove();
+
+            // 2. Create the sleek preview chip
+            const previewChip = document.createElement("div");
+            previewChip.id = "voris-file-preview";
+            previewChip.style.cssText = "display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-bottom: 10px; width: fit-content; border: 1px solid rgba(255,255,255,0.1);";
+
+            // 3. Add the file icon and name
+            const fileText = document.createElement("span");
+            // If it's an image, show an image emoji, otherwise a paperclip
+            const icon = file.type.startsWith("image/") ? "🖼️" : "📎";
+            fileText.textContent = `${icon} ${file.name}`;
+            fileText.style.cssText = "font-size: 13px; color: #a1a1aa; font-family: 'IBM Plex Mono', monospace;";
+
+            // 4. Add a tiny "X" button to cancel the upload
+            const removeBtn = document.createElement("button");
+            removeBtn.innerHTML = "✖";
+            removeBtn.title = "Remove attachment";
+            removeBtn.style.cssText = "background: none; border: none; color: #ef4444; cursor: pointer; padding: 0 4px; font-size: 12px; margin-left: 5px;";
+            
+            removeBtn.onclick = function() {
+                window.vorisAttachedFile = null;
+                fileInput.value = ""; // Clear the hidden HTML input
+                previewChip.remove(); // Delete the visual chip
+            };
+
+            // 5. Put it all together and inject it just above the typing area
+            previewChip.appendChild(fileText);
+            previewChip.appendChild(removeBtn);
+            composerForm.insertBefore(previewChip, inputRow);
+
+            // Give the keyboard cursor back to the text box automatically
+            if (messageInput) messageInput.focus();
+        });
+    }
+});

@@ -76,13 +76,22 @@
       <form class="composer" id="composerForm">
         <div class="composer__main-input-row">
           
-          <button class="mic-visual-btn" type="button" aria-label="Toggle Voice Mode" onclick="document.getElementById('speechToggleButton').click()">
+          <button class="mic-visual-btn" type="button" aria-label="Toggle Voice Mode" onclick="document.getElementById('speechToggleButton').click()" style="margin-right: 5px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
               <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
               <line x1="12" y1="19" x2="12" y2="22"></line>
             </svg>
           </button>
+
+          <button type="button" id="upload-btn" class="mic-visual-btn" aria-label="Upload File" style="margin-right: 10px;" onclick="document.getElementById('file-upload-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          
+          <input type="file" id="file-upload-input" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt,.csv" />
 
           <label class="composer__input-shell" for="messageInput">
             <textarea id="messageInput" rows="1" placeholder="Message AURA..."></textarea>
@@ -127,11 +136,9 @@
         chatScroll.addEventListener('scroll', () => {
           let scrollTop = chatScroll.scrollTop;
           
-          // If scrolling down and passed the header height, glide it up
           if (scrollTop > lastScrollTop && scrollTop > 60) {
             topbar.classList.add('topbar--hidden');
           } 
-          // If scrolling up, glide it back down instantly
           else {
             topbar.classList.remove('topbar--hidden');
           }
