@@ -201,3 +201,22 @@ See `ROADMAP.md` for the full plan.
 
 No license file is currently present. Until a license is added, this repository should be treated as private/all-rights-reserved by default.
 Collaborator added: Syed Abdur Raffay
+# VORIS (Voice-Oriented Responsive Intelligence System)
+
+A secure, local Personal AI Workspace featuring custom smart-routing, a dark-mode UI, and in-browser data processing.
+
+## 🚀 Recent Updates: Local File RAG Pipeline
+VORIS now supports lightweight, memory-safe Retrieval-Augmented Generation (RAG) for local file analysis (CSV/TXT) without relying on heavy Vector Databases.
+
+### **Features:**
+* **Seamless UI Integration:** Added a sleek file upload interface directly into the chat composer with dynamic attachment badges.
+* **Frontend Chunking & Memory Safety:** To prevent API timeouts and local server crashes, files are read natively in the browser via JavaScript `FileReader`, safely truncated to a 2000-character limit, and attached to the user's prompt as raw text.
+* **Smart Traffic Routing:** The frontend `classifyCommand` traffic cop was re-architected. VORIS now intelligently ignores dead/spam URLs inside uploaded datasets (preventing rogue new tabs) and forces the system into an internal analysis route when a file is present.
+* **DOM Optimization:** Cleaned up ghost elements and duplicate component IDs in the `app-shell` to ensure smooth CSS rendering and layout stability.
+
+### **Architecture Flow:**
+1. User attaches a file via the `+` button.
+2. JS intercepts the file, reads it as text, and enforces memory limits.
+3. The raw user text is classified (bypassing external URL triggers if a file is present).
+4. The file data is stapled to the user's prompt.
+5. The combined payload is routed to the Python (FastAPI) backend for AI processing.
