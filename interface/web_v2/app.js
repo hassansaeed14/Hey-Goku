@@ -685,8 +685,6 @@
 
  async function handleComposerSubmit(event) {
     event.preventDefault();
-    
-    // Lock the gate instantly
     if (state.requestInFlight) return;
 
     const rawText = String(el.messageInput?.value || "").trim();
@@ -699,27 +697,43 @@
     autoResizeTextarea();
 
     let fileName = null;
-    let fileTextContext = "";
+    let filePayload = null;
     let attachmentUIHtml = "";
 
     try {
         if (hasFile) {
           const file = window.vorisAttachedFile;
           fileName = file.name;
-          
-          fileTextContext = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = error => reject(error);
-              reader.readAsText(file);
-          });
 
-          // Truncate to 2000 chars to protect the connection
-          const maxChars = 2000;
-          if (fileTextContext.length > maxChars) {
-              fileTextContext = fileTextContext.substring(0, maxChars) + "\n\n... [WARNING: FILE TRUNCATED TO SAVE MEMORY. SHOWING FIRST FEW ROWS ONLY.]";
+          // BULLETPROOF IMAGE CHECK: Looks at file type AND extension
+          const isImage = (file.type && file.type.startsWith("image/")) || (fileName && fileName.match(/\.(jpg|jpeg|png|webp|gif)$/i));
+
+          if (isImage) {
+              // PROCESS AS IMAGE (Base64 URL)
+              const base64Data = await new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result);
+                  reader.onerror = error => reject(error);
+                  reader.readAsDataURL(file); // Critical: Reads as URL, not text!
+              });
+              filePayload = { type: "image", name: fileName, data: base64Data };
+          } else {
+              // PROCESS AS TEXT (CSV/TXT)
+              let fileTextContext = await new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result);
+                  reader.onerror = error => reject(error);
+                  reader.readAsText(file);
+              });
+
+              const maxChars = 2000;
+              if (fileTextContext.length > maxChars) {
+                  fileTextContext = fileTextContext.substring(0, maxChars) + "\n\n... [WARNING: FILE TRUNCATED TO SAVE MEMORY. SHOWING FIRST FEW ROWS ONLY.]";
+              }
+              filePayload = { type: "text", name: fileName, data: fileTextContext };
           }
 
+          // Clear UI
           window.vorisAttachedFile = null;
           const fileInputHtml = document.getElementById("file-upload-input");
           if (fileInputHtml) fileInputHtml.value = "";
@@ -752,25 +766,28 @@
           commandText = wakeMatch.remainingText;
         }
 
-        // 1. BLINDFOLD THE COP: Only classify the short text the user typed
         const classification = classifyCommand(commandText);
 
-        // 2. STAPLE THE CSV AFTER CLASSIFICATION: Now we attach the heavy file
+        // STITCH THE PAYLOAD TOGETHER BASED ON FILE TYPE
+       // STITCH THE PAYLOAD TOGETHER BASED ON FILE TYPE
         let finalPayloadText = commandText;
         if (hasFile) {
-            finalPayloadText = `${commandText}\n\n--- ATTACHED FILE CONTEXT: ${fileName} ---\n${fileTextContext}\n--- END OF FILE ---`;
+            if (filePayload.type === "text") {
+                finalPayloadText = `${commandText}\n\n--- ATTACHED FILE CONTEXT: ${fileName} ---\n${filePayload.data}\n--- END OF FILE ---`;
+            } else if (filePayload.type === "image") {
+                // Indestructible text tags instead of fragile JSON
+                finalPayloadText = `[VISION_PROMPT]${commandText || "Describe this image."}[/VISION_PROMPT][VISION_URL]${filePayload.data}[/VISION_URL]`;
+            }
         }
 
         setAssistantState("analyzing", "chat:input_received");
-        setComposerStatus(hasFile ? "Reading your file context..." : "I hear you. Let me route that.");
+        setComposerStatus(hasFile ? "Reading your attachment..." : "I hear you. Let me route that.");
         updateWorkspaceSummary("Routing request.");
         await delay(120);
 
-        // 3. FORCE INTERNAL ROUTING: If a file is attached, never open new tabs.
         if (classification.kind === "external" && !hasFile) {
           await handleExternalCommand(finalPayloadText, classification);
         } else {
-          // Fire the massive combined string to the Python brain
           await handleInternalCommand(finalPayloadText, classification);
         }
         

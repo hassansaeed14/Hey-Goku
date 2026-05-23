@@ -1,13 +1,13 @@
 import asyncio
 import json
+import re
 import sqlite3
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
-
-import re
+from groq import Groq
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
@@ -54,15 +54,17 @@ from brain.provider_hub import (
     STATUS_NOT_CONFIGURED,
     STATUS_RATE_LIMITED,
     STATUS_UNAVAILABLE,
+    generate_with_provider,
     get_provider_state_version,
     get_provider_status as get_runtime_provider_status,
     get_runtime_provider_summary,
+    extract_vision_payload,
     list_provider_statuses,
     summarize_provider_statuses,
 )
 from config.master_spec import CAPABILITY_LABELS, HYBRID_IMPLEMENTATION_ORDER
 from config.system_modes import list_system_modes
-from config.settings import MODEL_NAME
+from config.settings import GROQ_API_KEY, GROQ_VISION_MODEL, MODEL_NAME
 from forge.forge_engine import forge_engine
 from memory import vector_memory
 from memory.chat_history import DB_PATH as CHAT_HISTORY_DB_PATH, clear_history, get_all_sessions, get_history, save_message
@@ -888,6 +890,69 @@ def _build_image_generation_chat_payload(
         request_id=request_id,
         raw_input=raw_message,
         final_status="degraded",
+    )
+    return payload
+
+
+def _build_vision_chat_payload(
+    *,
+    raw_message: str,
+    request_id: str,
+    session_id: str,
+) -> dict[str, Any]:
+    provider_result: dict[str, Any] = {}
+    error_message: Optional[str] = None
+    try:
+        provider_result = generate_with_provider(
+            "groq",
+            [{"role": "user", "content": raw_message}],
+            max_tokens=1000,
+            temperature=0.2,
+        )
+        reply = clean_response(provider_result.get("text")) or "I received the image, but the vision provider returned no description."
+        success = bool(provider_result.get("success") and reply)
+    except Exception as error:
+        error_message = str(error)
+        reply = (
+            "I received the image, but the vision provider failed before it could describe it. "
+            "Check your Groq key and vision model setting, then try the same image again."
+        )
+        success = False
+
+    payload = _build_chat_success_payload(
+        reply=reply,
+        intent="vision",
+        agent_used="groq_vision",
+        mode="vision" if success else "vision_error",
+        success=success,
+        provider=provider_result.get("provider") or "groq",
+        error=error_message or provider_result.get("error"),
+        response_kind="vision",
+    )
+    payload.update(
+        {
+            "kind": "vision",
+            "execution_mode": "vision" if success else "vision_error",
+            "session_id": session_id,
+            "degraded": not success,
+            "model": provider_result.get("model") or GROQ_VISION_MODEL,
+            "providers_tried": provider_result.get("providers_tried", []),
+            "permission": build_permission_response("general", confirmed=True),
+            "routing_trace": {
+                "input": "[image upload]",
+                "intent": "vision",
+                "agent": "groq_vision",
+                "provider": provider_result.get("provider") or "groq",
+                "output": reply,
+                "execution_mode": "vision" if success else "vision_error",
+            },
+        }
+    )
+    _attach_action_trace(
+        payload,
+        request_id=request_id,
+        raw_input="[image upload]",
+        final_status="ok" if success else "error",
     )
     return payload
 
@@ -1784,6 +1849,43 @@ async def auth_session_status(request: Request):
 @app.post("/chat")
 async def chat(command: Command):
     request_id = new_request_id("legacy-chat")
+
+    vision_payload = extract_vision_payload(command.text)
+    if vision_payload is not None:
+        try:
+            vision_prompt, vision_url = vision_payload
+            print("[DISPATCHER] Vision detected. Calling Groq directly.")
+            client = Groq(api_key=GROQ_API_KEY)
+
+            response = client.chat.completions.create(
+                model=GROQ_VISION_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": vision_prompt},
+                            {"type": "image_url", "image_url": {"url": vision_url}},
+                        ],
+                    }
+                ],
+                max_tokens=1000,
+                temperature=0.7,
+            )
+            vision_response = str(response.choices[0].message.content or "").strip()
+
+            return {
+                "intent": "vision",
+                "detected_intent": "vision",
+                "confidence": 1.0,
+                "response": vision_response,
+                "username": command.username,
+                "plan": [],
+                "used_agents": ["groq_vision"],
+                "execution_mode": "vision_bypass",
+            }
+        except Exception as e:
+            print(f"[ERROR] Direct Vision engine failed: {e}")
+
     try:
         result = process_command_detailed(command.text)
         response = result["response"]
@@ -1899,7 +2001,39 @@ async def api_chat(payload: ChatApiRequest, request: Request):
 
         print(f"[CHAT] Incoming message: {repr(raw_msg[:160])}")
 
-        if detect_image_generation_request(raw_msg):
+        is_vision_request = extract_vision_payload(raw_msg) is not None
+        if is_vision_request:
+            vision_payload = _build_vision_chat_payload(
+                raw_message=raw_msg,
+                request_id=request_id,
+                session_id=session_id,
+            )
+            vision_payload["history_status"] = _attempt_persist_chat_turn(
+                {
+                    "raw_message": "[image upload]",
+                    "session_id": session_id,
+                    "user": user,
+                    "user_profile": dict(user or {}),
+                    "requested_mode": payload.mode,
+                },
+                vision_payload["reply"],
+                vision_payload["intent"],
+                vision_payload.get("agent_used"),
+                vision_payload.get("mode"),
+            )
+            _log_chat_trace(
+                raw_input="[image upload]",
+                intent="vision",
+                agent="groq_vision",
+                provider=vision_payload.get("provider"),
+                output=vision_payload["reply"],
+                execution_mode=vision_payload.get("execution_mode"),
+                status=vision_payload.get("status"),
+                request_id=request_id,
+            )
+            return _json_response(vision_payload)
+
+        if not is_vision_request and detect_image_generation_request(raw_msg):
             image_payload = _build_image_generation_chat_payload(
                 raw_message=raw_msg,
                 request_id=request_id,
@@ -2147,82 +2281,6 @@ async def api_chat(payload: ChatApiRequest, request: Request):
 
 @app.post("/api/chat/stream")
 async def api_chat_stream(payload: ChatApiRequest, request: Request):
-    """Direct streaming highway connected to the unrestricted Groq brain."""
-    try:
-        import asyncio
-        import os
-        import sys
-        from fastapi.responses import StreamingResponse
-
-        # Force the server to recognize the root folder path for imports
-        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        if root_dir not in sys.path:
-            sys.path.append(root_dir)
-
-        from interface.web_v2.voris_brain import VorisBrain
-        local_brain = VorisBrain()
-
-        # Extract incoming user text safely
-        user_text = payload.message.strip() if hasattr(payload, 'message') and payload.message else ""
-        if not user_text:
-            user_text = payload.text.strip() if hasattr(payload, 'text') and payload.text else ""
-
-        print(f"[VORIS STREAM] Processing raw query: {user_text}")
-
-        # Send query straight to Groq, bypassing all local filters
-        reply_text = local_brain.generate_response(user_text)
-        request_id = str(new_request_id("stream"))
-
-        response_payload = {
-            "reply": reply_text,
-            "response": reply_text,
-            "agent": "Voris_Direct",
-            "status": "ok",
-            "intent": "general",
-            "request_id": request_id
-        }
-
-        async def _events():
-            yield _sse_event(
-                "start",
-                {
-                    "request_id": request_id,
-                    "status": "started",
-                    "streaming": True,
-                },
-            )
-            
-            # Use the server's native chunk loader to feed text to your UI
-            for index, chunk in enumerate(_chunk_stream_text(reply_text), start=1):
-                if await request.is_disconnected():
-                    break
-                yield _sse_event(
-                    "chunk",
-                    {
-                        "request_id": request_id,
-                        "index": index,
-                        "text": chunk,
-                    },
-                )
-                await asyncio.sleep(0.012)
-                
-            yield _sse_event("final", response_payload)
-
-        return StreamingResponse(
-            _events(),
-            media_type="text/event-stream",
-            headers={
-                **_cors_headers(),
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-            },
-        )
-
-    except Exception as e:
-        print(f"[VORIS STREAM ERROR] {str(e)}")
-        async def _error_events():
-            yield _sse_event("error", {"message": f"Voris Stream Engine Failure: {str(e)}"})
-        return StreamingResponse(_error_events(), media_type="text/event-stream", headers=_cors_headers())
     """SSE wrapper around the trusted chat path.
 
     This prepares ChatGPT-style progressive rendering without depending on any

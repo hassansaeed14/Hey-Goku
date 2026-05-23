@@ -113,6 +113,41 @@ class ResponseRenderingTests(unittest.TestCase):
         self.assertFalse(body["image_generation"]["success"])
         self.assertEqual(body["image_generation"]["images"], [])
 
+    def test_api_chat_routes_uploaded_image_before_auth_gate(self):
+        image_message = (
+            "[VISION_PROMPT]Describe this image.[/VISION_PROMPT]"
+            "[VISION_URL]data:image/png;base64,abc123==[/VISION_URL]"
+        )
+        with patch.object(api_server, "_current_user", return_value=None), patch.object(
+            api_server,
+            "_attempt_persist_chat_turn",
+            return_value={"saved": False},
+        ), patch.object(
+            api_server,
+            "enforce_action",
+            side_effect=AssertionError("Vision chat should not hit the auth gate."),
+        ), patch.object(
+            api_server,
+            "generate_with_provider",
+            return_value={
+                "success": True,
+                "provider": "groq",
+                "model": "vision-test-model",
+                "text": "The image shows a test subject.",
+            },
+        ):
+            response = self.client.post(
+                "/api/chat",
+                json={"message": image_message, "mode": "hybrid"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["kind"], "vision")
+        self.assertEqual(body["intent"], "vision")
+        self.assertEqual(body["execution_mode"], "vision")
+        self.assertIn("test subject", body["reply"])
+
 
 if __name__ == "__main__":
     unittest.main()

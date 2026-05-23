@@ -4,7 +4,7 @@ import time
 import warnings
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Iterable, List, Optional
-
+import re
 import requests
 
 from config.settings import (
@@ -12,6 +12,7 @@ from config.settings import (
     DEFAULT_REASONING_PROVIDER,
     GEMINI_API_KEY,
     GROQ_API_KEY,
+    GROQ_VISION_MODEL,
     OLLAMA_BASE_URL,
     OPENAI_API_KEY,
     OPENROUTER_API_KEY,
@@ -141,6 +142,55 @@ def _normalize_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         if role in {"system", "user", "assistant"} and content:
             normalized.append({"role": role, "content": content})
     return normalized
+
+
+VISION_DEFAULT_PROMPT = "Describe this image."
+VISION_PROMPT_RE = re.compile(r"\[VISION_PROMPT\](.*?)\[/VISION_PROMPT\]", re.IGNORECASE | re.DOTALL)
+VISION_URL_RE = re.compile(r"\[VISION_URL\](.*?)\[/VISION_URL\]", re.IGNORECASE | re.DOTALL)
+DATA_IMAGE_RE = re.compile(r"(data:image/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=\s]+)")
+IMAGE_URL_PREFIXES = ("data:image/", "http://", "https://")
+
+
+def _clean_vision_url(value: str) -> str:
+    cleaned = str(value or "").strip().strip('"').strip("'")
+    for marker in ("[/VISION_URL]", "[/Image_URL]", "--- END OF FILE ---", "--- END OF FILE"):
+        if marker in cleaned:
+            cleaned = cleaned.split(marker, 1)[0].strip()
+    if cleaned.lower().startswith("data:image/"):
+        cleaned = re.sub(r"\s+", "", cleaned)
+    return cleaned
+
+
+def _clean_vision_prompt(value: str) -> str:
+    cleaned = str(value or "").strip()
+    if "[VISION_URL]" in cleaned:
+        cleaned = cleaned.split("[VISION_URL]", 1)[0].strip()
+    image_idx = cleaned.find("data:image")
+    if image_idx != -1:
+        cleaned = cleaned[:image_idx].strip()
+    cleaned = VISION_PROMPT_RE.sub(lambda match: match.group(1), cleaned)
+    cleaned = re.sub(r"\[/?VISION_(?:PROMPT|URL)\]", " ", cleaned, flags=re.IGNORECASE)
+    if "--- ATTACHED" in cleaned:
+        cleaned = cleaned.split("--- ATTACHED", 1)[0].strip()
+    return re.sub(r"\s+", " ", cleaned).strip() or VISION_DEFAULT_PROMPT
+
+
+def extract_vision_payload(content: Any) -> Optional[tuple[str, str]]:
+    text = str(content or "").strip()
+    if not text:
+        return None
+
+    prompt_match = VISION_PROMPT_RE.search(text)
+    url_match = VISION_URL_RE.search(text)
+    data_match = DATA_IMAGE_RE.search(text)
+
+    raw_url = url_match.group(1) if url_match else data_match.group(1) if data_match else ""
+    image_url = _clean_vision_url(raw_url)
+    if not image_url or not image_url.lower().startswith(IMAGE_URL_PREFIXES):
+        return None
+
+    raw_prompt = prompt_match.group(1) if prompt_match else text[: text.find(raw_url)] if raw_url in text else text
+    return _clean_vision_prompt(raw_prompt), image_url
 
 
 def _build_gemini_history(messages: List[Dict[str, str]]) -> List[Dict[str, Any]]:
@@ -554,14 +604,51 @@ class ProviderHub:
     def _call_groq(self, messages: List[Dict[str, str]], *, max_tokens: int, temperature: float) -> str:
         if Groq is None or not GROQ_API_KEY:
             raise ProviderExecutionError("groq", status=STATUS_NOT_CONFIGURED, error="Groq provider is not configured.", model=_provider_model("groq"))
+
         client = Groq(api_key=GROQ_API_KEY)
-        response = client.chat.completions.create(
-            model=_provider_model("groq"),
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-        return str(response.choices[0].message.content or "").strip()
+        model_to_use = _provider_model("groq")
+        processed_messages: List[Dict[str, Any]] = []
+
+        for msg in messages:
+            content = str(msg.get("content", ""))
+            vision_payload = extract_vision_payload(content) if msg.get("role") == "user" else None
+
+            if vision_payload is not None:
+                prompt_text, image_url = vision_payload
+                model_to_use = GROQ_VISION_MODEL
+                processed_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_text},
+                            {"type": "image_url", "image_url": {"url": image_url}},
+                        ],
+                    }
+                )
+                continue
+
+            if len(content) > 15000:
+                processed_messages.append(
+                    {
+                        "role": str(msg.get("role") or "user"),
+                        "content": content[:2000] + "\n[Text Truncated]",
+                    }
+                )
+            else:
+                processed_messages.append(msg)
+
+        try:
+            response = client.chat.completions.create(
+                model=model_to_use,
+                messages=processed_messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            raw_text = str(response.choices[0].message.content or "")
+            return raw_text.replace("<|endheaderid|>", "").replace("assistant", "").strip()
+        except Exception as e:
+            print(f"[CRITICAL API ERROR] {e}")
+            raise e
 
     def _call_openai(self, messages: List[Dict[str, str]], *, max_tokens: int, temperature: float) -> str:
         if OpenAI is None or not OPENAI_API_KEY:

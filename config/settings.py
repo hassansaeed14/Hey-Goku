@@ -71,6 +71,7 @@ ELEVENLABS_MODEL_ID = _env_or_bundle(
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL_NAME = "llama-3.3-70b-versatile"
+GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 APP_NAME = "VORIS"
 VERSION = "1.0.0"
 DEFAULT_REASONING_PROVIDER = os.getenv("DEFAULT_REASONING_PROVIDER", "groq").strip().lower()

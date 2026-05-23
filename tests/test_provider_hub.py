@@ -140,6 +140,51 @@ class ProviderHubTests(unittest.TestCase):
         self.assertEqual(result["status"], provider_hub.STATUS_HEALTHY)
         self.assertIsNotNone(result["response_time_ms"])
 
+    def test_extract_vision_payload_strips_frontend_tags(self):
+        payload = (
+            "[VISION_PROMPT]What is in this image?[/VISION_PROMPT]"
+            "[VISION_URL]data:image/png;base64,abc123==[/VISION_URL]"
+        )
+
+        result = provider_hub.extract_vision_payload(payload)
+
+        self.assertEqual(result, ("What is in this image?", "data:image/png;base64,abc123=="))
+
+    def test_groq_vision_payload_uses_clean_image_url_and_vision_model(self):
+        captured = {}
+
+        def fake_create(**kwargs):
+            captured.update(kwargs)
+            return _fake_completion_result("A small test image.")
+
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        )
+        payload = (
+            "[VISION_PROMPT]Describe this image.[/VISION_PROMPT]"
+            "[VISION_URL]data:image/png;base64,abc123==[/VISION_URL]"
+        )
+
+        with patch.object(provider_hub, "GROQ_API_KEY", "demo-key"), patch.object(
+            provider_hub,
+            "Groq",
+            return_value=fake_client,
+        ), patch.object(provider_hub, "GROQ_VISION_MODEL", "vision-test-model"):
+            text = provider_hub.provider_hub._call_groq(
+                [{"role": "user", "content": payload}],
+                max_tokens=100,
+                temperature=0.0,
+            )
+
+        self.assertEqual(text, "A small test image.")
+        self.assertEqual(captured["model"], "vision-test-model")
+        message = captured["messages"][0]
+        self.assertEqual(message["content"][0]["text"], "Describe this image.")
+        self.assertEqual(
+            message["content"][1]["image_url"]["url"],
+            "data:image/png;base64,abc123==",
+        )
+
     def test_extract_gemini_text_uses_candidate_parts_when_text_accessor_fails(self):
         class BrokenTextResponse:
             @property
