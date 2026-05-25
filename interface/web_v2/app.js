@@ -864,7 +864,11 @@
       const actionPlan = normalizeActionPlanPayload(payload);
       const actionSuggestions = normalizeActionSuggestions(payload);
       const actionTrace = syncRuntimeStateFromPayload(payload, "api:trace_received");
-      const replyText = cleanAssistantReply(payload.reply || payload.content) || "Done.";
+      const imageUrl = String(payload.image_url || "").trim();
+      const isImageBypass = payload.execution_mode === "image_bypass" || Boolean(imageUrl);
+      const replyText = isImageBypass
+        ? ""
+        : cleanAssistantReply(payload.reply || payload.content) || "Done.";
       if (actionPlan) {
         state.currentTask = {
           scope: "external",
@@ -885,6 +889,8 @@
       const finalMessage = {
         role: "assistant",
         text: replyText,
+        imageUrl: imageUrl || undefined,
+        executionMode: payload.execution_mode || undefined,
         badge: humanizeBadge(payload.execution_mode || (actionPlan ? "action_plan" : classification.taskKind) || "Assistant"),
         timestamp: new Date().toISOString(),
         delivery,
@@ -1460,6 +1466,29 @@
     return card;
   }
 
+  function resolveMessageImageUrl(message) {
+    return String(message?.imageUrl || message?.image_url || "").trim();
+  }
+
+  function isImageBypassMessage(message) {
+    const executionMode = String(message?.executionMode || message?.execution_mode || "").trim().toLowerCase();
+    return executionMode === "image_bypass" || Boolean(resolveMessageImageUrl(message));
+  }
+
+  function buildMessageImage(imageUrl) {
+    const figure = document.createElement("figure");
+    figure.className = "message-card__image";
+
+    const img = document.createElement("img");
+    img.src = imageUrl;
+    img.alt = "Generated image";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.referrerPolicy = "no-referrer";
+    figure.appendChild(img);
+    return figure;
+  }
+
   function buildMessageRow(message) {
     const row = document.createElement("article");
     row.className = `message-row message-row--${message.role === "user" ? "user" : "assistant"}`;
@@ -1501,7 +1530,10 @@
     meta.append(label, metaRight);
     card.appendChild(meta);
 
-    if (message.text || message.streaming) {
+    const imageUrl = resolveMessageImageUrl(message);
+    if (isImageBypassMessage(message) && imageUrl) {
+      card.appendChild(buildMessageImage(imageUrl));
+    } else if (message.text || message.streaming) {
       card.appendChild(renderRichText(message.text));
     }
 
@@ -1623,6 +1655,10 @@
 
   function messageTextForControls(message) {
     const parts = [String(message?.text || "").trim()];
+    const imageUrl = resolveMessageImageUrl(message);
+    if (imageUrl) {
+      parts.push(imageUrl);
+    }
     const delivery = message?.delivery;
     if (delivery?.files?.length) {
       if (delivery.title || delivery.previewText) {

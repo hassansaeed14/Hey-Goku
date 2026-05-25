@@ -4,6 +4,7 @@ import re
 import sqlite3
 import sys
 import time
+from urllib.parse import quote
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -828,11 +829,54 @@ def _chunk_stream_text(text: str, *, target_size: int = 72) -> list[str]:
     return chunks
 
 
+POLLINATIONS_TRIGGER_RE = re.compile(
+    r"^(?:generate|create|make|draw)\s+(?:an?\s+)?(?:image|picture|photo|drawing)\s+(?:of\s+)?",
+    re.IGNORECASE,
+)
+
+
+def _try_pollinations_image_bypass(text: str) -> Optional[dict[str, str]]:
+    raw = str(text or "").strip()
+    if not raw or not POLLINATIONS_TRIGGER_RE.match(raw):
+        return None
+    prompt = POLLINATIONS_TRIGGER_RE.sub("", raw, count=1).strip()
+    if not prompt:
+        return None
+    encoded_prompt = quote(prompt)
+    image_url = (
+        f"https://image.pollinations.ai/prompt/{encoded_prompt}"
+        f"?width=1024&height=1024&nologo=true"
+    )
+    return {"prompt": prompt, "image_url": image_url}
+
+
+def _build_pollinations_bypass_payload(
+    *,
+    image_url: str,
+    session_id: str,
+    request_id: str,
+) -> dict[str, Any]:
+    return {
+        "success": True,
+        "reply": image_url,
+        "content": image_url,
+        "image_url": image_url,
+        "execution_mode": "image_bypass",
+        "intent": "image_generation",
+        "detected_intent": "image_generation",
+        "kind": "image_generation",
+        "agent_used": "pollinations",
+        "mode": "image_bypass",
+        "session_id": session_id,
+        "request_id": request_id,
+    }
+
+
 def _should_stream_reply_payload(payload: dict[str, Any]) -> bool:
     if payload.get("document_delivery") or payload.get("action_plan"):
         return False
     execution_mode = str(payload.get("execution_mode") or payload.get("mode") or "").lower()
-    if execution_mode.startswith("document") or "action" in execution_mode:
+    if execution_mode == "image_bypass" or execution_mode.startswith("document") or "action" in execution_mode:
         return False
     return True
 
@@ -1886,6 +1930,21 @@ async def chat(command: Command):
         except Exception as e:
             print(f"[ERROR] Direct Vision engine failed: {e}")
 
+    pollinations_bypass = _try_pollinations_image_bypass(command.text)
+    if pollinations_bypass:
+        image_url = pollinations_bypass["image_url"]
+        return {
+            "intent": "image_generation",
+            "detected_intent": "image_generation",
+            "confidence": 1.0,
+            "response": image_url,
+            "username": command.username,
+            "plan": [],
+            "used_agents": ["pollinations"],
+            "execution_mode": "image_bypass",
+            "image_url": image_url,
+        }
+
     try:
         result = process_command_detailed(command.text)
         response = result["response"]
@@ -2032,6 +2091,21 @@ async def api_chat(payload: ChatApiRequest, request: Request):
                 request_id=request_id,
             )
             return _json_response(vision_payload)
+
+        pollinations_bypass = _try_pollinations_image_bypass(raw_msg)
+        if pollinations_bypass:
+            bypass_payload = _build_pollinations_bypass_payload(
+                image_url=pollinations_bypass["image_url"],
+                session_id=session_id,
+                request_id=request_id,
+            )
+            _attach_action_trace(
+                bypass_payload,
+                request_id=request_id,
+                raw_input=raw_msg,
+                final_status="ok",
+            )
+            return _json_response(bypass_payload)
 
         if not is_vision_request and detect_image_generation_request(raw_msg):
             image_payload = _build_image_generation_chat_payload(
