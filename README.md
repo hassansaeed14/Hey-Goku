@@ -39,7 +39,8 @@ The project currently has a broad automated test suite. At the latest stable mil
 - Provider-backed response generation with degraded fallback behavior.
 - Document generation for notes, assignments, PDF, DOCX, TXT, and PPTX outputs.
 - Direct document download delivery and preview cards.
-- Provider-ready image generation abstraction that reports unavailable until a real adapter is configured.
+- **Pollinations Image Generation Bypass** — regex-based command interception in `api/api_server.py` that strips natural-language image triggers, builds a Pollinations URL, and returns immediately with `execution_mode: "image_bypass"` (skips the standard text engine, provider routing, and the older `tools/image_generation.py` unavailable stub on `/api/chat`).
+- Provider-ready image generation abstraction (`tools/image_generation.py`) for non-trigger phrasing; still reports unavailable until a verified adapter is configured.
 - Controlled desktop app launching for allowlisted apps.
 - Controlled browser actions such as safe URL/search flows.
 - Permission-gated OS automation wrappers for limited actions.
@@ -55,7 +56,7 @@ User input
   -> identity/session context
   -> intent routing
   -> permissions/trust check
-  -> provider, document, action, automation, or fallback path
+  -> provider, document, Pollinations image bypass, action, automation, or fallback path
   -> response shaping
   -> memory update where safe
   -> web_v2 delivery
@@ -81,9 +82,31 @@ VORIS uses public, standard AI-app patterns for the writing experience:
 - safe markdown rendering in `web_v2`;
 - readable code blocks with copy-code controls;
 - document artifacts/cards for generated deliverables;
-- image generation hooks that stay honest when no provider is configured.
+- Pollinations image bypass responses delivered with `image_url` and `execution_mode: "image_bypass"` (streaming disabled for this path so the UI does not flash the raw URL).
+- Legacy `tools/image_generation.py` hooks that stay honest when no provider adapter is configured.
 
 See `docs/RESPONSE_RENDERING.md`.
+
+### Pollinations Image Generation Bypass
+
+When a chat message matches the trigger pattern at the start of the text:
+
+```text
+^(generate|create|make|draw)\s+(an?\s+)?(image|picture|photo|drawing)\s+(of\s+)?
+```
+
+`api_server.py` uses `re.sub` to remove the trigger, URL-encodes the remaining prompt, and returns:
+
+```text
+https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true
+```
+
+Active on:
+
+- `POST /api/chat` (primary `web_v2` path) via `_try_pollinations_image_bypass()` before `detect_image_generation_request()`.
+- `POST /chat` (legacy compatibility) with the same regex helper.
+
+The frontend (`interface/web_v2/app.js`) checks `execution_mode === "image_bypass"` or `image_url` in `buildMessageRow()` and appends an inline `<img>` (styled in `styles.css`) instead of printing the URL as the assistant reply text.
 
 ## Safety and Trust Model
 
@@ -142,6 +165,24 @@ node --check interface\web_v2\auth.js
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Usage
+
+Open `http://127.0.0.1:5000/`, type in the chat composer, and send. Most requests flow through `POST /api/chat` (or `/api/chat/stream` for progressive text).
+
+### Image generation (Pollinations bypass)
+
+Start your message with a supported trigger, then describe what you want. Examples:
+
+- `draw a picture of a horse`
+- `make an image of a cyberpunk city`
+- `generate an image of a calm cyan assistant orb`
+- `create a photo of a mountain lake at sunset`
+- `draw a drawing of a robot reading a book`
+
+VORIS strips the trigger words (including optional `a` / `an` and trailing `of`), calls Pollinations, and the assistant bubble shows the generated image inline when the API returns `execution_mode: "image_bypass"` and `image_url`.
+
+Phrasing that does not match the regex at the start of the message may fall through to the standard chat engine or the honest unavailable image provider stub instead of the bypass.
+
 ## Demo Commands
 
 Safe demo commands:
@@ -151,6 +192,7 @@ Safe demo commands:
 - `write a 3 page assignment on climate change`
 - `make notes on transformers`
 - `open chrome and search AI trends`
+- `draw a picture of a horse` or `make an image of a cyberpunk city` for inline Pollinations output
 - `open notepad and type hello` then approve control if the environment supports it
 - `type my password` to show critical blocking
 
@@ -177,7 +219,8 @@ Suggested screenshots:
 
 - Voice reliability depends on local microphone, STT, TTS, and optional runtime dependencies.
 - Provider reliability currently depends heavily on configured provider keys, especially Groq in local development.
-- Image generation is provider-ready but inactive unless a real provider adapter is configured and verified.
+- Pollinations bypass requires network access to `image.pollinations.ai`; image quality and availability depend on that service.
+- Non-regex image requests still use `tools/image_generation.py`, which remains provider-ready but inactive until a verified adapter is configured.
 - OCR screen awareness is useful for safety checks but not deep visual understanding.
 - OS automation is intentionally narrow and permission-gated.
 - Long-form document quality is improving but still needs stronger research and references.
