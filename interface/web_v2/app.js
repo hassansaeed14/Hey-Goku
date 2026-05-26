@@ -99,6 +99,7 @@
     taskScope: "none",
     sessions: [],
     messages: [],
+    messageDomById: new Map(),
     recentOutputs: [],
     desktopApps: [],
     sidebarSearch: "",
@@ -855,7 +856,6 @@
       duration: 1700,
     });
     renderRightPanel();
-    renderConversation();
 
     try {
       const { payload, message: streamedMessage } = await requestChatPayload(commandText, classification);
@@ -905,7 +905,8 @@
           effect: "response",
         });
         setAssistantState("responding", "api:response_ready");
-        renderConversation();
+        refreshMessageRow(streamedMessage);
+        applyMessageEffect(streamedMessage);
         scrollConversationToBottom();
         triggerOrbResponsePulse();
         maybeSpeakAssistantMessage(streamedMessage);
@@ -1240,18 +1241,136 @@
     };
   }
 
-  function appendMessage(message) {
+  function ensureMessageId(message) {
     if (!message.id) {
       message.id = `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     }
-    state.messages.push(message);
-    renderConversation();
-    scrollConversationToBottom();
-    if (message.effect) {
-      window.setTimeout(() => {
-        delete message.effect;
-      }, 1000);
+    return message.id;
+  }
+
+  function getMessageRowElement(messageId) {
+    if (!messageId) {
+      return null;
     }
+    return state.messageDomById.get(messageId) || null;
+  }
+
+  function removeWelcomeCardIfPresent() {
+    const welcome = el.conversationThread?.querySelector(".welcome-card");
+    welcome?.remove();
+  }
+
+  function clearConversationView() {
+    if (!el.conversationThread) {
+      return;
+    }
+    el.conversationThread.replaceChildren();
+    state.messageDomById.clear();
+  }
+
+  function mountMessage(message) {
+    if (!el.conversationThread) {
+      return null;
+    }
+    ensureMessageId(message);
+    const existing = getMessageRowElement(message.id);
+    if (existing) {
+      return existing;
+    }
+    removeWelcomeCardIfPresent();
+    const row = buildMessageRow(message);
+    state.messageDomById.set(message.id, row);
+    el.conversationThread.appendChild(row);
+    return row;
+  }
+
+  function unmountMessage(messageId) {
+    const row = getMessageRowElement(messageId);
+    row?.remove();
+    state.messageDomById.delete(messageId);
+    if (!state.messages.length && el.conversationThread) {
+      el.conversationThread.appendChild(buildWelcomeCard());
+    }
+  }
+
+  function updateMessageText(message) {
+    const row = getMessageRowElement(message.id);
+    if (!row) {
+      return;
+    }
+    const card = row.querySelector(".message-card");
+    if (!card) {
+      return;
+    }
+    let body = card.querySelector(".message-card__content");
+    const nextBody = renderRichText(message.text);
+    nextBody.classList.add("message-card__content");
+    if (body) {
+      body.replaceWith(nextBody);
+      return;
+    }
+    const firstExtra = card.querySelector(".document-card, .action-plan-card, .message-card__image");
+    if (firstExtra) {
+      card.insertBefore(nextBody, firstExtra);
+    } else {
+      card.appendChild(nextBody);
+    }
+  }
+
+  function syncMessageRowState(message) {
+    const row = getMessageRowElement(message.id);
+    if (!row) {
+      return;
+    }
+    row.classList.toggle("message-row--streaming", Boolean(message.streaming));
+    row.classList.toggle("message-row--response", message.effect === "response" && message.role !== "user");
+    const badge = row.querySelector(".message-card__badge");
+    if (badge && message.badge) {
+      badge.textContent = humanizeBadge(message.badge);
+    }
+    const metaRight = row.querySelector(".message-card__meta-right");
+    if (!metaRight) {
+      return;
+    }
+    metaRight.querySelector(".message-actions")?.remove();
+    if (message.role !== "user" && !message.streaming) {
+      metaRight.appendChild(buildMessageActions(message));
+    }
+  }
+
+  function refreshMessageRow(message) {
+    ensureMessageId(message);
+    const row = getMessageRowElement(message.id);
+    const nextRow = buildMessageRow(message);
+    if (row) {
+      row.replaceWith(nextRow);
+    } else {
+      removeWelcomeCardIfPresent();
+      el.conversationThread?.appendChild(nextRow);
+    }
+    state.messageDomById.set(message.id, nextRow);
+  }
+
+  function applyMessageEffect(message) {
+    if (!message?.effect) {
+      return;
+    }
+    const row = getMessageRowElement(message.id);
+    if (message.effect === "response" && message.role !== "user") {
+      row?.classList.add("message-row--response");
+    }
+    window.setTimeout(() => {
+      delete message.effect;
+      getMessageRowElement(message.id)?.classList.remove("message-row--response");
+    }, 1000);
+  }
+
+  function appendMessage(message) {
+    ensureMessageId(message);
+    state.messages.push(message);
+    mountMessage(message);
+    scrollConversationToBottom();
+    applyMessageEffect(message);
     return message;
   }
 
@@ -1332,11 +1451,11 @@
           if (event.event === "chunk" && event.data?.text) {
             sawChunk = true;
             streamingMessage.text += String(event.data.text);
-            renderConversation();
+            updateMessageText(streamingMessage);
             scrollConversationToBottom();
           } else if (event.event === "error") {
             streamingMessage.text = String(event.data?.message || streamingMessage.text || "I couldn't complete that yet.");
-            renderConversation();
+            updateMessageText(streamingMessage);
           } else if (event.event === "final") {
             finalPayload = event.data || {};
           }
@@ -1350,11 +1469,12 @@
       if (error?.name === "AbortError") {
         streamingMessage.streaming = false;
         streamingMessage.text = streamingMessage.text || "Stopped.";
-        renderConversation();
+        updateMessageText(streamingMessage);
+        syncMessageRowState(streamingMessage);
         throw error;
       }
       state.messages = state.messages.filter((message) => message.id !== streamingMessage.id);
-      renderConversation();
+      unmountMessage(streamingMessage.id);
       if (sawChunk) {
         setComposerStatus("Streaming stopped early. Falling back to the standard response path.");
       }
@@ -1430,14 +1550,15 @@
       return;
     }
 
-    el.conversationThread.innerHTML = "";
+    clearConversationView();
     if (!state.messages.length) {
       el.conversationThread.appendChild(buildWelcomeCard());
       return;
     }
     state.messages.forEach((message) => {
-      el.conversationThread.appendChild(buildMessageRow(message));
+      mountMessage(message);
     });
+    scrollConversationToBottom();
   }
 
   function buildWelcomeCard() {
@@ -1489,19 +1610,7 @@
     return figure;
   }
 
-  function buildMessageRow(message) {
-    const row = document.createElement("article");
-    row.className = `message-row message-row--${message.role === "user" ? "user" : "assistant"}`;
-    if (message.effect === "response" && message.role !== "user") {
-      row.classList.add("message-row--response");
-    }
-    if (message.streaming) {
-      row.classList.add("message-row--streaming");
-    }
-
-    const card = document.createElement("div");
-    card.className = "message-card";
-
+  function buildMessageMeta(message) {
     const meta = document.createElement("div");
     meta.className = "message-card__meta";
 
@@ -1528,23 +1637,44 @@
     }
 
     meta.append(label, metaRight);
-    card.appendChild(meta);
+    return meta;
+  }
 
+  function buildMessageCardContent(message) {
+    const fragment = document.createDocumentFragment();
     const imageUrl = resolveMessageImageUrl(message);
     if (isImageBypassMessage(message) && imageUrl) {
-      card.appendChild(buildMessageImage(imageUrl));
+      fragment.appendChild(buildMessageImage(imageUrl));
     } else if (message.text || message.streaming) {
-      card.appendChild(renderRichText(message.text));
+      const body = renderRichText(message.text);
+      body.classList.add("message-card__content");
+      fragment.appendChild(body);
     }
-
     if (message.delivery) {
-      card.appendChild(buildDocumentCard(message.delivery));
+      fragment.appendChild(buildDocumentCard(message.delivery));
     }
-
     if (message.actionPlan) {
-      card.appendChild(buildActionPlanCard(message.actionPlan, message.actionSuggestions || []));
+      fragment.appendChild(buildActionPlanCard(message.actionPlan, message.actionSuggestions || []));
+    }
+    return fragment;
+  }
+
+  function buildMessageRow(message) {
+    ensureMessageId(message);
+    const row = document.createElement("article");
+    row.className = `message-row message-row--${message.role === "user" ? "user" : "assistant"}`;
+    row.dataset.messageId = message.id;
+    if (message.effect === "response" && message.role !== "user") {
+      row.classList.add("message-row--response");
+    }
+    if (message.streaming) {
+      row.classList.add("message-row--streaming");
     }
 
+    const card = document.createElement("div");
+    card.className = "message-card";
+    card.appendChild(buildMessageMeta(message));
+    card.appendChild(buildMessageCardContent(message));
     row.appendChild(card);
     return row;
   }
@@ -1642,7 +1772,7 @@
         window.setTimeout(() => {
           if (state.copiedMessageId === message.id) {
             state.copiedMessageId = "";
-            renderConversation();
+            syncMessageRowState(message);
           }
         }, 1400);
       }
@@ -1701,14 +1831,14 @@
       setAssistantState("responding", "tts:speech_started");
       setComposerStatus("Speaking VORIS's response.");
       syncAssistantModeChrome();
-      renderConversation();
+      syncMessageRowState(message);
     };
     utterance.onend = () => {
       if (state.speakingMessageId === message.id) {
         state.speakingMessageId = "";
       }
       syncAssistantModeChrome();
-      renderConversation();
+      syncMessageRowState(message);
       if (!state.requestInFlight && !state.recognitionActive) {
         setAssistantState("idle", "tts:speech_finished");
         settleToIdleLayout();
@@ -1720,7 +1850,7 @@
         && Date.now() <= state.speechCancelUntil;
       state.speakingMessageId = "";
       syncAssistantModeChrome();
-      renderConversation();
+      syncMessageRowState(message);
       if (intentionalStop) {
         setComposerStatus("Speech stopped.");
         if (!state.requestInFlight && !state.recognitionActive) {
@@ -1744,9 +1874,13 @@
       window.speechSynthesis.cancel();
     }
     if (state.speakingMessageId) {
+      const speakingId = state.speakingMessageId;
       state.speakingMessageId = "";
       syncAssistantModeChrome();
-      renderConversation();
+      const speakingMessage = state.messages.find((item) => item.id === speakingId);
+      if (speakingMessage) {
+        syncMessageRowState(speakingMessage);
+      }
       setComposerStatus("Speech stopped.");
       if (!state.requestInFlight && !state.recognitionActive) {
         setAssistantState("idle", eventName);
