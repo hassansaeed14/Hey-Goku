@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>VORIS — Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-container voris-app" id="vorisApp">
+      <aside class="sidebar" aria-label="System status">
+        <div class="sidebar__brand">
+          <span class="sidebar__mark" aria-hidden="true"></span>
+          <div>
+            <p class="sidebar__eyebrow">VORIS</p>
+            <h1 class="sidebar__title">Control Deck</h1>
+          </div>
+        </div>
+
+        <section class="status-card" aria-labelledby="runtimeHeading">
+          <h2 class="status-card__heading" id="runtimeHeading">Runtime</h2>
+          <ul class="status-list" id="runtimeStatusList">
+            <li class="status-list__item">
+              <span class="status-dot status-dot--idle" id="runtimeDot"></span>
+              <span id="runtimeLabel">Initializing</span>
+            </li>
+            <li class="status-list__item">
+              <span class="status-list__key">Assistant</span>
+              <span class="status-list__value" id="assistantStateLabel">—</span>
+            </li>
+            <li class="status-list__item">
+              <span class="status-list__key">Session</span>
+              <span class="status-list__value" id="sessionLabel">—</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="status-card" aria-labelledby="capabilitiesHeading">
+          <h2 class="status-card__heading" id="capabilitiesHeading">Capabilities</h2>
+          <ul class="capability-list" id="capabilityList"></ul>
+        </section>
+
+        <section class="status-card" aria-labelledby="providersHeading">
+          <h2 class="status-card__heading" id="providersHeading">Providers</h2>
+          <ul class="provider-list" id="providerList"></ul>
+        </section>
+
+        <footer class="sidebar__footer">
+          <a class="sidebar__link" href="/login">Account</a>
+          <a class="sidebar__link" href="/classic">Classic UI</a>
+        </footer>
+      </aside>
+
+      <main class="main-content">
+        <header class="top-header">
+          <div class="top-header__copy">
+            <p class="top-header__eyebrow">Virtual Orchestration and Responsive Intelligence System</p>
+            <p class="top-header__summary" id="workspaceSummary">Deep-space workspace ready.</p>
+          </div>
+          <div class="top-header__actions">
+            <button type="button" class="btn btn--ghost" id="newChatButton">New chat</button>
+            <div class="top-header__orb-cluster" aria-label="VORIS presence">
+              <span class="orb-caption" id="orbCaption">Calm presence</span>
+              <div class="orb-wrapper" id="orbStage">
+                <div class="orb-halo" aria-hidden="true"></div>
+                <div class="voris-orb" id="vorisOrb" role="img" aria-label="VORIS orb">
+                  <div class="voris-orb__core"></div>
+                  <div class="voris-orb__sheen"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="chat-panel">
+          <div class="chat-viewport" id="chatScroll">
+            <section class="conversation" id="conversationThread" aria-live="polite"></section>
+          </div>
+
+          <form class="composer" id="composerForm">
+  <button type="button" class="btn-attach" id="uploadButton">+</button>
+  <input type="file" id="systemFileInput" style="display: none;" multiple>
+
+  <label class="composer__field">
+    <span class="sr-only">Message VORIS</span>
+    <textarea
+      id="messageInput"
+      rows="1"
+      placeholder="Ask VORIS, generate a document, or draw a picture of…"
+      autocomplete="off"
+    ></textarea>
+  </label>
+  <div class="composer__actions">
+    <div class="status-wrapper">
+      <p class="composer__status" id="composerStatus">Ready</p>
+      <span id="backendPingDot" class="ping-dot"></span>
+    </div>
+    <button type="submit" class="btn btn--primary" id="sendButton">Send</button>
+  </div>
+</form>
+        </section>
+      </main>
+    </div>
+
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>
+<head>
+  <meta charset="UTF-8">
+  <title>VORIS Control Deck</title>
+  
+  <style>
+    .composer {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .composer__field {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-attach {
+      background: #101827;
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      color: #00f0ff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      font-size: 1.35rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    }
+
+    .btn-attach:hover {
+      background: rgba(0, 240, 255, 0.14);
+      border-color: #00f0ff;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .status-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ping-dot {
+      width: 10px;
+      height: 10px;
+      flex: 0 0 10px;
+      border-radius: 50%;
+      background: #ff4444;
+      display: inline-block;
+      box-shadow: 0 0 10px #ff4444;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+  </style>
+</head>

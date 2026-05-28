@@ -189,8 +189,51 @@
     setOrbLayout("topbar");
     hidePresence(true);
     autoResizeTextarea();
+    void pingVorisCore();
     void initialize();
   });
+
+  function setCorePingStatus(status) {
+    if (!el.corePingStatus || !el.corePingStatusLabel) return;
+    const normalized = status === "online" ? "online" : status === "offline" ? "offline" : "checking";
+    el.corePingStatus.classList.remove("core-ping-status--checking", "core-ping-status--online", "core-ping-status--offline");
+    el.corePingStatus.classList.add(`core-ping-status--${normalized}`);
+    el.corePingStatusLabel.textContent = normalized === "online"
+      ? "VORIS Core: Online"
+      : normalized === "offline"
+        ? "Core: Offline"
+        : "Core: Checking";
+  }
+
+  async function pingVorisCore() {
+    setCorePingStatus("checking");
+    const candidates = [
+      "/ping",
+      "http://localhost:8000/ping",
+      "http://127.0.0.1:8000/ping",
+      "http://localhost:5000/ping",
+      "http://127.0.0.1:5000/ping",
+    ];
+
+    for (const url of candidates) {
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          headers: { "Accept": "application/json" },
+        });
+        if (!response.ok) continue;
+        const payload = await response.json().catch(() => ({}));
+        if (String(payload.status || "").toLowerCase() === "online") {
+          setCorePingStatus("online");
+          return;
+        }
+      } catch (_error) {
+        // Try the next known local development port.
+      }
+    }
+    setCorePingStatus("offline");
+  }
 
   async function initialize() {
     await Promise.allSettled([
@@ -251,6 +294,8 @@
       profileEntryName: document.getElementById("profileEntryName"),
       profileEntryStatus: document.getElementById("profileEntryStatus"),
       accessChip: document.getElementById("accessChip"),
+      corePingStatus: document.getElementById("corePingStatus"),
+      corePingStatusLabel: document.getElementById("corePingStatusLabel"),
       stateChipLabel: document.getElementById("stateChipLabel"),
       assistantModeLabel: document.getElementById("assistantModeLabel"),
       voiceRuntimeLabel: document.getElementById("voiceRuntimeLabel"),
@@ -268,6 +313,8 @@
       desktopVoiceButton: document.getElementById("desktopVoiceButton"),
       wakeButton: document.getElementById("wakeButton"),
       interruptButton: document.getElementById("interruptButton"),
+      uploadButton: document.getElementById("uploadButton"),
+      fileUploadInput: document.getElementById("file-upload-input"),
       sendButton: document.getElementById("sendButton"),
       rightPanel: document.getElementById("rightPanel"),
       rightPanelTitle: document.getElementById("rightPanelTitle"),
@@ -299,6 +346,9 @@
     el.composerForm?.addEventListener("submit", handleComposerSubmit);
     el.messageInput?.addEventListener("input", autoResizeTextarea);
     el.messageInput?.addEventListener("keydown", handleComposerKeydown);
+    el.uploadButton?.addEventListener("click", () => {
+      el.fileUploadInput?.click();
+    });
     el.assistantOrb?.addEventListener("click", handleOrbActivation);
     el.assistantOrb?.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {

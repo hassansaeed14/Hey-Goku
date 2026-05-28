@@ -75,13 +75,13 @@
               <line x1="12" y1="19" x2="12" y2="22"></line>
             </svg>
           </button>
-<button type="button" id="upload-btn" class="mic-visual-btn" aria-label="Upload File" style="margin-right: 10px; cursor: pointer; background: transparent; border: none; color: inherit; padding: 5px;" onclick="document.getElementById('file-upload-input').click()">
+<button type="button" id="legacy-upload-btn" class="mic-visual-btn" aria-label="Upload File" style="margin-right: 10px; cursor: pointer; background: transparent; border: none; color: inherit; padding: 5px;" onclick="document.getElementById('legacy-file-upload-input').click()">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <line x1="12" y1="5" x2="12" y2="19"></line>
     <line x1="5" y1="12" x2="19" y2="12"></line>
   </svg>
 </button>
-<input type="file" id="file-upload-input" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt,.csv" />
+<input type="file" id="legacy-file-upload-input" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt,.csv" />
           <label class="composer__input-shell" for="messageInput">
             <textarea id="messageInput" rows="1" placeholder="Message VORIS..."></textarea>
           </label>
@@ -212,6 +212,10 @@
         </div>
 
         <div class="topbar__status">
+          <div class="core-ping-status core-ping-status--checking" id="corePingStatus" role="status" aria-live="polite">
+            <span class="core-ping-status__dot" aria-hidden="true"></span>
+            <span id="corePingStatusLabel">Core: Checking</span>
+          </div>
           <div class="state-chip" id="stateChip">
             <span class="state-chip__dot" aria-hidden="true"></span>
             <span id="stateChipLabel">Idle</span>
@@ -239,6 +243,16 @@
   <p class="composer__transcript" id="voiceTranscript" hidden></p>
 
   <div class="composer__main-input-row">
+    <button class="upload-button" id="uploadButton" type="button" aria-label="Attach file" title="Attach file">
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14"></path>
+          <path d="M5 12h14"></path>
+        </svg>
+      </span>
+    </button>
+    <input type="file" id="file-upload-input" class="file-upload-input" accept="image/*,.pdf,.doc,.docx,.txt,.csv" />
+
     <label class="composer__input-shell" for="messageInput">
       <textarea id="messageInput" rows=".1" placeholder="Message VORIS..."></textarea>
     </label>

@@ -495,6 +495,51 @@ body.auth-page {
   flex-wrap: wrap;
 }
 
+.core-ping-status {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.035);
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.core-ping-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.12);
+}
+
+.core-ping-status--online {
+  color: #8fffc7;
+  border-color: rgba(54, 211, 153, 0.24);
+  background: rgba(54, 211, 153, 0.08);
+}
+
+.core-ping-status--online .core-ping-status__dot {
+  background: #36d399;
+  box-shadow: 0 0 0 3px rgba(54, 211, 153, 0.14);
+}
+
+.core-ping-status--offline {
+  color: #ff9aa8;
+  border-color: rgba(255, 123, 143, 0.26);
+  background: rgba(255, 123, 143, 0.08);
+}
+
+.core-ping-status--offline .core-ping-status__dot {
+  background: #ff5c77;
+  box-shadow: 0 0 0 3px rgba(255, 92, 119, 0.14);
+}
+
 .access-chip,
 .state-chip,
 .mode-chip,
@@ -1551,6 +1596,47 @@ body[data-panel-open="true"] .workspace__body {
 .send-button {
   min-width: 110px;
   font-weight: 700;
+}
+
+.upload-button {
+  position: relative;
+  z-index: 4;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(126, 214, 255, 0.24);
+  border-radius: 12px;
+  background: rgba(126, 214, 255, 0.08);
+  color: var(--cyan-bright);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.upload-button:hover,
+.upload-button:focus-visible {
+  border-color: rgba(126, 214, 255, 0.48);
+  background: rgba(126, 214, 255, 0.14);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.upload-button svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.file-upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .send-button__text {

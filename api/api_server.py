@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import re
 import sqlite3
@@ -16,10 +17,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from pydantic import BaseModel
 import uvicorn
 
-
+import sys
+print(f"--- VORIS is running on Python: {sys.version} ---")
+print(f"--- Executable Path: {sys.executable} ---")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_WEB_DIR = PROJECT_ROOT / "interface" / "web"
 WEB_V2_DIR = PROJECT_ROOT / "interface" / "web_v2"
+MODERN_UI_DIR = PROJECT_ROOT / "static"
+MODERN_UI_INDEX = MODERN_UI_DIR / "index.html"
 APP_HTML = WEB_V2_DIR / "voris.html"
 LOGIN_HTML = WEB_V2_DIR / "login.html"
 REGISTER_HTML = WEB_V2_DIR / "register.html"
@@ -55,6 +60,7 @@ from brain.provider_hub import (
     STATUS_NOT_CONFIGURED,
     STATUS_RATE_LIMITED,
     STATUS_UNAVAILABLE,
+    generate_with_best_provider,
     generate_with_provider,
     get_provider_state_version,
     get_provider_status as get_runtime_provider_status,
@@ -166,6 +172,8 @@ DOCUMENT_RATE_LIMIT_STATE: dict[str, list[float]] = {}
 
 app.mount("/static", StaticFiles(directory=str(LEGACY_WEB_DIR)), name="static")
 app.mount("/static-v2", StaticFiles(directory=str(WEB_V2_DIR)), name="static-v2")
+if MODERN_UI_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(MODERN_UI_DIR)), name="modern-ui-assets")
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -1606,6 +1614,8 @@ def _require_admin_user(request: Request) -> dict[str, Any]:
 
 PUBLIC_PATHS = {
     "/",
+    "/ping",
+    "/classic",
     "/login",
     "/register",
     "/forgot-password",
@@ -1618,6 +1628,8 @@ PUBLIC_PATHS = {
     "/api/auth/password-reset/verify",
     "/api/auth/password-reset/confirm",
     "/api/chat",
+    "/api/chat/file",
+    "/api/capabilities",
     "/api/providers",
     "/api/telemetry/providers",
     "/api/system/health",
@@ -1658,7 +1670,7 @@ async def aura_request_metrics_middleware(request: Request, call_next):
 @app.middleware("http")
 async def aura_private_access_middleware(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/static") or path.startswith("/downloads"):
+    if path.startswith("/static") or path.startswith("/assets") or path.startswith("/downloads"):
         return await call_next(request)
 
     setup_required = requires_first_run_setup()
@@ -1689,6 +1701,20 @@ async def aura_private_access_middleware(request: Request, call_next):
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    if requires_first_run_setup():
+        return RedirectResponse("/setup", status_code=302)
+    if MODERN_UI_INDEX.is_file():
+        return HTMLResponse(_read_html(MODERN_UI_INDEX))
+    return HTMLResponse(_read_html(APP_HTML))
+
+
+@app.get("/ping")
+async def ping():
+    return {"status": "online"}
+
+
+@app.get("/classic", response_class=HTMLResponse)
+async def classic_workspace(request: Request):
     if requires_first_run_setup():
         return RedirectResponse("/setup", status_code=302)
     return HTMLResponse(_read_html(APP_HTML))
@@ -2351,6 +2377,168 @@ async def api_chat(payload: ChatApiRequest, request: Request):
             content=error_payload,
             headers=_cors_headers(),
         )
+
+
+@app.post("/api/chat/file")
+async def api_chat_file(
+    request: Request,
+    message: str = Form(""),
+    file: UploadFile = File(...),
+):
+    try:
+        user = _current_user(request)
+        session_id = _resolve_session_id(request)
+        request_id = new_request_id("chat-file")
+        filename = Path(file.filename or "uploaded-file").name
+        content_type = str(file.content_type or "").strip().lower()
+        file_bytes = await file.read()
+        if not file_bytes:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "status": "error", "error": "Uploaded file is empty."},
+                headers=_cors_headers(),
+            )
+
+        def _json_response(content: dict[str, Any], *, status_code: int = 200) -> JSONResponse:
+            response = JSONResponse(content=content, status_code=status_code, headers=_cors_headers())
+            _attach_local_session_cookie(
+                response,
+                session_id=content.get("session_id") or session_id,
+                user=user,
+            )
+            return response
+
+        extension = Path(filename).suffix.lower()
+        is_image = content_type.startswith("image/") or extension in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
+        prompt = str(message or "").strip()
+        if is_image:
+            mime_type = content_type if content_type.startswith("image/") else "image/png"
+            data_url = f"data:{mime_type};base64,{base64.b64encode(file_bytes).decode('ascii')}"
+            vision_prompt = prompt or "Describe this image clearly. Tell me what it is and any important details you can see."
+            raw_msg = f"[VISION_PROMPT]{vision_prompt}[/VISION_PROMPT][VISION_URL]{data_url}[/VISION_URL]"
+            payload = _build_vision_chat_payload(
+                raw_message=raw_msg,
+                request_id=request_id,
+                session_id=session_id,
+            )
+            payload["uploaded_file"] = {
+                "name": filename,
+                "content_type": content_type,
+                "size_bytes": len(file_bytes),
+            }
+            return _json_response(payload)
+
+        extracted = extract_content(file_bytes, filename=filename)
+        if not extracted.success or not extracted.text.strip():
+            reply = (
+                f"I received {filename}, but I could not read its contents. "
+                f"{extracted.error or 'The file type may not be supported yet.'}"
+            )
+            payload = _build_chat_success_payload(
+                reply=reply,
+                intent="file_analysis",
+                agent_used="file_reader",
+                mode="file_error",
+                success=False,
+                provider="local",
+                error=extracted.error,
+                response_kind="file",
+            )
+            payload.update(
+                {
+                    "session_id": session_id,
+                    "uploaded_file": {
+                        "name": filename,
+                        "content_type": content_type,
+                        "size_bytes": len(file_bytes),
+                    },
+                }
+            )
+            _attach_action_trace(payload, request_id=request_id, raw_input=f"[file upload] {filename}", final_status="error")
+            return _json_response(payload, status_code=400)
+
+        prompt = prompt or "Tell me what this uploaded file is. Identify the file type and summarize the important content clearly."
+        extracted_text = extracted.text.strip()
+        if len(extracted_text) > 12000:
+            extracted_text = extracted_text[:12000].rstrip() + "\n\n[File text truncated for chat context.]"
+        raw_msg = (
+            f"{prompt}\n\n"
+            f"Uploaded file name: {filename}\n"
+            f"Detected file type: {extracted.source_type}\n"
+            f"Extraction mode: {extracted.extraction_mode or 'text'}\n\n"
+            f"--- FILE CONTENT START ---\n{extracted_text}\n--- FILE CONTENT END ---"
+        )
+        provider_result = generate_with_best_provider(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are VORIS file analysis. Identify the uploaded file type, "
+                        "explain what the file appears to contain, and answer the user's request. "
+                        "Do not treat file extensions such as txt, csv, pdf, or docx as currencies."
+                    ),
+                },
+                {"role": "user", "content": raw_msg},
+            ],
+            max_tokens=1200,
+            temperature=0.2,
+        )
+        reply = clean_response(provider_result.get("text"))
+        success = bool(provider_result.get("success") and reply)
+        if not reply:
+            preview = extracted_text[:900].strip()
+            reply = (
+                f"This is a {extracted.source_type.upper()} file named {filename}. "
+                f"I extracted readable content from it. Preview: {preview}"
+            )
+
+        response_payload = _build_chat_success_payload(
+            reply=reply,
+            intent="file_analysis",
+            agent_used="file_reader",
+            mode="file_analysis",
+            success=success,
+            provider=provider_result.get("provider"),
+            error=provider_result.get("error"),
+            response_kind="file",
+        )
+        response_payload.update(
+            {
+                "session_id": session_id,
+                "execution_mode": "file_analysis",
+                "model": provider_result.get("model"),
+                "providers_tried": provider_result.get("providers_tried", []),
+                "degraded": not success,
+                "permission": build_permission_response("general", confirmed=True),
+            }
+        )
+        response_payload["uploaded_file"] = {
+            "name": filename,
+            "content_type": content_type,
+            "size_bytes": len(file_bytes),
+            "source_type": extracted.source_type,
+            "extraction_mode": extracted.extraction_mode,
+        }
+        _attach_action_trace(response_payload, request_id=request_id, raw_input=f"[file upload] {filename}")
+        return _json_response(response_payload)
+    except Exception as error:
+        print(f"[CHAT FILE ERROR] {type(error).__name__}: {error}")
+        payload = _attach_action_trace(
+            {
+                "success": False,
+                "content": "I could not process that uploaded file. Please try another image, PDF, DOCX, TXT, or CSV file.",
+                "reply": "I could not process that uploaded file. Please try another image, PDF, DOCX, TXT, or CSV file.",
+                "intent": "file_analysis",
+                "agent_used": "file_reader",
+                "mode": "file_error",
+                "status": "error",
+                "error": str(error),
+            },
+            request_id=locals().get("request_id") or new_request_id("chat-file"),
+            raw_input="[file upload]",
+            final_status="error",
+        )
+        return JSONResponse(status_code=500, content=payload, headers=_cors_headers())
 
 
 @app.post("/api/chat/stream")
