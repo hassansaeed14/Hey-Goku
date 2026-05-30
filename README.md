@@ -263,3 +263,28 @@ VORIS now supports lightweight, memory-safe Retrieval-Augmented Generation (RAG)
 3. The raw user text is classified (bypassing external URL triggers if a file is present).
 4. The file data is stapled to the user's prompt.
 5. The combined payload is routed to the Python (FastAPI) backend for AI processing.
+# VORIS Backend Update: SambaNova Migration & Stability Fixes
+
+## ⚠️ Critical Architectural Changes
+
+### 1. Engine Migration: SambaNova API
+The core routing engine has been migrated to SambaNova to completely bypass previous TPM (Tokens Per Minute) rate limits, allowing for massive, uninterrupted 4096-token outputs.
+* **Text Engine:** `Meta-Llama-3.3-70B-Instruct`
+* **Vision Engine:** `Llama-3.2-11B-Vision-Instruct`
+* **Action Required:** Generate a free API key at [cloud.sambanova.ai](https://cloud.sambanova.ai/).
+
+### 2. Security Configuration (.env)
+API keys are no longer hardcoded into the Python execution files. You must create a `.env` file in the root directory and add it to your `.gitignore`.
+```env
+SAMBANOVA_API_KEY=your_actual_key_here
+# 1. Force Python 3.12 Virtual Environment creation
+py -3.12 -m venv venv
+
+# 2. Activate the environment
+.\venv\Scripts\Activate.ps1
+
+# 3. Install core C-compiled and standard dependencies
+pip install fastapi pydantic waitress python-dotenv openai cffi cryptography
+
+# 4. Direct Launch
+python run_aura.py
