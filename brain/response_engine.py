@@ -34,7 +34,8 @@ conversation_history: List[Dict[str, str]] = []
 
 MAX_HISTORY_MESSAGES = 20
 RECENT_CONTEXT_MESSAGES = 10
-DEFAULT_MAX_TOKENS = 2048
+DEFAULT_MAX_TOKENS = int(os.getenv("VORIS_DEFAULT_MAX_TOKENS", "4096"))
+LONG_FORM_MAX_TOKENS = int(os.getenv("VORIS_LONG_FORM_MAX_TOKENS", "8192"))
 DEFAULT_TEMPERATURE = 0.7
 
 FALLBACK_USER_MESSAGE = "I couldn't get a clean answer out of the live response path just now. Please try again in a moment."
@@ -109,6 +110,13 @@ SIMPLE_EXPLANATION_MARKERS = (
     "who is",
     "summarize",
     "overview",
+)
+
+LONG_FORM_WRITING_PATTERNS = (
+    r"\bwrite(?:\s+me)?\b.*\b(?:essay|article|report|assignment|story|blog|paper|speech|script)\b",
+    r"\b(?:essay|article|report|assignment|story|blog|paper|speech|script)\b.*\b(?:of|about|around|approximately|approx\.?)\s+\d+\s+words\b",
+    r"\b\d+\s*(?:word|words)\b.*\b(?:essay|article|report|assignment|story|blog|paper|speech|script)\b",
+    r"\b(?:long|detailed|full|complete|comprehensive)\b.*\b(?:essay|article|report|assignment|story|blog|paper|speech|script|answer|response)\b",
 )
 
 DOCUMENT_STYLE_ALIASES = {
@@ -383,6 +391,9 @@ def infer_explanation_mode(user_input: str) -> str:
     if not normalized:
         return "direct"
 
+    if is_long_form_writing_request(normalized):
+        return "long_form"
+
     if normalized.endswith("?") and len(normalized.split()) <= 14:
         return "direct"
 
@@ -404,6 +415,49 @@ def infer_explanation_mode(user_input: str) -> str:
     return "simple"
 
 
+def requested_word_count(user_input: str) -> Optional[int]:
+    normalized = str(user_input or "").strip().lower()
+    if not normalized:
+        return None
+    match = re.search(
+        r"\b(?:of|about|around|approximately|approx\.?)\s+(\d{2,5})\s+words\b|\b(\d{2,5})\s*(?:word|words)\b",
+        normalized,
+    )
+    if not match:
+        return None
+    raw_value = match.group(1) or match.group(2)
+    try:
+        return max(50, min(int(raw_value), 5000))
+    except Exception:
+        return None
+
+
+def is_long_form_writing_request(user_input: str) -> bool:
+    normalized = str(user_input or "").strip().lower()
+    if not normalized:
+        return False
+    if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in LONG_FORM_WRITING_PATTERNS):
+        return True
+    return bool(
+        requested_word_count(normalized)
+        and re.search(r"\b(?:write|create|make|draft|compose|generate|prepare)\b", normalized)
+    )
+
+
+def output_token_budget_for_request(user_input: str, current_max_tokens: int) -> int:
+    try:
+        baseline = max(256, int(current_max_tokens or DEFAULT_MAX_TOKENS))
+    except Exception:
+        baseline = DEFAULT_MAX_TOKENS
+    words = requested_word_count(user_input)
+    if not is_long_form_writing_request(user_input):
+        return baseline
+    if not words:
+        return max(baseline, min(LONG_FORM_MAX_TOKENS, 4096))
+    estimated_tokens = int(words * 1.8) + 900
+    return max(baseline, min(LONG_FORM_MAX_TOKENS, estimated_tokens))
+
+
 def build_explanation_guidance(user_input: str, *, web_used: bool = False) -> Dict[str, str]:
     mode = infer_explanation_mode(user_input)
     instructions = {
@@ -422,6 +476,10 @@ def build_explanation_guidance(user_input: str, *, web_used: bool = False) -> Di
         "comparison": (
             "Answer with a crisp comparison. Lead with the key difference, then cover the most important tradeoffs. "
             "Keep it focused on best fit, performance, safety, and ease of use."
+        ),
+        "long_form": (
+            "Write the requested long-form content directly. Preserve the requested depth, structure, and approximate word count. "
+            "Do not shorten it into a summary or a few sentences."
         ),
     }
     guidance = instructions.get(mode, instructions["direct"])
@@ -2583,6 +2641,8 @@ def _strip_meta_section_wrappers(text: str) -> str:
 
 def _apply_mode_length_guard(text: str, user_input: str) -> str:
     cleaned = str(text or "").strip()
+    if is_long_form_writing_request(user_input):
+        return cleaned
     mode = infer_explanation_mode(user_input)
     if mode == "direct" and len(cleaned) > 420:
         return _trim_to_sentence_count(cleaned, max_sentences=3, max_chars=420)
@@ -3289,8 +3349,20 @@ def generate_response_payload(
             "success": True,
         }
 
+    long_form_request = is_long_form_writing_request(user_input)
+    max_tokens = output_token_budget_for_request(user_input, max_tokens)
     critical_profile = classify_critical_question(user_input)
     system_prompt, explanation_mode = build_runtime_system_prompt(user_input, base_system_prompt)
+    if long_form_request:
+        word_count = requested_word_count(user_input)
+        target_hint = f" Aim for about {word_count} words." if word_count else ""
+        system_prompt = (
+            f"{system_prompt}\n\n"
+            "LONG-FORM WRITING OVERRIDE:\n"
+            f"Complete the user's writing request in full.{target_hint} "
+            "Do not collapse the answer into a short summary. Use clear headings or paragraphs when appropriate, "
+            "and stop only after the requested piece is substantially complete."
+        ).strip()
     project_context_used = False
     if critical_profile.get("is_critical"):
         system_prompt = build_critical_reasoning_system_prompt(system_prompt, critical_profile)
@@ -3304,7 +3376,7 @@ def generate_response_payload(
         system_prompt=system_prompt,
         max_tokens=max_tokens,
         temperature=temperature,
-        preserve_depth=bool(critical_profile.get("is_critical")),
+        preserve_depth=bool(critical_profile.get("is_critical") or long_form_request),
     )
     content = clean_response(payload.get("content"))
     if payload.get("success") and is_meaningful_text(content):

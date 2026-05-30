@@ -84,6 +84,19 @@ class PublicAccessTests(unittest.TestCase):
         self.assertEqual(body["action_trace"]["response_mode"], "error")
         self.assertEqual(body["runtime_state"]["assistant_state"], "error")
 
+    def test_public_essay_request_is_not_blocked_by_auth_precheck(self):
+        context = api_server._prepare_chat_context(
+            "write me an essay of 1000 words about VORIS",
+            "hybrid",
+            "public-session",
+            user=None,
+        )
+
+        self.assertEqual(context["detected_intent"], "write")
+        self.assertEqual(context["permission_action"], "write")
+        self.assertTrue(context["permission"]["success"])
+        self.assertEqual(context["permission"]["permission"]["trust_level"], "safe")
+
     def test_api_chat_replaces_failed_agent_reply_with_structured_degraded_response(self):
         context = {
             "raw_message": "write something helpful",

@@ -57,6 +57,8 @@ def _env_or_bundle(name: str, section: str | None = None, bundle_key: str = "API
 
 GROQ_API_KEY = _env_or_bundle("GROQ_API_KEY", section="GROQ")
 OPENAI_API_KEY = _env_or_bundle("OPENAI_API_KEY", section="OPENAI")
+SAMBANOVA_API_KEY = _env_or_bundle("SAMBANOVA_API_KEY", section="SAMBANOVA")
+SAMBANOVA_BASE_URL = os.getenv("SAMBANOVA_BASE_URL", "https://api.sambanova.ai/v1").strip()
 ANTHROPIC_API_KEY = _env_or_bundle("ANTHROPIC_API_KEY", section="CLAUDE")
 GEMINI_API_KEY = _env_or_bundle("GEMINI_API_KEY", section="GEMINI")
 OPENROUTER_API_KEY = _env_or_bundle("OPENROUTER_API_KEY", section="OPENROUTER")
@@ -74,10 +76,14 @@ MODEL_NAME = "llama-3.3-70b-versatile"
 GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 APP_NAME = "VORIS"
 VERSION = "1.0.0"
-DEFAULT_REASONING_PROVIDER = os.getenv("DEFAULT_REASONING_PROVIDER", "groq").strip().lower()
+DEFAULT_REASONING_PROVIDER = os.getenv(
+    "DEFAULT_REASONING_PROVIDER",
+    "sambanova" if SAMBANOVA_API_KEY else "groq",
+).strip().lower()
 
 PROVIDER_MODEL_MAP = {
     "groq": os.getenv("GROQ_MODEL", MODEL_NAME),
+    "sambanova": os.getenv("SAMBANOVA_MODEL", "Meta-Llama-3.1-405B-Instruct"),
     "openai": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     "claude": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-0"),
     "gemini": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),

@@ -126,6 +126,40 @@ class RuntimeCoreTests(unittest.TestCase):
         self.assertEqual(result["provider"], "groq")
         self.assertIn("human judgment", result["response"].lower())
 
+    def test_long_form_write_prompt_prefers_fast_assistant_path(self):
+        with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
+            runtime_core,
+            "detect_intent_with_confidence",
+            return_value=("write", 0.72),
+        ), patch.object(
+            runtime_core,
+            "_llm_response_with_provider",
+            return_value={
+                "success": True,
+                "text": "VORIS essay draft with enough structure to continue as long-form content.",
+                "provider_name": "sambanova",
+                "model": "Meta-Llama-3.1-405B-Instruct",
+                "providers_tried": ["sambanova"],
+                "tokens_used": 120,
+                "time_ms": 18.0,
+            },
+        ), patch.object(
+            runtime_core.master_orchestrator,
+            "analyze_task",
+            side_effect=AssertionError("Long-form writing should bypass the old writing agent path."),
+        ), patch.object(
+            runtime_core,
+            "respond_in_language",
+            side_effect=lambda response, language: response,
+        ), patch.object(runtime_core, "store_and_learn"):
+            result = runtime_core.process_single_command_detailed("write me an essay of 1000 words about VORIS")
+
+        self.assertEqual(result["detected_intent"], "write")
+        self.assertEqual(result["used_agents"], ["general"])
+        self.assertEqual(result["execution_mode"], "assistant_llm")
+        self.assertEqual(result["permission_action"], "general")
+        self.assertEqual(result["provider"], "sambanova")
+
     def test_compare_prompt_prefers_fast_assistant_path(self):
         with patch.object(runtime_core, "detect_language", return_value="english"), patch.object(
             runtime_core,

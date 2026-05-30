@@ -19,7 +19,7 @@ class ProviderHubTests(unittest.TestCase):
     def test_provider_statuses_cover_major_backends(self):
         statuses = provider_hub.list_provider_statuses(fresh=False)
         provider_ids = {item["provider"] for item in statuses}
-        self.assertTrue({"openai", "groq", "claude", "gemini", "ollama"}.issubset(provider_ids))
+        self.assertTrue({"sambanova", "openai", "groq", "claude", "gemini", "ollama"}.issubset(provider_ids))
 
     def test_configured_provider_starts_as_unverified_not_healthy(self):
         with patch.object(provider_hub, "GEMINI_API_KEY", "demo-key"), patch.object(provider_hub, "genai", object()):
@@ -139,6 +139,32 @@ class ProviderHubTests(unittest.TestCase):
 
         self.assertEqual(result["status"], provider_hub.STATUS_HEALTHY)
         self.assertIsNotNone(result["response_time_ms"])
+
+    def test_sambanova_uses_openai_compatible_client_and_token_budget(self):
+        captured = {}
+
+        def fake_create(**kwargs):
+            captured.update(kwargs)
+            return _fake_completion_result("SambaNova says hello.")
+
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        )
+
+        with patch.object(provider_hub, "SAMBANOVA_API_KEY", "demo-key"), patch.object(
+            provider_hub,
+            "SAMBANOVA_BASE_URL",
+            "https://api.sambanova.ai/v1",
+        ), patch.object(provider_hub, "OpenAI", return_value=fake_client):
+            text = provider_hub.provider_hub._call_sambanova(
+                [{"role": "user", "content": "ping"}],
+                max_tokens=4096,
+                temperature=0.2,
+            )
+
+        self.assertEqual(text, "SambaNova says hello.")
+        self.assertEqual(captured["model"], provider_hub._provider_model("sambanova"))
+        self.assertEqual(captured["max_tokens"], 4096)
 
     def test_extract_vision_payload_strips_frontend_tags(self):
         payload = (
@@ -398,7 +424,7 @@ class ProviderHubTests(unittest.TestCase):
         self.assertEqual(summary["status"], provider_hub.STATUS_HEALTHY)
         self.assertEqual(summary["preferred_provider"], "groq")
         self.assertEqual(summary["active_provider"], "groq")
-        self.assertIn("serving AURA's active reasoning path", summary["message"])
+        self.assertIn("serving VORIS's active reasoning path", summary["message"])
 
 
 if __name__ == "__main__":

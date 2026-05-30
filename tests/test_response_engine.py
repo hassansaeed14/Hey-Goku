@@ -5,6 +5,43 @@ import brain.response_engine as response_engine
 
 
 class ResponseEngineTests(unittest.TestCase):
+    def test_long_form_writing_prompt_is_not_trimmed_to_simple_chat_length(self):
+        long_draft = " ".join(f"word{i}" for i in range(180))
+
+        polished = response_engine.polish_assistant_reply(
+            long_draft,
+            user_input="write me an essay of 1000 words on artificial intelligence",
+        )
+
+        self.assertEqual(polished.lower(), long_draft)
+        self.assertGreater(len(polished.split()), 150)
+
+    def test_long_form_writing_prompt_raises_provider_token_budget(self):
+        captured = {}
+
+        def fake_generate(messages, preferred=None, preferred_only=False, max_tokens=0, temperature=0.0):
+            captured["max_tokens"] = max_tokens
+            return {
+                "success": True,
+                "provider": "sambanova",
+                "model": "Meta-Llama-3.1-405B-Instruct",
+                "text": " ".join(f"essay{i}" for i in range(220)),
+                "attempts": [{"provider": "sambanova", "status": "healthy"}],
+                "routing_order": ["sambanova"],
+                "latency_ms": 25.0,
+            }
+
+        with patch.object(response_engine, "generate_with_best_provider", side_effect=fake_generate):
+            payload = response_engine.generate_response_payload(
+                "write me an essay of 1000 words on artificial intelligence",
+                max_tokens=500,
+            )
+
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["explanation_mode"], "long_form")
+        self.assertGreaterEqual(captured["max_tokens"], 2700)
+        self.assertGreater(len(payload["content"].split()), 200)
+
     def test_generate_web_search_response_payload_returns_search_backed_answer(self):
         search_result = {
             "success": True,

@@ -191,6 +191,7 @@ for _action in (
     "math", "dictionary", "quote", "joke", "translation", "grammar", "quiz",
     "summarize", "study", "research", "coding", "reasoning", "compare",
     "web_search", "youtube", "currency", "crypto", "synonyms", "permission",
+    "write", "writing_runtime", "content",
     "task", "task_read", "task_add", "task_complete", "task_delete",
     "task_plan", "reminder", "reminder_read", "reminder_add",
     "reminder_complete", "reminder_delete", "password", "planner_agent",

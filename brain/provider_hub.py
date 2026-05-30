@@ -18,6 +18,8 @@ from config.settings import (
     OPENROUTER_API_KEY,
     PROVIDER_MODEL_MAP,
     PROVIDER_PRIORITY,
+    SAMBANOVA_API_KEY,
+    SAMBANOVA_BASE_URL,
 )
 
 try:
@@ -49,7 +51,7 @@ STATUS_UNAVAILABLE = "unavailable"
 HEALTHY_STATES = {STATUS_HEALTHY}
 COOLDOWN_STATES = {STATUS_AUTH_FAILED, STATUS_RATE_LIMITED, STATUS_UNAVAILABLE}
 NON_RETRYABLE_STATES = {STATUS_AUTH_FAILED, STATUS_RATE_LIMITED}
-SUPPORTED_PROVIDERS = ("gemini", "openai", "groq", "openrouter", "claude", "ollama")
+SUPPORTED_PROVIDERS = ("sambanova", "gemini", "openai", "groq", "openrouter", "claude", "ollama")
 DEFAULT_TIMEOUT = 30
 HEALTH_TTL_SECONDS = 120
 PROVIDER_COOLDOWN_SECONDS = {
@@ -376,7 +378,7 @@ class ProviderHub:
 
     def _is_installed(self, provider: str) -> bool:
         normalized = str(provider or "").strip().lower()
-        if normalized in {"openai", "openrouter"}:
+        if normalized in {"openai", "openrouter", "sambanova"}:
             return OpenAI is not None
         if normalized == "groq":
             return Groq is not None
@@ -394,6 +396,8 @@ class ProviderHub:
             return bool(GEMINI_API_KEY)
         if normalized == "openai":
             return bool(OPENAI_API_KEY)
+        if normalized == "sambanova":
+            return bool(SAMBANOVA_API_KEY)
         if normalized == "openrouter":
             return bool(OPENROUTER_API_KEY)
         if normalized == "claude":
@@ -662,6 +666,18 @@ class ProviderHub:
         )
         return str(response.choices[0].message.content or "").strip()
 
+    def _call_sambanova(self, messages: List[Dict[str, str]], *, max_tokens: int, temperature: float) -> str:
+        if OpenAI is None or not SAMBANOVA_API_KEY:
+            raise ProviderExecutionError("sambanova", status=STATUS_NOT_CONFIGURED, error="SambaNova provider is not configured.", model=_provider_model("sambanova"))
+        client = OpenAI(api_key=SAMBANOVA_API_KEY, base_url=SAMBANOVA_BASE_URL or "https://api.sambanova.ai/v1")
+        response = client.chat.completions.create(
+            model=_provider_model("sambanova"),
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return str(response.choices[0].message.content or "").strip()
+
     def _call_openrouter(self, messages: List[Dict[str, str]], *, max_tokens: int, temperature: float) -> str:
         if OpenAI is None or not OPENROUTER_API_KEY:
             raise ProviderExecutionError("openrouter", status=STATUS_NOT_CONFIGURED, error="OpenRouter provider is not configured.", model=_provider_model("openrouter"))
@@ -767,6 +783,8 @@ class ProviderHub:
             return self._call_gemini(messages, max_tokens=max_tokens, temperature=temperature)
         if normalized == "openai":
             return self._call_openai(messages, max_tokens=max_tokens, temperature=temperature)
+        if normalized == "sambanova":
+            return self._call_sambanova(messages, max_tokens=max_tokens, temperature=temperature)
         if normalized == "groq":
             return self._call_groq(messages, max_tokens=max_tokens, temperature=temperature)
         if normalized == "openrouter":
@@ -841,6 +859,9 @@ class ProviderHub:
 
     def check_openai(self, fresh: bool = True) -> dict[str, Any]:
         return self.check_provider("openai", fresh=fresh)
+
+    def check_sambanova(self, fresh: bool = True) -> dict[str, Any]:
+        return self.check_provider("sambanova", fresh=fresh)
 
     def check_groq(self, fresh: bool = True) -> dict[str, Any]:
         return self.check_provider("groq", fresh=fresh)

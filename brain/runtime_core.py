@@ -30,6 +30,7 @@ from brain.response_engine import (
     generate_response_payload,
     generate_transformation_content_payload,
     generate_web_search_response_payload,
+    is_long_form_writing_request,
     is_meaningful_text,
 )
 from brain.system_trace import build_action_trace, new_request_id
@@ -1088,6 +1089,8 @@ def select_fast_assistant_route(raw_command: str, detected_intent: str, confiden
         return ""
 
     normalized_intent = str(detected_intent or "general").strip().lower()
+    if normalized_intent in {"write", "content"} and is_long_form_writing_request(raw_command):
+        return "assistant"
     if normalized_intent == "general" and confidence < 0.55 and looks_like_direct_assistant_request(raw_command):
         return "assistant"
     if normalized_intent == "general" and looks_like_general_comparison_request(raw_command):
