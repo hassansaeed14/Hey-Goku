@@ -307,6 +307,7 @@
       messageInput: document.getElementById("messageInput"),
       composerStatus: document.getElementById("composerStatus"),
       voiceTranscript: document.getElementById("voiceTranscript"),
+      composerMicButtons: [],
       screenShareButton: document.getElementById("screenShareButton"),
       talkButton: document.getElementById("talkButton"),
       speechToggleButton: document.getElementById("speechToggleButton"),
@@ -321,6 +322,47 @@
       rightPanelBody: document.getElementById("rightPanelBody"),
       panelCloseButton: document.getElementById("panelCloseButton"),
     });
+    ensureComposerMicButtons();
+  }
+
+  function ensureComposerMicButtons() {
+    const rows = Array.from(document.querySelectorAll(".composer__main-input-row"));
+    const micSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 19v3"></path></svg>';
+    const buttons = [];
+
+    rows.forEach((row, index) => {
+      const sendButton = row.querySelector(".send-button, #sendButton");
+      let button = row.querySelector(".composer-mic-button");
+      if (!button) {
+        button = row.querySelector(".mic-visual-btn[aria-label*='Voice'], .mic-visual-btn[aria-label*='voice']");
+      }
+      if (!button) {
+        button = document.createElement("button");
+        button.innerHTML = micSvg;
+      }
+
+      button.type = "button";
+      button.removeAttribute("onclick");
+      button.classList.add("composer-mic-button", "mic-visual-btn");
+      button.setAttribute("aria-label", "Start voice input");
+      button.setAttribute("title", "Start voice input");
+      if (index === 0) {
+        button.id = "composerMicButton";
+      } else {
+        button.removeAttribute("id");
+      }
+      if (!button.querySelector("svg")) {
+        button.innerHTML = micSvg;
+      }
+      if (sendButton && button.nextElementSibling !== sendButton) {
+        row.insertBefore(button, sendButton);
+      } else if (!sendButton && button.parentElement !== row) {
+        row.appendChild(button);
+      }
+      buttons.push(button);
+    });
+
+    el.composerMicButtons = buttons;
   }
 
   function bindEvents() {
@@ -369,18 +411,10 @@
       logVoiceError("Talk button missing");
     }
     el.talkButton?.addEventListener("click", () => {
-      logVoiceDebug("Talk button click", {
-        voiceSupported: state.voiceSupported,
-        recognitionCtor: Boolean(RecognitionCtor),
-        recognitionActive: state.recognitionActive,
-        recognitionMode: state.recognitionMode,
-      });
-      if (state.recognitionActive && state.recognitionMode === "talk") {
-        logVoiceDebug("Talk button requested stop for active recognition");
-        stopRecognition("Listening stopped.");
-        return;
-      }
-      void startSpeechCapture("talk");
+      handleVoiceInputButtonClick();
+    });
+    (el.composerMicButtons || []).forEach((button) => {
+      button.addEventListener("click", handleVoiceInputButtonClick);
     });
 
     if (el.interruptButton) {
@@ -391,6 +425,20 @@
     el.interruptButton?.addEventListener("click", () => {
       handleInterrupt();
     });
+  }
+
+  function handleVoiceInputButtonClick() {
+    logVoiceDebug("Voice input button click", {
+      voiceSupported: state.voiceSupported,
+      recognitionCtor: Boolean(RecognitionCtor),
+      recognitionActive: state.recognitionActive,
+      recognitionMode: state.recognitionMode,
+    });
+    if (state.recognitionActive && state.recognitionMode === "talk") {
+      stopRecognition("Listening stopped.");
+      return;
+    }
+    void startSpeechCapture("talk");
   }
 
   async function handleInterrupt() {
@@ -621,10 +669,24 @@
     }
     const desktopActive = Boolean(state.desktopVoiceStatus?.active);
     const chatStreaming = Boolean(state.requestInFlight && state.activeChatAbortController);
+    const composerMicButtons = Array.isArray(el.composerMicButtons) ? el.composerMicButtons : [];
 
     if (state.voiceSupported) {
       el.talkButton.hidden = false;
       el.talkButton.classList.toggle("is-active", state.recognitionActive && state.recognitionMode === "talk");
+      composerMicButtons.forEach((button) => {
+        button.hidden = false;
+        button.disabled = Boolean(state.requestInFlight);
+        button.classList.toggle("is-active", state.recognitionActive && state.recognitionMode === "talk");
+        button.setAttribute("aria-pressed", state.recognitionActive && state.recognitionMode === "talk" ? "true" : "false");
+        button.setAttribute(
+          "aria-label",
+          state.recognitionActive && state.recognitionMode === "talk" ? "Stop voice input" : "Start voice input",
+        );
+        button.title = state.recognitionActive && state.recognitionMode === "talk"
+          ? "Stop voice input"
+          : "Start voice input";
+      });
       if (el.wakeButton) {
         el.wakeButton.hidden = true;
         el.wakeButton.classList.remove("is-active");
@@ -638,6 +700,14 @@
     }
 
     el.talkButton.hidden = true;
+    composerMicButtons.forEach((button) => {
+      button.hidden = false;
+      button.disabled = true;
+      button.classList.remove("is-active");
+      button.setAttribute("aria-pressed", "false");
+      button.setAttribute("aria-label", "Voice input unavailable");
+      button.title = "Voice input is not available in this browser or context";
+    });
     if (el.wakeButton) {
       el.wakeButton.hidden = true;
       el.wakeButton.classList.remove("is-active");
@@ -1874,8 +1944,13 @@
     stopSpeaking("speech:new_message");
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = state.voiceStatus?.settings?.language || "en-US";
-    utterance.rate = 0.96;
-    utterance.pitch = 0.98;
+    const voice = chooseVorisVoice(utterance.lang);
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang || utterance.lang;
+    }
+    utterance.rate = 0.94;
+    utterance.pitch = 0.96;
     utterance.onstart = () => {
       state.speakingMessageId = message.id || "";
       setAssistantState("responding", "tts:speech_started");
@@ -1914,6 +1989,24 @@
       resetToCalmIdle(1200);
     };
     window.speechSynthesis.speak(utterance);
+  }
+
+  function chooseVorisVoice(language) {
+    if (!window.speechSynthesis?.getVoices) {
+      return null;
+    }
+    const voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) {
+      return null;
+    }
+    const normalizedLanguage = String(language || "en-US").toLowerCase();
+    const englishVoices = voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(normalizedLanguage.slice(0, 2)));
+    const candidates = englishVoices.length ? englishVoices : voices;
+    const preferredNamePattern = /(kokoro|koroko|natural|neural|aria|jenny|zira|samantha|google us english|microsoft)/i;
+    return candidates.find((voice) => preferredNamePattern.test(String(voice.name || "")))
+      || candidates.find((voice) => String(voice.lang || "").toLowerCase() === normalizedLanguage)
+      || candidates[0]
+      || null;
   }
 
   function stopSpeaking(eventName = "tts:stop") {
@@ -3355,70 +3448,139 @@
     updateWorkspaceSummary("VORIS captured your voice request and is sending it now.");
 
     const classification = classifyCommand(commandText);
-    if (classification.kind === "external") {
-      await handleExternalCommand(commandText, classification);
-      return;
-    }
+    state.speechCommandInFlight = true;
+    state.speechEnabled = true;
+    localStorage.setItem(STORAGE_KEYS.speechEnabled, "true");
+    syncAssistantModeChrome();
+    try {
+      if (classification.kind === "external") {
+        await handleExternalCommand(commandText, classification);
+        return;
+      }
 
-    await handleInternalCommand(commandText, classification);
+      await handleInternalCommand(commandText, classification);
+    } finally {
+      state.speechCommandInFlight = false;
+      syncAssistantModeChrome();
+    }
   }
 
   async function startSpeechCapture(mode) {
-    console.log("[VORIS Voice] Mic Triggered — Activating Python Core Backend");
-
-    // Prevent listening if VORIS is already thinking/talking
     if (state.requestInFlight) {
-        console.log("[VORIS Voice] Blocked: Request already in flight.");
+      setComposerStatus("Wait for the current response to finish before using voice.");
+      return;
+    }
+    if (!state.voiceSupported || !RecognitionCtor) {
+      surfaceVoiceFailure(
+        "Voice input needs Chrome or Edge on localhost/HTTPS with microphone permission enabled.",
+        {
+          event: "voice:unsupported",
+          title: "Voice input is unavailable.",
+          text: "Use Chrome or Edge and allow microphone access.",
+        },
+      );
+      return;
+    }
+    if (state.recognitionActive) {
+      stopRecognition("Listening stopped.");
+      return;
+    }
+
+    stopSpeaking("voice:listen_started");
+    clearVoiceTranscript();
+    const permissionState = await getMicrophonePermissionState();
+    if (permissionState === "denied") {
+      surfaceVoiceFailure("Microphone permission is blocked. Allow microphone access in the browser, then press the mic again.", {
+        event: "voice:permission_denied",
+        title: "Microphone is blocked.",
+      });
+      return;
+    }
+
+    const recognition = new RecognitionCtor();
+    let finalTranscript = "";
+    let failed = false;
+    state.recognition = recognition;
+    state.recognitionMode = mode || "talk";
+    state.recognitionStopReason = "";
+
+    recognition.lang = state.voiceStatus?.settings?.language || navigator.language || "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      state.recognitionActive = true;
+      setAssistantState("listening", "voice:push_to_talk_started");
+      setComposerStatus("Listening. Speak naturally.");
+      updateWorkspaceSummary("VORIS is listening through your browser microphone.");
+      updateVoiceTranscript("Listening...", { final: false });
+      syncVoiceControls();
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = String(result?.[0]?.transcript || "").trim();
+        if (!transcript) {
+          continue;
+        }
+        if (result.isFinal) {
+          finalTranscript = `${finalTranscript} ${transcript}`.trim();
+        } else {
+          interimTranscript = `${interimTranscript} ${transcript}`.trim();
+        }
+      }
+      updateVoiceTranscript([finalTranscript, interimTranscript].filter(Boolean).join(" "), {
+        final: Boolean(finalTranscript && !interimTranscript),
+      });
+    };
+
+    recognition.onerror = (event) => {
+      failed = true;
+      state.recognitionActive = false;
+      state.recognitionMode = "";
+      state.recognition = null;
+      const detail = formatSpeechErrorDetail(event);
+      surfaceVoiceFailure(detail, {
+        event: "voice:recognition_error",
+        keepTranscript: true,
+        resetMs: 1400,
+      });
+      syncVoiceControls();
+    };
+
+    recognition.onend = () => {
+      const transcript = finalTranscript.trim();
+      state.recognitionActive = false;
+      state.recognitionMode = "";
+      state.recognition = null;
+      syncVoiceControls();
+      if (failed || state.recognitionStopReason === "manual") {
         return;
-    }
-
-    // Grab the chat input and send button
-    const chatInput = document.querySelector("#chat-input") || (typeof el !== 'undefined' ? el.chatInput : null);
-    const sendBtn = document.querySelector("#send-btn") || (typeof el !== 'undefined' ? el.sendButton : null);
-    const originalPlaceholder = chatInput ? chatInput.placeholder : "Message VORIS...";
-
-    // Update UI to show it's listening
-    if (chatInput) {
-        chatInput.placeholder = "Listening (Speak into laptop mic)...";
-    }
+      }
+      if (!transcript) {
+        setComposerStatus("I did not hear anything clearly. Press the mic and try again.");
+        setAssistantState("idle", "voice:no_transcript");
+        settleToIdleLayout();
+        return;
+      }
+      void processRecognizedTranscript(transcript, mode || "talk");
+    };
 
     try {
-        // Ping the jarvis_core.py Python engine
-        const response = await fetch('/api/voice/listen');
-        const data = await response.json();
-        
-        if (data.status === "ok" && data.text) {
-            console.log("[VORIS Voice] Engine Heard:", data.text);
-            
-            // Drop the text into the chat box
-            if (chatInput) {
-                chatInput.value = data.text;
-            }
-            
-            // Auto-send the message to the brain
-            if (sendBtn) {
-                sendBtn.click();
-            }
-        } else {
-            console.log("[VORIS Voice] No speech detected or backend timeout.");
-            if (chatInput) {
-                chatInput.placeholder = "Didn't catch that. Try again.";
-                setTimeout(() => { chatInput.placeholder = originalPlaceholder; }, 2000);
-            }
-        }
-    } catch (err) {
-        console.error("[VORIS Voice] API Connection Error:", err);
-        if (chatInput) {
-            chatInput.placeholder = "Error connecting to Python mic backend.";
-            setTimeout(() => { chatInput.placeholder = originalPlaceholder; }, 2000);
-        }
-    } finally {
-        // Reset the input box if nothing was typed/heard
-        if (chatInput && chatInput.value === "") {
-            chatInput.placeholder = originalPlaceholder;
-        }
+      recognition.start();
+    } catch (error) {
+      state.recognitionActive = false;
+      state.recognitionMode = "";
+      state.recognition = null;
+      syncVoiceControls();
+      surfaceVoiceFailure(voiceFailureMessageFromError(error, "Voice input could not start."), {
+        event: "voice:start_failed",
+      });
     }
-}
+  }
 
   function stopRecognition(statusMessage) {
     logVoiceDebug("stopRecognition()", {
@@ -3882,57 +4044,6 @@
   }
 })();
 
-
-// ==========================================
-// VORIS NUCLEAR MIC OVERRIDE
-// ==========================================
-setTimeout(() => {
-    // 1. Hunt down the mic button using every possible ID/Class your UI might use
-    const micBtn = document.querySelector("#talk-btn") || document.querySelector(".mic-btn") || document.querySelector("#voice-btn") || document.querySelector("button[title*='voice']") || (typeof el !== 'undefined' ? el.talkButton : null);
-
-    if (micBtn) {
-        console.log("[VORIS Override] Mic Button successfully hijacked and wired to Python Engine.");
-        
-        // 2. Clone the button to strip away any old, broken JavaScript attached to it
-        const newMicBtn = micBtn.cloneNode(true);
-        micBtn.parentNode.replaceChild(newMicBtn, micBtn);
-
-        // 3. Forcefully attach our working backend logic
-        newMicBtn.addEventListener("click", async (e) => {
-            e.preventDefault();
-            console.log("[VORIS Voice] Button clicked! Pinging Python backend...");
-
-            const chatInput = document.querySelector("#chat-input") || document.querySelector(".chat-input") || document.querySelector("textarea") || (typeof el !== 'undefined' ? el.chatInput : null);
-            const sendBtn = document.querySelector("#send-btn") || document.querySelector(".send-btn") || (typeof el !== 'undefined' ? el.sendButton : null);
-
-            if (chatInput) chatInput.placeholder = "Listening (Speak into laptop mic)...";
-            newMicBtn.style.color = "#ff4444"; // Turn red
-
-            try {
-                const response = await fetch('/api/voice/listen');
-                const data = await response.json();
-
-                if (data.status === "ok" && data.text) {
-                    console.log("[VORIS Voice] Heard:", data.text);
-                    if (chatInput) chatInput.value = data.text;
-                    if (sendBtn) sendBtn.click();
-                } else {
-                    if (chatInput) chatInput.placeholder = "Didn't catch that.";
-                }
-            } catch (err) {
-                console.error("[VORIS Voice] Connection Error:", err);
-                if (chatInput) chatInput.placeholder = "Error connecting to Python.";
-            } finally {
-                setTimeout(() => {
-                    if (chatInput && chatInput.value === "") chatInput.placeholder = "Message VORIS...";
-                    newMicBtn.style.color = "";
-                }, 2000);
-            }
-        });
-    } else {
-        console.error("[VORIS Override ERROR] Could not find the Mic button in the HTML!");
-    }
-}, 1500); // Wait 1.5 seconds for the UI to fully load before hijacking it
 
 // ==========================================
 // VORIS FILE ATTACHMENT SYSTEM
